@@ -1,0 +1,9 @@
+entity.modal.collection:
+  title: 'List'
+  route_name: entity.modal.collection
+  base_route: entity.modal.collection
+
+entity.modal.edit_form:
+  title: 'Edit'
+  route_name: entity.modal.edit_form
+  base_route: entity.modal.edit_form

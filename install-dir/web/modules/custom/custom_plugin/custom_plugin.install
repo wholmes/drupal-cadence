@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Modal System module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function custom_plugin_install() {
+  // Config entities don't need installation - they're available automatically.
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function custom_plugin_uninstall() {
+  // Drupal automatically removes config entities, but we can clean up
+  // any additional state or cache here if needed.
+  \Drupal::cache()->deleteAll();
+}

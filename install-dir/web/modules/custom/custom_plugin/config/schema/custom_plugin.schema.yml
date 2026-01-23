@@ -1,0 +1,239 @@
+custom_plugin.modal.*:
+  type: config_entity
+  label: 'Modal configuration'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    status:
+      type: boolean
+      label: 'Status'
+    content:
+      type: mapping
+      label: 'Content'
+      mapping:
+        headline:
+          type: string
+          label: 'Headline'
+        subheadline:
+          type: string
+          label: 'Subheadline'
+        body:
+          type: text
+          label: 'Body content'
+        image:
+          type: mapping
+          label: 'Image'
+          mapping:
+            fid:
+              type: integer
+              label: 'File ID'
+              nullable: true
+            fids:
+              type: sequence
+              label: 'File IDs'
+              sequence:
+                type: integer
+                label: 'File ID'
+            placement:
+              type: string
+              label: 'Placement'
+            mobile_force_top:
+              type: boolean
+              label: 'Force image to top on mobile'
+            slideshow:
+              type: mapping
+              label: 'Slideshow settings'
+              mapping:
+                transition:
+                  type: string
+                  label: 'Transition type'
+                duration:
+                  type: integer
+                  label: 'Slide duration (seconds)'
+                speed:
+                  type: integer
+                  label: 'Transition speed (milliseconds)'
+                autoplay:
+                  type: boolean
+                  label: 'Auto-play'
+                loop:
+                  type: boolean
+                  label: 'Loop'
+                pause_on_hover:
+                  type: boolean
+                  label: 'Pause on hover'
+                show_dots:
+                  type: boolean
+                  label: 'Show navigation dots'
+                show_arrows:
+                  type: boolean
+                  label: 'Show navigation arrows'
+        cta1:
+          type: mapping
+          label: 'CTA 1'
+          mapping:
+            text:
+              type: string
+              label: 'Text'
+            url:
+              type: uri
+              label: 'URL'
+            new_tab:
+              type: boolean
+              label: 'Open in new tab'
+            color:
+              type: string
+              label: 'Button color'
+            rounded_corners:
+              type: boolean
+              label: 'Rounded corners'
+            reverse_style:
+              type: boolean
+              label: 'Reverse/outline style'
+            hover_animation:
+              type: string
+              label: 'Hover animation'
+        cta2:
+          type: mapping
+          label: 'CTA 2'
+          mapping:
+            text:
+              type: string
+              label: 'Text'
+            url:
+              type: uri
+              label: 'URL'
+            new_tab:
+              type: boolean
+              label: 'Open in new tab'
+            color:
+              type: string
+              label: 'Button color'
+            rounded_corners:
+              type: boolean
+              label: 'Rounded corners'
+            reverse_style:
+              type: boolean
+              label: 'Reverse/outline style'
+            hover_animation:
+              type: string
+              label: 'Hover animation'
+    rules:
+      type: mapping
+      label: 'Rules'
+      mapping:
+        scroll_enabled:
+          type: boolean
+          label: 'Scroll enabled'
+        scroll_percentage:
+          type: integer
+          label: 'Scroll percentage'
+        visit_count_enabled:
+          type: boolean
+          label: 'Visit count enabled'
+        visit_count:
+          type: integer
+          label: 'Visit count'
+        time_on_page_enabled:
+          type: boolean
+          label: 'Time on page enabled'
+        time_on_page_seconds:
+          type: integer
+          label: 'Time on page seconds'
+        referrer_enabled:
+          type: boolean
+          label: 'Referrer enabled'
+        referrer_url:
+          type: string
+          label: 'Referrer URL'
+        exit_intent_enabled:
+          type: boolean
+          label: 'Exit intent enabled'
+    styling:
+      type: mapping
+      label: 'Styling'
+      mapping:
+        layout:
+          type: string
+          label: 'Layout'
+        max_width:
+          type: string
+          label: 'Maximum width'
+        background_color:
+          type: string
+          label: 'Background color'
+        text_color:
+          type: string
+          label: 'Text color'
+        headline:
+          type: mapping
+          label: 'Headline typography'
+          mapping:
+            size:
+              type: string
+              label: 'Font size'
+            color:
+              type: string
+              label: 'Color'
+            font_family:
+              type: string
+              label: 'Font family'
+            letter_spacing:
+              type: string
+              label: 'Letter spacing'
+            line_height:
+              type: string
+              label: 'Line height'
+        subheadline:
+          type: mapping
+          label: 'Subheadline typography'
+          mapping:
+            size:
+              type: string
+              label: 'Font size'
+            color:
+              type: string
+              label: 'Color'
+            font_family:
+              type: string
+              label: 'Font family'
+            letter_spacing:
+              type: string
+              label: 'Letter spacing'
+            line_height:
+              type: string
+              label: 'Line height'
+    dismissal:
+      type: mapping
+      label: 'Dismissal settings'
+      mapping:
+        type:
+          type: string
+          label: 'Dismissal type'
+        expiration:
+          type: integer
+          label: 'Expiration (days)'
+    analytics:
+      type: mapping
+      label: 'Analytics'
+      mapping:
+        google_analytics:
+          type: boolean
+          label: 'Google Analytics enabled'
+        ga_measurement_id:
+          type: string
+          label: 'Google Analytics Measurement ID'
+    visibility:
+      type: mapping
+      label: 'Visibility settings'
+      mapping:
+        pages:
+          type: text
+          label: 'Pages'
+        negate:
+          type: boolean
+          label: 'Negate condition'

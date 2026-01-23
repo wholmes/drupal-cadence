@@ -1,0 +1,24 @@
+# Drupal
+install-dir/web/sites/default/files/
+install-dir/web/sites/default/settings.php
+install-dir/web/sites/default/settings.local.php
+install-dir/vendor/
+install-dir/composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak

@@ -1,0 +1,95 @@
+<?php
+
+/**
+ * @file
+ * Modal System module.
+ */
+
+use Drupal\Core\Render\Element;
+
+/**
+ * Implements hook_page_attachments().
+ */
+function custom_plugin_page_attachments(array &$attachments) {
+  // Skip during maintenance mode or install operations.
+  if (defined('MAINTENANCE_MODE')) {
+    \Drupal::logger('custom_plugin')->debug('Modal System: Skipped - maintenance mode');
+    return;
+  }
+
+  // Skip on admin pages that might be doing cache operations.
+  try {
+    $route_match = \Drupal::routeMatch();
+    $route_name = $route_match->getRouteName();
+    if ($route_name && (
+        strpos($route_name, 'system.performance') !== FALSE ||
+        strpos($route_name, 'system.cache') !== FALSE
+      )) {
+      \Drupal::logger('custom_plugin')->debug('Modal System: Skipped - cache operation route');
+      return;
+    }
+  }
+  catch (\Exception $e) {
+    // If we can't check the route, continue anyway.
+  }
+
+  // Only attach if the service exists and entity type is available.
+  if (!\Drupal::hasService('custom_plugin.modal_service')) {
+    \Drupal::logger('custom_plugin')->debug('Modal System: Service not available');
+    return;
+  }
+
+  try {
+    // Log the current route for debugging.
+    $route_match = \Drupal::routeMatch();
+    $route_name = $route_match->getRouteName();
+    \Drupal::logger('custom_plugin')->debug('Modal System: Hook running on route @route', ['@route' => $route_name ?? 'NULL']);
+
+    // Check if entity type exists before trying to use it.
+    $entity_type_manager = \Drupal::entityTypeManager();
+    if (!$entity_type_manager->hasDefinition('modal')) {
+      \Drupal::logger('custom_plugin')->debug('Modal System: Entity type "modal" not defined');
+      return;
+    }
+
+    $modal_service = \Drupal::service('custom_plugin.modal_service');
+    $modals = $modal_service->getEnabledModals();
+
+    \Drupal::logger('custom_plugin')->debug('Modal System: Found @count enabled modal(s)', ['@count' => count($modals)]);
+
+    if (!empty($modals)) {
+      $attachments['#attached']['drupalSettings']['modalSystem'] = [
+        'modals' => $modals,
+      ];
+      $attachments['#attached']['library'][] = 'custom_plugin/modal.system';
+      \Drupal::logger('custom_plugin')->debug('Modal System: Library attached successfully on route @route', ['@route' => $route_name ?? 'NULL']);
+    }
+    else {
+      \Drupal::logger('custom_plugin')->debug('Modal System: No enabled modals found - library not attached');
+    }
+  }
+  catch (\Exception $e) {
+    // Service might not be available during uninstall or cache rebuild.
+    // Log the error for debugging.
+    \Drupal::logger('custom_plugin')->error('Modal System: Exception - @message', ['@message' => $e->getMessage()]);
+  }
+  catch (\Throwable $e) {
+    // Catch any other errors to prevent breaking cache operations.
+    \Drupal::logger('custom_plugin')->error('Modal System: Throwable - @message', ['@message' => $e->getMessage()]);
+  }
+
+  // Attach admin CSS on admin pages.
+  try {
+    $route_match = \Drupal::routeMatch();
+    $route_name = $route_match->getRouteName();
+    if ($route_name && (
+        strpos($route_name, 'entity.modal') === 0 ||
+        strpos($route_name, 'custom_plugin') === 0
+      )) {
+      $attachments['#attached']['library'][] = 'custom_plugin/admin';
+    }
+  }
+  catch (\Exception $e) {
+    // Silently fail for admin CSS attachment.
+  }
+}
