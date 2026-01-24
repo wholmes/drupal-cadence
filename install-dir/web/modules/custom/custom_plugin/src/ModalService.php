@@ -175,11 +175,22 @@ class ModalService {
           // Check end date.
           if (!empty($end_date)) {
             if ($current_date > $end_date) {
-              \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id skipped - after end date (current: @current, end: @end)', [
-                '@id' => $modal->id(),
-                '@current' => $current_date,
-                '@end' => $end_date,
-              ]);
+              // End date has passed - automatically disable the modal.
+              try {
+                $modal->set('status', FALSE);
+                $modal->save();
+                \Drupal::logger('custom_plugin')->info('ModalService: Modal @id (@label) automatically disabled - end date (@end_date) has passed.', [
+                  '@id' => $modal->id(),
+                  '@label' => $modal->label(),
+                  '@end_date' => $end_date,
+                ]);
+              }
+              catch (\Exception $e) {
+                \Drupal::logger('custom_plugin')->warning('ModalService: Failed to disable expired modal @id: @message', [
+                  '@id' => $modal->id(),
+                  '@message' => $e->getMessage(),
+                ]);
+              }
               continue; // Skip this modal - already ended.
             }
           }
