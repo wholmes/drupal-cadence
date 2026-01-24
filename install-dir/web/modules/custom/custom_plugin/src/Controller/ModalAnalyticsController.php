@@ -53,6 +53,11 @@ class ModalAnalyticsController extends ControllerBase {
       return new JsonResponse(['status' => 'error', 'message' => 'Invalid data'], 400);
     }
 
+    // Check IP exclusion before tracking.
+    if ($this->isIpExcluded($request)) {
+      return new JsonResponse(['status' => 'success', 'excluded' => TRUE]);
+    }
+
     try {
       $connection = Database::getConnection();
       $connection->insert('modal_analytics')
@@ -78,9 +83,112 @@ class ModalAnalyticsController extends ControllerBase {
   }
 
   /**
-   * Analytics page.
+   * Check if the current IP address is excluded from tracking.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The current request.
+   *
+   * @return bool
+   *   TRUE if IP is excluded, FALSE otherwise.
+   */
+  protected function isIpExcluded(Request $request) {
+    $config = \Drupal::config('custom_plugin.settings');
+    
+    // Check if IP exclusion is enabled.
+    if (!$config->get('ip_exclusion_enabled')) {
+      return FALSE;
+    }
+
+    // Get the client IP address.
+    $client_ip = $request->getClientIp();
+    
+    // Get excluded IP list.
+    $excluded_ips = $config->get('ip_exclusion_list');
+    if (empty($excluded_ips)) {
+      return FALSE;
+    }
+
+    // Parse IP list (one per line).
+    $ip_list = array_filter(array_map('trim', explode("\n", $excluded_ips)));
+    
+    // Check if client IP is in the exclusion list.
+    return in_array($client_ip, $ip_list, TRUE);
+  }
+
+  /**
+   * Analytics page with tabs.
    */
   public function analytics(Request $request) {
+    // Get the active tab from query parameter.
+    $active_tab = $request->query->get('tab', 'analytics');
+    
+    // Preserve existing query parameters (like show_archived) when building tab URLs.
+    $current_query = $request->query->all();
+    
+    // Build tabs.
+    $tabs = [
+      'analytics' => [
+        'title' => $this->t('Dashboard'),
+        'url' => Url::fromRoute('custom_plugin.modal.analytics', [], ['query' => array_merge($current_query, ['tab' => 'analytics'])]),
+      ],
+      'charts' => [
+        'title' => $this->t('Charts'),
+        'url' => Url::fromRoute('custom_plugin.modal.analytics', [], ['query' => array_merge($current_query, ['tab' => 'charts'])]),
+      ],
+      'settings' => [
+        'title' => $this->t('Settings'),
+        'url' => Url::fromRoute('custom_plugin.modal.analytics', [], ['query' => array_merge($current_query, ['tab' => 'settings'])]),
+      ],
+    ];
+
+    // Build tab navigation with active state.
+    $tab_items = [];
+    foreach ($tabs as $key => $tab) {
+      $is_active = ($key === $active_tab);
+      $tab_classes = ['tabs__link'];
+      if ($is_active) {
+        $tab_classes[] = 'is-active';
+      }
+      
+      $tab_items[] = [
+        '#type' => 'link',
+        '#title' => $tab['title'],
+        '#url' => $tab['url'],
+        '#attributes' => [
+          'class' => $tab_classes,
+        ],
+      ];
+    }
+
+    $build = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-analytics-page']],
+      'tabs' => [
+        '#theme' => 'item_list',
+        '#items' => $tab_items,
+        '#attributes' => ['class' => ['tabs', 'primary']],
+      ],
+      'content' => [],
+    ];
+
+    // Render active tab content.
+    if ($active_tab === 'settings') {
+      $build['content'] = \Drupal::formBuilder()->getForm('Drupal\custom_plugin\Form\AnalyticsSettingsForm');
+    }
+    elseif ($active_tab === 'charts') {
+      $build['content'] = $this->chartsContent($request);
+    }
+    else {
+      $build['content'] = $this->analyticsContent($request);
+    }
+
+    return $build;
+  }
+
+  /**
+   * Analytics content (moved from analytics method).
+   */
+  protected function analyticsContent(Request $request) {
     try {
       $connection = Database::getConnection();
       
@@ -263,6 +371,114 @@ class ModalAnalyticsController extends ControllerBase {
       ]);
       return [
         '#markup' => '<p>' . $this->t('An error occurred while loading analytics data. Please check the logs for details.') . '</p>',
+      ];
+    }
+  }
+
+  /**
+   * Charts content (visualizations only).
+   */
+  protected function chartsContent(Request $request) {
+    try {
+      $connection = Database::getConnection();
+      
+      // Check if analytics table exists.
+      $schema = $connection->schema();
+      if (!$schema->tableExists('modal_analytics')) {
+        return [
+          '#markup' => '<p>' . $this->t('Analytics table not found. Please reinstall the module or run database updates.') . '</p>',
+        ];
+      }
+      
+      // Get all modals (including archived for historical analytics).
+      $storage = $this->entityTypeManager->getStorage('modal');
+      $modals = $storage->loadMultiple();
+      
+      // Get analytics data for charts.
+      $js_data = [];
+      foreach ($modals as $modal) {
+        $modal_id = $modal->id();
+        
+        // Get impressions.
+        $impressions = $connection->select('modal_analytics', 'ma')
+          ->condition('modal_id', $modal_id)
+          ->condition('event_type', 'modal_shown')
+          ->countQuery()
+          ->execute()
+          ->fetchField();
+        
+        // Get CTA clicks.
+        $cta1_clicks = $connection->select('modal_analytics', 'ma')
+          ->condition('modal_id', $modal_id)
+          ->condition('event_type', 'cta_click')
+          ->condition('cta_number', 1)
+          ->countQuery()
+          ->execute()
+          ->fetchField();
+        
+        $cta2_clicks = $connection->select('modal_analytics', 'ma')
+          ->condition('modal_id', $modal_id)
+          ->condition('event_type', 'cta_click')
+          ->condition('cta_number', 2)
+          ->countQuery()
+          ->execute()
+          ->fetchField();
+        
+        // Get form submissions.
+        $form_submissions = 0;
+        try {
+          $form_submissions_query = $connection->select('modal_analytics', 'ma')
+            ->condition('modal_id', $modal_id)
+            ->condition('event_type', '%submission', 'LIKE');
+          $form_submissions = (int) $form_submissions_query->countQuery()->execute()->fetchField();
+        }
+        catch (\Exception $e) {
+          $form_submissions = 0;
+        }
+        
+        // Calculate totals.
+        $total_cta_clicks = (int) ($cta1_clicks + $cta2_clicks);
+        $total_interactions = $total_cta_clicks + $form_submissions;
+        $conversion_rate = ($impressions > 0 && $total_interactions > 0)
+          ? round(($total_interactions / $impressions) * 100, 2) 
+          : 0;
+        
+        $js_data[$modal_id] = [
+          'modal' => [
+            'id' => $modal_id,
+            'label' => $modal->label(),
+          ],
+          'impressions' => (int) $impressions,
+          'cta1_clicks' => (int) $cta1_clicks,
+          'cta2_clicks' => (int) $cta2_clicks,
+          'total_cta_clicks' => $total_cta_clicks,
+          'form_submissions' => (int) $form_submissions,
+          'total_interactions' => $total_interactions,
+          'conversion_rate' => $conversion_rate,
+        ];
+      }
+      
+      // Build render array for charts only.
+      $build = [
+        '#theme' => 'modal_analytics_charts',
+        '#attached' => [
+          'library' => ['custom_plugin/modal.analytics'],
+          'drupalSettings' => [
+            'modalAnalytics' => [
+              'analyticsData' => $js_data,
+            ],
+          ],
+        ],
+      ];
+      
+      return $build;
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('custom_plugin')->error('Error loading charts: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return [
+        '#markup' => '<p>' . $this->t('An error occurred while loading charts. Please check the logs for details.') . '</p>',
       ];
     }
   }

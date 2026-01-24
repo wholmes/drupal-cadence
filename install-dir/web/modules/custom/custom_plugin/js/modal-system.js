@@ -576,9 +576,20 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.setupScrollRule = function (percentage) {
+    // Don't set up scroll rule if already dismissed.
+    if (this.isDismissed() && !this.isForcedOpen()) {
+      return;
+    }
+
     const threshold = (percentage / 100) * (document.documentElement.scrollHeight - window.innerHeight);
     
     const handler = () => {
+      // Check if dismissed before processing scroll event.
+      if (this.isDismissed() && !this.isForcedOpen()) {
+        window.removeEventListener('scroll', handler);
+        return;
+      }
+
       if (window.scrollY >= threshold) {
         this.rulesMet.scroll = true;
         this.evaluateAllRules();
@@ -587,6 +598,9 @@
     };
     
     window.addEventListener('scroll', handler, { passive: true });
+    
+    // Store handler reference so we can remove it on dismissal.
+    this.scrollHandler = handler;
   };
 
   Drupal.modalSystem.ModalManager.prototype.checkVisitCount = function (requiredCount) {
@@ -665,6 +679,16 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.evaluateAllRules = function () {
+    // Don't evaluate rules if modal is dismissed (unless forced open).
+    if (this.isDismissed() && !this.isForcedOpen()) {
+      // Stop checking if dismissed.
+      if (this.checkInterval) {
+        clearInterval(this.checkInterval);
+        this.checkInterval = null;
+      }
+      return;
+    }
+
     const rules = this.modal.rules;
     
     // Check if any rules are enabled.
@@ -1377,6 +1401,21 @@
       document.cookie = 'modal_dismissed_' + this.modal.id + '=1; expires=' + 
         date.toUTCString() + '; path=/';
     }
+
+    // Stop rule evaluation interval.
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+
+    // Remove scroll event listener if it exists.
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler);
+      this.scrollHandler = null;
+    }
+
+    // Clear rules met flags to prevent re-triggering.
+    this.rulesMet = {};
   };
 
   Drupal.modalSystem.ModalManager.prototype.isDismissed = function () {

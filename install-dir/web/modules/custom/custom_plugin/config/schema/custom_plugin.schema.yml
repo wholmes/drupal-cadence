@@ -314,3 +314,13 @@ custom_plugin.modal.*:
         negate:
           type: boolean
           label: 'Negate condition'
+custom_plugin.settings:
+  type: config_object
+  label: 'Modal System Settings'
+  mapping:
+    ip_exclusion_enabled:
+      type: boolean
+      label: 'IP exclusion enabled'
+    ip_exclusion_list:
+      type: text
+      label: 'IP exclusion list'
