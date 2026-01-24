@@ -29,20 +29,26 @@ class ModalListBuilder extends ConfigEntityListBuilder {
    */
   public function buildRow(EntityInterface $entity) {
     /** @var \Drupal\custom_plugin\ModalInterface $entity */
-    $is_archived = $entity->isArchived();
-    $row['label'] = [
-      '#markup' => $is_archived 
-        ? '<em>' . $entity->label() . '</em>' 
-        : $entity->label(),
-    ];
+    $is_archived = method_exists($entity, 'isArchived') ? $entity->isArchived() : FALSE;
+    
+    // Get label with fallback to ID if label is empty.
+    $label = $entity->label();
+    if (empty($label)) {
+      $label = $entity->id();
+    }
+    
+    if ($is_archived) {
+      $row['label'] = ['#markup' => '<em>' . $label . '</em>'];
+    } else {
+      $row['label'] = $label;
+    }
     $row['id'] = $entity->id();
     $row['status'] = $entity->status() ? $this->t('Enabled') : $this->t('Disabled');
-    $row['archived'] = [
-      '#markup' => $is_archived 
-        ? '<span class="modal-archived-badge">' . $this->t('Archived') . '</span>' 
-        : $this->t('—'),
-      '#wrapper_attributes' => ['class' => $is_archived ? ['modal-archived'] : []],
-    ];
+    if ($is_archived) {
+      $row['archived'] = ['#markup' => '<span class="modal-archived-badge">' . $this->t('Archived') . '</span>'];
+    } else {
+      $row['archived'] = $this->t('—');
+    }
     
     // Get visibility settings for dates.
     $visibility = $entity->getVisibility();
@@ -58,14 +64,10 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       // Format for display (e.g., "Jan 15, 2024").
       $start_timestamp = strtotime($start_date);
       $formatted_start = date('M j, Y', $start_timestamp);
-      $row['start_date'] = [
-        '#markup' => '<span class="modal-date-start">' . $formatted_start . '</span>',
-      ];
+      $row['start_date'] = ['#markup' => '<span class="modal-date-start">' . $formatted_start . '</span>'];
     }
     else {
-      $row['start_date'] = [
-        '#markup' => '<span class="modal-date-empty">' . $this->t('—') . '</span>',
-      ];
+      $row['start_date'] = ['#markup' => '<span class="modal-date-empty">' . $this->t('—') . '</span>'];
     }
     
     // Format end date and check if expired.
@@ -87,14 +89,10 @@ class ModalListBuilder extends ConfigEntityListBuilder {
         $class .= ' modal-date-expired';
       }
       
-      $row['end_date'] = [
-        '#markup' => '<span class="' . $class . '">' . $formatted_end . '</span>',
-      ];
+      $row['end_date'] = ['#markup' => '<span class="' . $class . '">' . $formatted_end . '</span>'];
     }
     else {
-      $row['end_date'] = [
-        '#markup' => '<span class="modal-date-empty">' . $this->t('—') . '</span>',
-      ];
+      $row['end_date'] = ['#markup' => '<span class="modal-date-empty">' . $this->t('—') . '</span>'];
     }
     
     return $row + parent::buildRow($entity);
@@ -105,6 +103,21 @@ class ModalListBuilder extends ConfigEntityListBuilder {
    */
   public function getDefaultOperations(EntityInterface $entity) {
     $operations = parent::getDefaultOperations($entity);
+    
+    // Add duplicate operation.
+    if ($entity->access('view')) {
+      try {
+        $operations['duplicate'] = [
+          'title' => $this->t('Duplicate'),
+          'weight' => 15,
+          'url' => Url::fromRoute('entity.modal.duplicate', [
+            'modal' => $entity->id(),
+          ]),
+        ];
+      } catch (\Exception $e) {
+        // If route doesn't exist, skip duplicate operation.
+      }
+    }
     
     // Always ensure delete operation has a valid URL.
     if (isset($operations['delete'])) {
@@ -169,14 +182,31 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       return ['#markup' => ''];
     }
     
-    // Build links array for rendering.
+    // Build links array for rendering with icons.
     $links = [];
     foreach ($operations as $key => $operation) {
+      // Map operations to icons with safe checks.
+      $delete_icon = '📦'; // Default to archive
+      if (method_exists($entity, 'isArchived') && $entity->isArchived()) {
+        $delete_icon = '🔄'; // Restore icon for archived modals
+      }
+      
+      $icon_map = [
+        'edit' => '✏️',
+        'duplicate' => '📋', 
+        'delete' => $delete_icon,
+      ];
+      
+      $title_with_icon = isset($icon_map[$key]) ? $icon_map[$key] : $operation['title'];
+      
       $links[$key] = [
         '#type' => 'link',
-        '#title' => $operation['title'],
+        '#title' => $title_with_icon,
         '#url' => $operation['url'],
-        '#attributes' => $operation['attributes'] ?? [],
+        '#attributes' => array_merge($operation['attributes'] ?? [], [
+          'title' => $operation['title'], // Tooltip shows full text
+          'class' => array_merge($operation['attributes']['class'] ?? [], ['button', 'button--small']),
+        ]),
       ];
       if (isset($operation['query'])) {
         $links[$key]['#url']->setOption('query', $operation['query']);

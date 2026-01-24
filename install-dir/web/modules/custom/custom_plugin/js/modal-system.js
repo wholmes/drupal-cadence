@@ -954,6 +954,46 @@
     // Set modal content (text only, no image).
     modalElement.innerHTML = textContent;
     
+    // Load form if configured - add form container with data attributes.
+    const formConfig = this.modal.content.form;
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('Modal System: Checking form config for modal', this.modal.id, 'formConfig:', formConfig);
+    }
+    if (formConfig && formConfig.type && formConfig.form_id) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Form config found - type:', formConfig.type, 'form_id:', formConfig.form_id);
+      }
+      const formContainer = document.createElement('div');
+      formContainer.className = 'modal-system--form-container';
+      formContainer.setAttribute('data-modal-id', escapeAttr(this.modal.id));
+      formContainer.setAttribute('data-form-type', escapeAttr(formConfig.type));
+      formContainer.setAttribute('data-form-id', escapeAttr(formConfig.form_id));
+      formContainer.setAttribute('role', 'region');
+      formContainer.setAttribute('aria-label', 'Form');
+      
+      // Add loading indicator.
+      formContainer.innerHTML = '<div class="modal-system--form-loading">' + 
+        escapeHtml('Loading form...') + '</div>';
+      
+      // Insert form container after body content or before CTAs.
+      const bodyElement = modalElement.querySelector('.modal-system--body');
+      const ctaWrapper = modalElement.querySelector('.modal-system--cta-wrapper');
+      
+      if (bodyElement) {
+        // Insert after body.
+        bodyElement.parentNode.insertBefore(formContainer, bodyElement.nextSibling);
+      } else if (ctaWrapper) {
+        // Insert before CTAs.
+        ctaWrapper.parentNode.insertBefore(formContainer, ctaWrapper);
+      } else {
+        // Append to modal content.
+        modalElement.appendChild(formContainer);
+      }
+      
+      // Load form via AJAX.
+      this.loadForm(formContainer, formConfig.type, formConfig.form_id);
+    }
+    
     // Add conditional rounded corners class based on image placement.
     if (imageContainer) {
       modalElement.classList.add('modal-system--modal-image-' + escapeAttr(placement));
@@ -1101,6 +1141,130 @@
     modalElement.setAttribute('tabindex', '-1');
     modalElement.focus();
     this.trapFocus(modalElement);
+  };
+
+  /**
+   * Loads a form via AJAX and inserts it into the modal.
+   *
+   * @param {HTMLElement} container
+   *   The container element where the form should be inserted.
+   * @param {string} formType
+   *   The form type (contact, webform, etc.).
+   * @param {string} formId
+   *   The form ID.
+   */
+  Drupal.modalSystem.ModalManager.prototype.loadForm = function (container, formType, formId) {
+    const self = this;
+    const url = '/modal-system/form/load?form_type=' + encodeURIComponent(formType) + 
+      '&form_id=' + encodeURIComponent(formId) + 
+      '&modal_id=' + encodeURIComponent(this.modal.id);
+
+    // Helper function to escape HTML (local to this method).
+    const escapeHtml = function(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    };
+
+    // Use jQuery if available (Drupal provides it), otherwise use fetch.
+    if (typeof jQuery !== 'undefined' && jQuery.ajax) {
+      jQuery.ajax({
+        url: url,
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+          if (response.success && response.form_html) {
+            container.innerHTML = response.form_html;
+            
+            // Fix form action URL for proper submission.
+            const formElement = container.querySelector('form');
+            if (formElement && formType && formId) {
+              let correctAction = '';
+              if (formType === 'webform') {
+                correctAction = '/webform/' + formId;
+              } else if (formType === 'contact') {
+                correctAction = '/contact/' + formId;
+              }
+              
+              if (correctAction) {
+                formElement.setAttribute('action', correctAction);
+                if (typeof console !== 'undefined' && console.log) {
+                  console.log('Modal System: Updated form action to:', correctAction);
+                }
+              }
+            }
+            
+            // Re-attach Drupal behaviors for the new form.
+            if (typeof Drupal !== 'undefined' && Drupal.attachBehaviors) {
+              Drupal.attachBehaviors(container);
+            }
+            
+            if (typeof console !== 'undefined' && console.log) {
+              console.log('Modal System: Form loaded successfully for modal', self.modal.id);
+            }
+          } else {
+            container.innerHTML = '<div class="modal-system--form-error">' + 
+              escapeHtml(response.error || 'Failed to load form') + '</div>';
+          }
+        },
+        error: function(xhr, status, error) {
+          container.innerHTML = '<div class="modal-system--form-error">' + 
+            escapeHtml('Error loading form: ' + error) + '</div>';
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('Modal System: Error loading form for modal', self.modal.id, error);
+          }
+        }
+      });
+    } else {
+      // Fallback to fetch API.
+      fetch(url)
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(data) {
+          if (data.success && data.form_html) {
+            container.innerHTML = data.form_html;
+            
+            // Fix form action URL for proper submission.
+            const formElement = container.querySelector('form');
+            if (formElement && formType && formId) {
+              let correctAction = '';
+              if (formType === 'webform') {
+                correctAction = '/webform/' + formId;
+              } else if (formType === 'contact') {
+                correctAction = '/contact/' + formId;
+              }
+              
+              if (correctAction) {
+                formElement.setAttribute('action', correctAction);
+                if (typeof console !== 'undefined' && console.log) {
+                  console.log('Modal System: Updated form action to:', correctAction);
+                }
+              }
+            }
+            
+            // Re-attach Drupal behaviors for the new form.
+            if (typeof Drupal !== 'undefined' && Drupal.attachBehaviors) {
+              Drupal.attachBehaviors(container);
+            }
+            
+            if (typeof console !== 'undefined' && console.log) {
+              console.log('Modal System: Form loaded successfully for modal', self.modal.id);
+            }
+          } else {
+            container.innerHTML = '<div class="modal-system--form-error">' + 
+              escapeHtml(data.error || 'Failed to load form') + '</div>';
+          }
+        })
+        .catch(function(error) {
+          container.innerHTML = '<div class="modal-system--form-error">' + 
+            escapeHtml('Error loading form: ' + error.message) + '</div>';
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('Modal System: Error loading form for modal', self.modal.id, error);
+          }
+        });
+    }
   };
 
   Drupal.modalSystem.ModalManager.prototype.closeModal = function () {
