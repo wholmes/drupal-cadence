@@ -48,9 +48,10 @@ class ModalListController extends ControllerBase {
       $new_id = $this->generateUniqueId($original_id);
       $duplicate->set('id', $new_id);
       
-      // Update the label.
+      // Update the label with date.
       $original_label = $modal->label();
-      $new_label = $original_label . ' (Copy)';
+      $date_suffix = date('M j, Y'); // e.g., "Jan 24, 2026"
+      $new_label = $original_label . ' - ' . $date_suffix;
       $duplicate->set('label', $new_label);
       
       // Reset priority to 0 for the copy (avoid conflicts).
@@ -83,7 +84,7 @@ class ModalListController extends ControllerBase {
   }
 
   /**
-   * Generates a unique ID for the duplicated modal.
+   * Generates a unique ID for the duplicated modal using date-based naming.
    *
    * @param string $original_id
    *   The original modal ID.
@@ -94,18 +95,27 @@ class ModalListController extends ControllerBase {
   protected function generateUniqueId($original_id) {
     $storage = $this->entityTypeManager()->getStorage('modal');
     
-    // Try with "_copy" suffix first.
-    $new_id = $original_id . '_copy';
+    // Create date-based suffix: YYYY_MM_DD format.
+    $date_suffix = date('Y_m_d'); // e.g., "2026_01_24"
+    $new_id = $original_id . '_' . $date_suffix;
+    
+    // If this date-based ID doesn't exist, use it.
     if (!$storage->load($new_id)) {
       return $new_id;
     }
     
-    // If "_copy" exists, try "_copy_2", "_copy_3", etc.
-    $counter = 2;
-    do {
-      $new_id = $original_id . '_copy_' . $counter;
-      $counter++;
-    } while ($storage->load($new_id));
+    // If date-based ID exists, add time suffix: YYYY_MM_DD_HHMM.
+    $datetime_suffix = date('Y_m_d_Hi'); // e.g., "2026_01_24_1430"
+    $new_id = $original_id . '_' . $datetime_suffix;
+    
+    // If datetime still exists, add counter.
+    if ($storage->load($new_id)) {
+      $counter = 2;
+      do {
+        $new_id = $original_id . '_' . $datetime_suffix . '_' . $counter;
+        $counter++;
+      } while ($storage->load($new_id));
+    }
     
     return $new_id;
   }
