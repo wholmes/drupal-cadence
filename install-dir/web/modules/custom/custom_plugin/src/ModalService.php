@@ -230,8 +230,25 @@ class ModalService {
             $file_url_generator = \Drupal::service('file_url_generator');
             $urls = [];
             
-            // Check for old format: single fid (backward compatibility) - prioritize this.
-            if (!empty($image_data['fid'])) {
+            // Check for fids array first (multiple images - takes priority).
+            if (!empty($image_data['fids']) && is_array($image_data['fids'])) {
+              foreach ($image_data['fids'] as $fid) {
+                if ($fid && (int) $fid > 0) {
+                  $file = File::load((int) $fid);
+                  if ($file && $file->isPermanent()) {
+                    $urls[] = $file_url_generator->generateAbsoluteString($file->getFileUri());
+                  }
+                  else {
+                    \Drupal::logger('custom_plugin')->warning('ModalService: Image file (FID: @fid) not found or not permanent for modal @id.', [
+                      '@fid' => $fid,
+                      '@id' => $modal->id(),
+                    ]);
+                  }
+                }
+              }
+            }
+            // Fallback to single fid (backward compatibility).
+            elseif (!empty($image_data['fid'])) {
               $fid = (int) $image_data['fid'];
               if ($fid > 0) {
                 $file = File::load($fid);
@@ -243,17 +260,6 @@ class ModalService {
                     '@fid' => $fid,
                     '@id' => $modal->id(),
                   ]);
-                }
-              }
-            }
-            // Check for new format: fids array (multiple images).
-            elseif (!empty($image_data['fids']) && is_array($image_data['fids'])) {
-              foreach ($image_data['fids'] as $fid) {
-                if ($fid && (int) $fid > 0) {
-                  $file = File::load((int) $fid);
-                  if ($file && $file->isPermanent()) {
-                    $urls[] = $file_url_generator->generateAbsoluteString($file->getFileUri());
-                  }
                 }
               }
             }
@@ -278,6 +284,15 @@ class ModalService {
                 'placement' => $image_data['placement'] ?? 'top',
                 'mobile_force_top' => !empty($image_data['mobile_force_top']),
               ];
+
+              // Include carousel settings if configured and 2+ images.
+              if (count($urls) > 1 && !empty($image_data['carousel_enabled'])) {
+                $content['image']['carousel_enabled'] = TRUE;
+                $content['image']['carousel_duration'] = max(1, (int) ($image_data['carousel_duration'] ?? 5));
+              }
+              else {
+                $content['image']['carousel_enabled'] = FALSE;
+              }
 
               // Include mobile image URL if configured.
               if ($mobile_url) {

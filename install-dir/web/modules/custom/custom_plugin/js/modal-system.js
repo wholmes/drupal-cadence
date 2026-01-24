@@ -426,6 +426,20 @@
   };
 
   /**
+   * Utility function to escape HTML attributes.
+   * Shared across all ModalManager methods.
+   */
+  const escapeAttr = function(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  /**
    * Modal Manager class - handles one modal instance.
    */
 
@@ -779,8 +793,28 @@
         imageUrls = [imageData.url];
       }
       
+      // Debug: Log image data to see what we're working with.
+      console.log('Modal System: Image data:', {
+        hasUrls: !!imageData.urls,
+        urlsCount: imageUrls.length,
+        urls: imageUrls,
+        carousel_enabled: imageData.carousel_enabled,
+        carousel_duration: imageData.carousel_duration,
+        allImageData: imageData
+      });
+      
       if (imageUrls.length > 0) {
-        if (imageUrls.length > 1 && imageData.slideshow) {
+        // Check for simple carousel first (takes priority over slideshow).
+        if (imageUrls.length > 1 && imageData.carousel_enabled) {
+          // Build simple carousel (fade transitions, autoplay only).
+          const carouselDuration = imageData.carousel_duration || 5;
+          console.log('Modal System: Building carousel with', imageUrls.length, 'images, duration:', carouselDuration, 'seconds');
+          imageContainer = this.buildSimpleCarousel(imageUrls, carouselDuration, placement, mobileForceTop, imageHeight, mobileBreakpoint, imageData);
+        }
+        else if (imageUrls.length > 1) {
+          console.log('Modal System: Multiple images but carousel not enabled. imageUrls:', imageUrls.length, 'carousel_enabled:', imageData.carousel_enabled);
+        }
+        else if (imageUrls.length > 1 && imageData.slideshow) {
           // Build slideshow - use slideshow settings if available, otherwise use defaults.
           const slideshowConfig = imageData.slideshow || {
             transition: 'slide',
@@ -892,9 +926,13 @@
       }
     }
 
-    // Add CTAs with data-attributes.
-    const hasCta1 = this.modal.content.cta1 && this.modal.content.cta1.text;
-    const hasCta2 = this.modal.content.cta2 && this.modal.content.cta2.text;
+    // Add CTAs with data-attributes - check enabled flag and text.
+    const hasCta1 = this.modal.content.cta1 && 
+                    this.modal.content.cta1.enabled !== false && 
+                    this.modal.content.cta1.text;
+    const hasCta2 = this.modal.content.cta2 && 
+                    this.modal.content.cta2.enabled !== false && 
+                    this.modal.content.cta2.text;
     
     if (hasCta1 || hasCta2) {
       textContent += '<div class="modal-system--cta-wrapper">';
@@ -1303,6 +1341,12 @@
           slideshow.cleanupSlideshow();
         }
         
+        // Clean up carousel if present.
+        const carousel = overlay.querySelector('.modal-system--carousel-fade');
+        if (carousel) {
+          this.stopCarousel(carousel);
+        }
+        
         overlay.remove();
         document.body.style.overflow = '';
         this.dismissModal();
@@ -1424,6 +1468,245 @@
           }
         },
       });
+    }
+  };
+
+  /**
+   * Builds a simple carousel container with fade transitions (background images only).
+   */
+  Drupal.modalSystem.ModalManager.prototype.buildSimpleCarousel = function (urls, duration, placement, mobileForceTop, imageHeight, mobileBreakpoint, imageData) {
+    // Create container (same structure as single image for consistency).
+    const container = document.createElement('div');
+    container.className = 'modal-system--image-container modal-system--image-' + escapeAttr(placement) + ' modal-system--carousel-fade';
+    container.style.position = 'relative';
+    
+    if (mobileForceTop) {
+      container.classList.add('modal-system--mobile-force-top');
+      container.setAttribute('data-mobile-breakpoint', mobileBreakpoint);
+    }
+    
+    // Create two overlapping layers for crossfade effect.
+    const layer1 = document.createElement('div');
+    layer1.className = 'modal-system--carousel-layer modal-system--carousel-layer-active';
+    layer1.style.backgroundImage = 'url(' + escapeAttr(urls[0]) + ')';
+    layer1.style.position = 'absolute';
+    layer1.style.top = '0';
+    layer1.style.left = '0';
+    layer1.style.width = '100%';
+    layer1.style.height = '100%';
+    layer1.style.backgroundSize = 'cover';
+    layer1.style.backgroundPosition = 'center';
+    layer1.style.backgroundRepeat = 'no-repeat';
+    
+    const layer2 = document.createElement('div');
+    layer2.className = 'modal-system--carousel-layer';
+    layer2.style.position = 'absolute';
+    layer2.style.top = '0';
+    layer2.style.left = '0';
+    layer2.style.width = '100%';
+    layer2.style.height = '100%';
+    layer2.style.backgroundSize = 'cover';
+    layer2.style.backgroundPosition = 'center';
+    layer2.style.backgroundRepeat = 'no-repeat';
+    layer2.style.opacity = '0';
+    
+    container.appendChild(layer1);
+    container.appendChild(layer2);
+    
+    container.setAttribute('role', 'img');
+    container.setAttribute('aria-label', this.modal.content.headline || 'Modal image carousel');
+    
+    // Store carousel data.
+    container.setAttribute('data-carousel-urls', JSON.stringify(urls));
+    container.setAttribute('data-carousel-duration', duration);
+    container.setAttribute('data-carousel-current', 0);
+    container.carouselLayers = { layer1: layer1, layer2: layer2, currentLayer: 1 };
+    
+    // Apply image height using CSS custom properties.
+    if (imageHeight) {
+      const heightValue = String(imageHeight).trim();
+      if (heightValue !== '') {
+        container.style.setProperty('--image-height', heightValue);
+        container.setAttribute('data-has-height', 'true');
+      }
+    }
+
+    // Apply mobile-specific height if configured and mobile_force_top is enabled.
+    if (mobileForceTop && imageData.mobile_height) {
+      const mobileHeightValue = String(imageData.mobile_height).trim();
+      if (mobileHeightValue !== '') {
+        container.setAttribute('data-mobile-height', mobileHeightValue);
+        container.style.setProperty('--mobile-height', mobileHeightValue);
+      }
+    }
+
+    // Apply max-height for top/bottom placement if configured.
+    if ((placement === 'top' || placement === 'bottom') && imageData.max_height_top_bottom) {
+      const maxHeightValue = String(imageData.max_height_top_bottom).trim();
+      if (maxHeightValue !== '') {
+        container.setAttribute('data-max-height-top-bottom', maxHeightValue);
+        container.style.setProperty('--max-height-top-bottom', maxHeightValue);
+      }
+    }
+    
+    // Apply image effects if configured.
+    const effects = imageData.effects || {};
+    if (effects.background_color) {
+      container.style.backgroundColor = effects.background_color;
+    }
+    
+    // Build filter string.
+    const filters = [];
+    if (effects.grayscale && effects.grayscale > 0) {
+      filters.push('grayscale(' + effects.grayscale + '%)');
+    }
+    if (filters.length > 0) {
+      container.style.filter = filters.join(' ');
+    }
+    
+    // Apply blend mode.
+    if (effects.blend_mode && effects.blend_mode !== 'normal') {
+      container.style.mixBlendMode = effects.blend_mode;
+    }
+
+    // Set mobile image if configured.
+    if (imageData.mobile_url) {
+      container.style.setProperty('--mobile-image', 'url(' + escapeAttr(imageData.mobile_url) + ')');
+      container.setAttribute('data-has-mobile-image', 'true');
+    }
+
+    // Start carousel autoplay (pass imageData for effects).
+    this.startCarousel(container, imageData);
+    
+    return container;
+  };
+
+  /**
+   * Starts the simple carousel autoplay with crossfade transitions.
+   */
+  Drupal.modalSystem.ModalManager.prototype.startCarousel = function (container, imageData) {
+    const urlsJson = container.getAttribute('data-carousel-urls');
+    if (!urlsJson) {
+      console.warn('Modal System: Carousel container missing data-carousel-urls');
+      return;
+    }
+    
+    const urls = JSON.parse(urlsJson);
+    if (!urls || urls.length < 2) {
+      console.warn('Modal System: Carousel needs at least 2 images, got:', urls ? urls.length : 0);
+      return; // Need at least 2 images for carousel.
+    }
+    
+    const duration = parseInt(container.getAttribute('data-carousel-duration') || '5', 10) * 1000; // Convert to milliseconds.
+    let currentIndex = parseInt(container.getAttribute('data-carousel-current') || '0', 10);
+    console.log('Modal System: Starting carousel with', urls.length, 'images, duration:', duration / 1000, 'seconds');
+    
+    // Store carousel state on container (including imageData for effects).
+    container.carouselState = {
+      urls: urls,
+      currentIndex: currentIndex,
+      duration: duration,
+      isTransitioning: false,
+      imageData: imageData || {} // Store imageData for applying effects during transitions
+    };
+    
+    // Apply effects to both layers initially.
+    const effects = (imageData && imageData.effects) ? imageData.effects : {};
+    if (container.carouselLayers) {
+      if (effects.background_color) {
+        container.carouselLayers.layer1.style.backgroundColor = effects.background_color;
+        container.carouselLayers.layer2.style.backgroundColor = effects.background_color;
+      }
+      if (effects.grayscale && effects.grayscale > 0) {
+        container.carouselLayers.layer1.style.filter = 'grayscale(' + effects.grayscale + '%)';
+        container.carouselLayers.layer2.style.filter = 'grayscale(' + effects.grayscale + '%)';
+      }
+      if (effects.blend_mode && effects.blend_mode !== 'normal') {
+        container.carouselLayers.layer1.style.mixBlendMode = effects.blend_mode;
+        container.carouselLayers.layer2.style.mixBlendMode = effects.blend_mode;
+      }
+    }
+    
+    // Function to transition to next image and schedule next transition.
+    const transitionToNext = function() {
+      // Don't start new transition if one is in progress.
+      if (container.carouselState.isTransitioning) {
+        return;
+      }
+      
+      container.carouselState.isTransitioning = true;
+      
+      // Move to next image (loop back to 0 at end).
+      container.carouselState.currentIndex = (container.carouselState.currentIndex + 1) % urls.length;
+      container.setAttribute('data-carousel-current', container.carouselState.currentIndex);
+      
+      // Get the layers for crossfade.
+      const layers = container.carouselLayers;
+      if (!layers) {
+        console.warn('Modal System: Carousel layers not found');
+        container.carouselState.isTransitioning = false;
+        return;
+      }
+      
+      const currentLayer = layers.currentLayer === 1 ? layers.layer1 : layers.layer2;
+      const nextLayer = layers.currentLayer === 1 ? layers.layer2 : layers.layer1;
+      
+      // Set the next image on the inactive layer.
+      nextLayer.style.backgroundImage = 'url(' + escapeAttr(urls[container.carouselState.currentIndex]) + ')';
+      
+      // Apply image effects to next layer if configured.
+      const imgData = container.carouselState.imageData;
+      if (imgData && imgData.effects) {
+        const effects = imgData.effects;
+        if (effects.background_color) {
+          nextLayer.style.backgroundColor = effects.background_color;
+        }
+        if (effects.grayscale && effects.grayscale > 0) {
+          nextLayer.style.filter = 'grayscale(' + effects.grayscale + '%)';
+        }
+        if (effects.blend_mode && effects.blend_mode !== 'normal') {
+          nextLayer.style.mixBlendMode = effects.blend_mode;
+        }
+      }
+      
+      // Crossfade: fade out current layer while fading in next layer simultaneously.
+      currentLayer.style.opacity = '0';
+      nextLayer.style.opacity = '1';
+      
+      // After transition completes, swap which layer is current.
+      setTimeout(function() {
+        // Swap current layer.
+        layers.currentLayer = layers.currentLayer === 1 ? 2 : 1;
+        
+        // Reset the now-inactive layer's opacity for next transition.
+        currentLayer.style.opacity = '0';
+        
+        container.carouselState.isTransitioning = false;
+        
+        // Schedule next transition after the full duration (including fade time).
+        // The duration is the time each image should be visible, so we wait
+        // duration minus the 1 second used for the crossfade transition.
+        const timeUntilNext = Math.max(0, duration - 1000); // Subtract 1 second for crossfade.
+        container.carouselTimeout = setTimeout(transitionToNext, timeUntilNext);
+      }, 1000); // Match CSS transition duration (1 second).
+    };
+    
+    // Start the carousel - first transition after initial duration.
+    container.carouselTimeout = setTimeout(function() {
+      transitionToNext();
+    }, duration);
+  };
+
+  /**
+   * Stops the carousel and cleans up interval.
+   */
+  Drupal.modalSystem.ModalManager.prototype.stopCarousel = function (container) {
+    if (container.carouselTimeout) {
+      clearTimeout(container.carouselTimeout);
+      container.carouselTimeout = null;
+    }
+    if (container.carouselState) {
+      container.carouselState.isTransitioning = false;
     }
   };
 

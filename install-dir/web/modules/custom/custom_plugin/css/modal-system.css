@@ -585,6 +585,17 @@
 
 
 
+/* Simple Carousel - Crossfade Transitions */
+.modal-system--carousel-fade {
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-system--carousel-layer {
+  transition: opacity 1s ease-in-out;
+  will-change: opacity;
+}
+
 /* CTAs */
 .modal-system--cta-wrapper {
   display: flex;

@@ -99,9 +99,21 @@ class ModalDeleteForm extends EntityConfirmFormBase {
       $content = $this->entity->get('content');
       $image_data = $content['image'] ?? [];
       
-      // Clean up regular image.
-      if (!empty($image_data['fid'])) {
-        $file = File::load($image_data['fid']);
+      // Clean up all regular images (support both fid and fids).
+      $fids_to_cleanup = [];
+      
+      // Check for fids array (multiple images).
+      if (!empty($image_data['fids']) && is_array($image_data['fids'])) {
+        $fids_to_cleanup = array_filter(array_map('intval', $image_data['fids']));
+      }
+      // Check for single fid (backward compatibility).
+      elseif (!empty($image_data['fid']) && is_numeric($image_data['fid'])) {
+        $fids_to_cleanup = [(int) $image_data['fid']];
+      }
+      
+      // Clean up all regular images.
+      foreach ($fids_to_cleanup as $fid) {
+        $file = File::load($fid);
         if ($file) {
           // Remove file usage tracking.
           \Drupal::service('file.usage')->delete($file, 'custom_plugin', 'modal', $this->entity->id());

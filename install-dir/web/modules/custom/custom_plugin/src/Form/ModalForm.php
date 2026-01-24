@@ -142,9 +142,35 @@ class ModalForm extends EntityForm {
     // Load image data - simple approach.
     $image_data = $content['image'] ?? [];
     $default_fid = NULL;
+    $default_fids = NULL;
     
-    // Get FID from saved data - must be a positive integer.
-    if (!empty($image_data['fid']) && is_numeric($image_data['fid'])) {
+    // Check for fids array first (multiple images - takes priority).
+    if (!empty($image_data['fids']) && is_array($image_data['fids'])) {
+      // Multiple images format - verify all files exist.
+      $valid_fids = [];
+      foreach ($image_data['fids'] as $fid) {
+        $fid = (int) $fid;
+        if ($fid > 0) {
+          $file = File::load($fid);
+          if ($file) {
+            // Ensure file is permanent.
+            if ($file->isTemporary()) {
+              $file->setPermanent();
+              $file->save();
+            }
+            $valid_fids[] = $fid;
+          }
+        }
+      }
+      if (!empty($valid_fids)) {
+        $default_fids = $valid_fids;
+        // Also set default_fid for backward compatibility.
+        $default_fid = reset($valid_fids);
+      }
+    }
+    
+    // Fallback to single fid if no fids array or fids array was empty.
+    if (empty($default_fids) && !empty($image_data['fid']) && is_numeric($image_data['fid'])) {
       $fid = (int) $image_data['fid'];
       if ($fid > 0) {
         // Verify file exists.
@@ -156,15 +182,18 @@ class ModalForm extends EntityForm {
             $file->setPermanent();
             $file->save();
           }
+          // Convert to array for multiple support.
+          $default_fids = [$default_fid];
         }
       }
     }
-    
+
     $form['content']['image']['fid'] = [
       '#type' => 'managed_file',
-      '#title' => $this->t('Image'),
-      '#description' => $this->t('Upload an image to display in the modal. Allowed formats: jpg, jpeg, png, gif, webp'),
-      '#default_value' => $default_fid ? [$default_fid] : NULL,
+      '#title' => $this->t('Image(s)'),
+      '#description' => $this->t('Upload one or more images to display in the modal. Hold Ctrl/Cmd to select multiple images. Allowed formats: jpg, jpeg, png, gif, webp'),
+      '#default_value' => $default_fids,
+      '#multiple' => TRUE,
       '#upload_location' => 'public://modal-images',
       '#upload_validators' => [
         'FileExtension' => [
@@ -230,6 +259,35 @@ class ModalForm extends EntityForm {
       '#states' => [
         'visible' => [
           ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+
+    // Simple Carousel Settings (only for multiple images).
+    $form['content']['image']['carousel_enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Image Carousel'),
+      '#description' => $this->t('When enabled with multiple images, images will automatically fade between each other. Requires 2 or more images.'),
+      '#default_value' => !empty($image_data['carousel_enabled']),
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['content']['image']['carousel_duration'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Image Duration (seconds)'),
+      '#description' => $this->t('How long each image displays before fading to the next. Minimum 1 second.'),
+      '#default_value' => $image_data['carousel_duration'] ?? 5,
+      '#min' => 1,
+      '#max' => 60,
+      '#size' => 5,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][carousel_enabled]"]' => ['checked' => TRUE],
           ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
         ],
       ],
@@ -438,25 +496,59 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('CTA 1'),
       '#attributes' => ['class' => ['modal-cta-fieldset', 'modal-cta-1']],
     ];
+    
+    // Enable/disable checkbox for CTA 1.
+    // Default to enabled if: explicitly enabled, OR text exists but enabled flag not set (backward compatibility).
+    $cta1_enabled_default = isset($cta1['enabled']) 
+      ? !empty($cta1['enabled']) 
+      : !empty($cta1['text']); // Backward compatibility: if enabled not set, enable if text exists.
+    
+    $form['content']['cta1']['enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable CTA 1'),
+      '#description' => $this->t('Check to enable this call-to-action button. Uncheck to disable it without losing your settings.'),
+      '#default_value' => $cta1_enabled_default,
+    ];
+    
     $form['content']['cta1']['text'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Text'),
       '#default_value' => $cta1['text'] ?? '',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta1][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
     $form['content']['cta1']['url'] = [
       '#type' => 'url',
       '#title' => $this->t('URL'),
       '#default_value' => $cta1['url'] ?? '',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta1][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
     $form['content']['cta1']['new_tab'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Open in new tab'),
       '#default_value' => $cta1['new_tab'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta1][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
     $form['content']['cta1']['color'] = [
       '#type' => 'color',
       '#title' => $this->t('Button Color'),
       '#default_value' => $cta1['color'] ?? '#0073aa',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta1][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     $form['content']['cta1']['rounded_corners'] = [
@@ -464,6 +556,11 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('Rounded Corners'),
       '#description' => $this->t('Enable rounded corners for this button'),
       '#default_value' => $cta1['rounded_corners'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta1][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     $form['content']['cta1']['reverse_style'] = [
@@ -471,6 +568,11 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('Reverse/Outline Style'),
       '#description' => $this->t('Transparent background with colored border and text'),
       '#default_value' => $cta1['reverse_style'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta1][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     $form['content']['cta1']['hover_animation'] = [
@@ -484,6 +586,11 @@ class ModalForm extends EntityForm {
         'bounce' => $this->t('Bounce'),
       ],
       '#default_value' => $cta1['hover_animation'] ?? '',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta1][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     // CTA 2.
@@ -492,25 +599,59 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('CTA 2'),
       '#attributes' => ['class' => ['modal-cta-fieldset', 'modal-cta-2']],
     ];
+    
+    // Enable/disable checkbox for CTA 2.
+    // Default to enabled if: explicitly enabled, OR text exists but enabled flag not set (backward compatibility).
+    $cta2_enabled_default = isset($cta2['enabled']) 
+      ? !empty($cta2['enabled']) 
+      : !empty($cta2['text']); // Backward compatibility: if enabled not set, enable if text exists.
+    
+    $form['content']['cta2']['enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable CTA 2'),
+      '#description' => $this->t('Check to enable this call-to-action button. Uncheck to disable it without losing your settings.'),
+      '#default_value' => $cta2_enabled_default,
+    ];
+    
     $form['content']['cta2']['text'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Text'),
       '#default_value' => $cta2['text'] ?? '',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta2][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
     $form['content']['cta2']['url'] = [
       '#type' => 'url',
       '#title' => $this->t('URL'),
       '#default_value' => $cta2['url'] ?? '',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta2][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
     $form['content']['cta2']['new_tab'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Open in new tab'),
       '#default_value' => $cta2['new_tab'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta2][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
     $form['content']['cta2']['color'] = [
       '#type' => 'color',
       '#title' => $this->t('Button Color'),
       '#default_value' => $cta2['color'] ?? '#0073aa',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta2][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     $form['content']['cta2']['rounded_corners'] = [
@@ -518,6 +659,11 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('Rounded Corners'),
       '#description' => $this->t('Enable rounded corners for this button'),
       '#default_value' => $cta2['rounded_corners'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta2][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     $form['content']['cta2']['reverse_style'] = [
@@ -525,6 +671,11 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('Reverse/Outline Style'),
       '#description' => $this->t('Transparent background with colored border and text'),
       '#default_value' => $cta2['reverse_style'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta2][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     $form['content']['cta2']['hover_animation'] = [
@@ -538,6 +689,11 @@ class ModalForm extends EntityForm {
         'bounce' => $this->t('Bounce'),
       ],
       '#default_value' => $cta2['hover_animation'] ?? '',
+      '#states' => [
+        'visible' => [
+          ':input[name="content[cta2][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     // Form fieldset.
@@ -1204,73 +1360,97 @@ class ModalForm extends EntityForm {
       '@data' => print_r($image_values, TRUE),
     ]);
     
-    // Get existing FID to preserve if no new file uploaded.
+    // Get existing image data to preserve if no new files uploaded.
     $old_image_data = $modal->getContent()['image'] ?? [];
     $existing_fid = !empty($old_image_data['fid']) && is_numeric($old_image_data['fid']) ? (int) $old_image_data['fid'] : NULL;
+    $existing_fids = !empty($old_image_data['fids']) && is_array($old_image_data['fids']) 
+      ? array_filter(array_map('intval', $old_image_data['fids'])) 
+      : ($existing_fid ? [$existing_fid] : []);
     
-    // Get FID from form - managed_file can return ['fid'][0] or ['fid']['fids'].
-    $image_fid = $existing_fid; // Default: keep existing.
+    // Get FIDs from form - managed_file with multiple returns ['fid']['fids'] array.
+    // Also check for direct array format which can happen with multiple files.
+    $form_fids = [];
+    if (isset($image_values['fid']['fids']) && is_array($image_values['fid']['fids'])) {
+      // Multiple images format: ['fid']['fids'] = array of FIDs.
+      $form_fids = array_filter(array_map('intval', $image_values['fid']['fids']));
+    }
+    elseif (isset($image_values['fid']) && is_array($image_values['fid']) && !isset($image_values['fid']['fids'])) {
+      // Direct array format: ['fid'] = [fid1, fid2, ...] (can happen with multiple).
+      $form_fids = array_filter(array_map('intval', $image_values['fid']));
+    }
+    elseif (isset($image_values['fid'][0]) && is_numeric($image_values['fid'][0])) {
+      // Single image format (backward compatibility): ['fid'][0] = FID.
+      $form_fids = [(int) $image_values['fid'][0]];
+    }
     
-    // Check for FID in form - try both possible formats.
-    $form_fid = NULL;
-    if (isset($image_values['fid'][0]) && is_numeric($image_values['fid'][0])) {
-      // Format: ['fid'][0] = FID
-      $form_fid = (int) $image_values['fid'][0];
-    }
-    elseif (isset($image_values['fid']['fids']) && is_array($image_values['fid']['fids'])) {
-      // Format: ['fid']['fids'] = array of FIDs
-      $fids = array_filter(array_map('intval', $image_values['fid']['fids']));
-      if (!empty($fids)) {
-        $form_fid = reset($fids);
-      }
-    }
+    \Drupal::logger('custom_plugin')->debug('ModalForm save(): form_fids: @fids, existing_fids: @existing', [
+      '@fids' => print_r($form_fids, TRUE),
+      '@existing' => print_r($existing_fids, TRUE),
+    ]);
     
-    if ($form_fid && $form_fid > 0) {
-      // New or existing file in form.
-      if ($form_fid != $existing_fid) {
-        // New file uploaded.
-        $image_fid = $form_fid;
-        
-        // Make file permanent and register usage.
-        $file = File::load($form_fid);
-        if ($file) {
-          $file->setPermanent();
-          $file->save();
-          \Drupal::service('file.usage')->add($file, 'custom_plugin', 'modal', $modal->id());
-          
-          // Remove old file usage if different.
-          if ($existing_fid && $existing_fid != $form_fid) {
-            $old_file = File::load($existing_fid);
-            if ($old_file) {
-              \Drupal::service('file.usage')->delete($old_file, 'custom_plugin', 'modal', $modal->id());
-            }
-          }
-        }
-      }
-      else {
-        // Same file - ensure it's permanent and has usage.
-        $file = File::load($form_fid);
-        if ($file) {
-          if ($file->isTemporary()) {
-            $file->setPermanent();
-            $file->save();
-          }
-          \Drupal::service('file.usage')->add($file, 'custom_plugin', 'modal', $modal->id());
-        }
-        $image_fid = $form_fid;
-      }
-    }
-    elseif (isset($image_values['fid']) && (empty($image_values['fid']) || (is_array($image_values['fid']) && empty($image_values['fid'][0]) && empty($image_values['fid']['fids'])))) {
-      // Form has fid field but it's empty = user removed image.
-      if ($existing_fid) {
-        $old_file = File::load($existing_fid);
+    // Process all FIDs - make permanent and track usage.
+    $image_fids = [];
+    
+    // Check if user explicitly removed all images (empty array in form).
+    $images_removed = isset($image_values['fid']) && (
+      empty($image_values['fid']) || 
+      (is_array($image_values['fid']) && empty($image_values['fid'][0]) && empty($image_values['fid']['fids']))
+    );
+    
+    if ($images_removed) {
+      // User removed all images - clean up old file usage.
+      foreach ($existing_fids as $old_fid) {
+        $old_file = File::load($old_fid);
         if ($old_file) {
           \Drupal::service('file.usage')->delete($old_file, 'custom_plugin', 'modal', $modal->id());
         }
       }
-      $image_fid = NULL;
+      $image_fids = [];
     }
-    // If no form data at all, keep existing FID (already set above).
+    elseif (!empty($form_fids)) {
+      // New or existing images in form - process them.
+      foreach ($form_fids as $fid) {
+        if ($fid > 0) {
+          $file = File::load($fid);
+          if ($file) {
+            // Make file permanent.
+            if ($file->isTemporary()) {
+              $file->setPermanent();
+              $file->save();
+            }
+            // Track file usage.
+            \Drupal::service('file.usage')->add($file, 'custom_plugin', 'modal', $modal->id());
+            $image_fids[] = $fid;
+          }
+        }
+      }
+      
+      // Clean up file usage for files that were removed.
+      $removed_fids = array_diff($existing_fids, $image_fids);
+      foreach ($removed_fids as $removed_fid) {
+        $removed_file = File::load($removed_fid);
+        if ($removed_file) {
+          \Drupal::service('file.usage')->delete($removed_file, 'custom_plugin', 'modal', $modal->id());
+        }
+      }
+    }
+    else {
+      // No form_fids but images weren't explicitly removed - preserve existing fids.
+      // This happens when form is submitted without changing images.
+      if (!empty($existing_fids)) {
+        $image_fids = $existing_fids;
+        // Ensure all existing files have usage tracked.
+        foreach ($image_fids as $fid) {
+          $file = File::load($fid);
+          if ($file) {
+            \Drupal::service('file.usage')->add($file, 'custom_plugin', 'modal', $modal->id());
+          }
+        }
+      }
+    }
+    
+    // Determine single fid for backward compatibility.
+    $image_fid = !empty($image_fids) ? reset($image_fids) : NULL;
     
         // Handle mobile image FID.
         $mobile_image_fid = NULL;
@@ -1298,7 +1478,7 @@ class ModalForm extends EntityForm {
           }
         }
 
-        // Build image array - only include fid if valid.
+        // Build image array - include fids array and single fid for backward compatibility.
         $image_array = [
           'placement' => $image_values['placement'] ?? ($old_image_data['placement'] ?? 'top'),
           'mobile_force_top' => !empty($image_values['mobile_force_top']) ? TRUE : (!empty($old_image_data['mobile_force_top']) ? TRUE : FALSE),
@@ -1308,13 +1488,31 @@ class ModalForm extends EntityForm {
           'max_height_top_bottom' => trim($image_values['max_height_top_bottom'] ?? ($old_image_data['max_height_top_bottom'] ?? '')),
         ];
 
+        // Add fids array if we have multiple images.
+        if (!empty($image_fids)) {
+          $image_array['fids'] = $image_fids;
+          // Also include single fid for backward compatibility.
+          $image_array['fid'] = $image_fid;
+        }
+        elseif ($image_fid && $image_fid > 0) {
+          // Single image - just fid for backward compatibility.
+          $image_array['fid'] = $image_fid;
+        }
+
+        // Add carousel settings.
+        $carousel_enabled = !empty($image_values['carousel_enabled']) && count($image_fids) > 1;
+        if ($carousel_enabled) {
+          $image_array['carousel_enabled'] = TRUE;
+          $image_array['carousel_duration'] = max(1, (int) ($image_values['carousel_duration'] ?? 5));
+        }
+        else {
+          // Explicitly disable if not enabled or only 1 image.
+          $image_array['carousel_enabled'] = FALSE;
+        }
+
         // Add mobile_fid if we have one.
         if ($mobile_image_fid && $mobile_image_fid > 0) {
           $image_array['mobile_fid'] = $mobile_image_fid;
-        }
-
-        if ($image_fid && $image_fid > 0) {
-          $image_array['fid'] = $image_fid;
         }
 
         // Save image effects.
@@ -1474,7 +1672,9 @@ class ModalForm extends EntityForm {
       'body' => $text_content['body'] ?? ['value' => '', 'format' => 'basic_html'],
       'image' => $image_array,
       'form' => $form_config,
+      // CTA 1 - save enabled state and preserve values even when disabled.
       'cta1' => [
+            'enabled' => !empty($content_values['cta1']['enabled']),
             'text' => $content_values['cta1']['text'] ?? '',
             'url' => $content_values['cta1']['url'] ?? '',
             'new_tab' => !empty($content_values['cta1']['new_tab']),
@@ -1483,7 +1683,9 @@ class ModalForm extends EntityForm {
             'reverse_style' => !empty($content_values['cta1']['reverse_style']),
             'hover_animation' => $content_values['cta1']['hover_animation'] ?? '',
       ],
+      // CTA 2 - save enabled state and preserve values even when disabled.
       'cta2' => [
+            'enabled' => !empty($content_values['cta2']['enabled']),
             'text' => $content_values['cta2']['text'] ?? '',
             'url' => $content_values['cta2']['url'] ?? '',
             'new_tab' => !empty($content_values['cta2']['new_tab']),

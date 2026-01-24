@@ -75,6 +75,12 @@ custom_plugin.modal.*:
               type: integer
               label: 'Mobile Image File ID'
               nullable: true
+            carousel_enabled:
+              type: boolean
+              label: 'Carousel enabled'
+            carousel_duration:
+              type: integer
+              label: 'Carousel duration (seconds)'
             height:
               type: string
               label: 'Image Height'

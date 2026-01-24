@@ -89,6 +89,44 @@
         
         return null;
       }
+
+      // Add keyboard shortcut for save (Command+S / Ctrl+S).
+      // Only attach if not already attached to avoid duplicates.
+      if (!modalForm.dataset.keyboardShortcutAttached) {
+        modalForm.dataset.keyboardShortcutAttached = 'true';
+        
+        document.addEventListener('keydown', function(e) {
+          // Only handle if the modal form is in the document.
+          if (!document.contains(modalForm)) {
+            return;
+          }
+          
+          // Check for Command+S (Mac) or Ctrl+S (Windows/Linux).
+          const isModifierPressed = (e.metaKey || e.ctrlKey) && e.key === 's';
+          
+          if (isModifierPressed) {
+            // Prevent default browser save dialog.
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Find the form element.
+            const form = modalForm.closest('form') || modalForm;
+            
+            // Find and click the submit button (prefer "Save" button).
+            const submitButton = form.querySelector('input[type="submit"][value*="Save"], input[type="submit"][value*="save"], button[type="submit"], input[type="submit"][id*="edit-submit"], input[type="submit"][id*="edit-actions-submit"]');
+            
+            if (submitButton) {
+              submitButton.click();
+            } else {
+              // Fallback: trigger form submit event.
+              const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+              if (form.dispatchEvent(submitEvent)) {
+                form.submit();
+              }
+            }
+          }
+        }, true); // Use capture phase to catch the event early.
+      }
     }
   };
 
