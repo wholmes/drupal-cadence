@@ -1,0 +1,25 @@
+modal.system:
+  version: 1.x
+  css:
+    theme:
+      css/modal-system.css: {}
+  js:
+    js/modal-system.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+
+modal.centered:
+  css:
+    theme:
+      css/modal-centered.css: {}
+
+modal.bottom_sheet:
+  css:
+    theme:
+      css/modal-bottom-sheet.css: {}
+
+admin:
+  css:
+    theme:
+      css/admin.css: {}

@@ -1,0 +1,14 @@
+{
+  "name": "drupal/custom-plugin",
+  "type": "drupal-module",
+  "description": "Rule-based modal system with analytics tracking",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "drupal/core": "^10.0 || ^11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Drupal\\custom_plugin\\": "src/"
+    }
+  }
+}

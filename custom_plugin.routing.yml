@@ -1,0 +1,22 @@
+entity.modal.collection:
+  path: '/admin/config/content/modal-system'
+  defaults:
+    _entity_list: 'modal'
+    _title: 'Modal System'
+  requirements:
+    _permission: 'administer modal system'
+  options:
+    _admin_route: TRUE
+
+entity.modal.delete_form:
+  path: '/admin/config/content/modal-system/{modal}/delete'
+  defaults:
+    _entity_form: 'modal.delete'
+    _title: 'Delete'
+  requirements:
+    _entity_access: 'modal.delete'
+  options:
+    parameters:
+      modal:
+        type: entity:modal
+    _admin_route: TRUE

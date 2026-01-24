@@ -1,0 +1,76 @@
+{#
+/**
+ * @file
+ * Template for modal analytics page.
+ */
+#}
+<div class="modal-analytics-page">
+  <div class="modal-analytics-header">
+    <h1>{{ 'Modal Analytics'|t }}</h1>
+    <div class="modal-analytics-actions">
+      <a href="{{ url('custom_plugin.modal.analytics', {}, {'query': show_archived ? {} : {'show_archived': '1'}}) }}" class="button">
+        {{ show_archived ? 'Hide Archived'|t : 'Show Archived'|t }}
+      </a>
+      <a href="{{ url('custom_plugin.modal.analytics.download') }}" class="button">{{ 'Download All Data (CSV)'|t }}</a>
+    </div>
+  </div>
+
+  {% if analytics_data is empty %}
+    <p>{{ 'No analytics data available yet.'|t }}</p>
+  {% else %}
+    <div class="modal-analytics-table-wrapper">
+      <table class="modal-analytics-table">
+        <thead>
+          <tr>
+            <th>{{ 'Modal'|t }}</th>
+            <th>{{ 'Impressions'|t }}</th>
+            <th>{{ 'CTA 1 Clicks'|t }}</th>
+            <th>{{ 'CTA 2 Clicks'|t }}</th>
+            <th>{{ 'Total CTA Clicks'|t }}</th>
+            <th>{{ 'Conversion Rate'|t }}</th>
+            <th>{{ 'Dismissals'|t }}</th>
+            <th>{{ 'Last 30 Days'|t }}</th>
+            <th>{{ 'Actions'|t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for modal_id, data in analytics_data %}
+            <tr class="{{ data.is_archived ? 'modal-analytics-archived' : '' }}">
+              <td>
+                <strong>{{ data.modal.label() }}{% if data.is_archived %} <span class="modal-archived-badge">{{ 'Archived'|t }}</span>{% endif %}</strong><br>
+                <small>{{ data.modal.id() }}</small>
+              </td>
+              <td class="analytics-number">{{ data.impressions }}</td>
+              <td class="analytics-number">{{ data.cta1_clicks }}</td>
+              <td class="analytics-number">{{ data.cta2_clicks }}</td>
+              <td class="analytics-number">{{ data.total_cta_clicks }}</td>
+              <td class="analytics-number">{{ data.conversion_rate }}%</td>
+              <td class="analytics-number">{{ data.dismissals }}</td>
+              <td class="analytics-number">{{ data.recent_impressions }}</td>
+              <td>
+                <a href="{{ url('custom_plugin.modal.analytics.download', {'modal_id': modal_id}) }}" class="button button--small">{{ 'Download CSV'|t }}</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Chart visualizations #}
+    <div class="modal-analytics-charts">
+      <h2>{{ 'Visualization'|t }}</h2>
+      <div class="chart-container">
+        <h3>{{ 'Impressions by Modal'|t }}</h3>
+        <canvas id="impressions-chart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>{{ 'Conversion Rate by Modal'|t }}</h3>
+        <canvas id="conversion-chart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>{{ 'CTA Performance Comparison'|t }}</h3>
+        <canvas id="cta-comparison-chart"></canvas>
+      </div>
+    </div>
+  {% endif %}
+</div>
