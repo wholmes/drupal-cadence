@@ -6,7 +6,7 @@
 #}
 <div class="modal-analytics-page">
   <div class="modal-analytics-header">
-    <h1>{{ 'Modal Analytics'|t }}</h1>
+    <h1>{{ 'Marketing Analytics'|t }}</h1>
     <div class="modal-analytics-actions">
       <a href="{{ url('custom_plugin.modal.analytics', {}, {'query': show_archived ? {} : {'show_archived': '1'}}) }}" class="button">
         {{ show_archived ? 'Hide Archived'|t : 'Show Archived'|t }}
@@ -17,7 +17,7 @@
   </div>
 
   {% if analytics_data is empty %}
-    <p>{{ 'No analytics data available yet.'|t }}</p>
+    <p>{{ 'No marketing campaign data available yet. Create your first modal campaign to start tracking conversions!'|t }}</p>
   {% else %}
     <div class="modal-analytics-table-wrapper">
       <table class="modal-analytics-table">
@@ -81,11 +81,11 @@
 
   {# Reset analytics data section - collapsible #}
   <details class="modal-analytics-reset-details">
-    <summary class="modal-analytics-reset-summary">{{ 'Danger Zone: Reset Analytics Data'|t }}</summary>
+    <summary class="modal-analytics-reset-summary">{{ 'Danger Zone: Reset Marketing Analytics'|t }}</summary>
     <div class="modal-analytics-reset-section">
-      <p class="description">{{ 'This will permanently delete all analytics data for all modals. This action cannot be undone.'|t }}</p>
+      <p class="description">{{ 'This will permanently delete all marketing analytics data for all campaigns. This action cannot be undone.'|t }}</p>
       <form method="post" action="{{ url('custom_plugin.modal.analytics.reset') }}" onsubmit="return confirmReset();">
-        <button type="submit" class="button button--danger">{{ 'Reset All Analytics Data'|t }}</button>
+        <button type="submit" class="button button--danger">{{ 'Reset All Marketing Data'|t }}</button>
       </form>
     </div>
   </details>

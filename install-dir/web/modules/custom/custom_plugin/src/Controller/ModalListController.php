@@ -60,7 +60,7 @@ class ModalListController extends ControllerBase {
       $duplicate->save();
       
       // Success message.
-      $this->messenger()->addStatus($this->t('Modal "@label" has been duplicated as "@new_label".', [
+      $this->messenger()->addStatus($this->t('Marketing campaign "@label" has been duplicated as "@new_label".', [
         '@label' => $original_label,
         '@new_label' => $new_label,
       ]));
@@ -73,7 +73,7 @@ class ModalListController extends ControllerBase {
       return new RedirectResponse($edit_url->toString());
       
     } catch (\Exception $e) {
-      $this->messenger()->addError($this->t('Failed to duplicate modal: @error', [
+      $this->messenger()->addError($this->t('Failed to duplicate marketing campaign: @error', [
         '@error' => $e->getMessage(),
       ]));
       

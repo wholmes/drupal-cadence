@@ -32,9 +32,10 @@ class ModalForm extends EntityForm {
     // Entity properties at top level (Drupal best practice).
     $form['label'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('Label'),
+      '#title' => $this->t('Campaign Name'),
       '#maxlength' => 255,
       '#default_value' => $modal->label(),
+      '#description' => $this->t('Internal name for this marketing campaign (e.g., "Holiday Sale 2024", "Newsletter Signup").'),
       '#required' => TRUE,
     ];
 
@@ -46,6 +47,7 @@ class ModalForm extends EntityForm {
         'source' => ['label'],
       ],
       '#disabled' => !$modal->isNew(),
+      '#description' => $this->t('Machine name for this marketing campaign.'),
     ];
 
         $form['status'] = [
@@ -73,7 +75,7 @@ class ModalForm extends EntityForm {
     // Content tab.
     $form['content'] = [
       '#type' => 'fieldset',
-      '#title' => $this->t('Content'),
+      '#title' => $this->t('Marketing Content'),
       '#group' => 'advanced',
       '#tree' => TRUE,
     ];
@@ -941,7 +943,7 @@ class ModalForm extends EntityForm {
     // Analytics tab - simple checkbox.
     $form['analytics'] = [
       '#type' => 'fieldset',
-      '#title' => $this->t('Analytics'),
+      '#title' => $this->t('Marketing Analytics'),
       '#group' => 'advanced',
       '#tree' => TRUE,
     ];

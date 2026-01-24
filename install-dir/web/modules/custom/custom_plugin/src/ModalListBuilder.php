@@ -258,7 +258,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     
     $build['actions']['add_modal'] = [
       '#type' => 'link',
-      '#title' => $this->t('Add modal'),
+      '#title' => $this->t('Add Marketing Modal'),
       '#url' => Url::fromRoute('entity.modal.add_form'),
       '#attributes' => [
         'class' => ['button', 'button--primary', 'button--small'],
@@ -278,7 +278,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     
     // Update empty message to include add link.
     if (isset($build['table']['#empty'])) {
-      $build['table']['#empty'] = $this->t('No modals available. <a href=":link">Add modal</a>.', [
+      $build['table']['#empty'] = $this->t('No marketing campaigns available. <a href=":link">Create your first campaign</a> to start converting visitors into customers!', [
         ':link' => Url::fromRoute('entity.modal.add_form')->toString(),
       ]);
     }

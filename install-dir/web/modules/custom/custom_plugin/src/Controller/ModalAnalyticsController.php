@@ -337,14 +337,14 @@ class ModalAnalyticsController extends ControllerBase {
       // Check if table exists before trying to truncate.
       $connection = Database::getConnection();
       if (!$connection->schema()->tableExists('modal_analytics')) {
-        \Drupal::messenger()->addWarning($this->t('Analytics table does not exist. No data to reset.'));
+        \Drupal::messenger()->addWarning($this->t('Marketing analytics table does not exist. No data to reset.'));
         return new RedirectResponse(Url::fromRoute('custom_plugin.modal.analytics')->toString());
       }
 
       // Truncate the analytics table to reset all data.
       $connection->truncate('modal_analytics')->execute();
       
-      \Drupal::messenger()->addStatus($this->t('All analytics data has been successfully reset to zero.'));
+      \Drupal::messenger()->addStatus($this->t('All marketing analytics data has been successfully reset to zero.'));
       
       // Log the reset action.
       \Drupal::logger('custom_plugin')->notice('Analytics data reset by user @user', [
