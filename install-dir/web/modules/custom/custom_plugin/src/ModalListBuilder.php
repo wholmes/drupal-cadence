@@ -297,19 +297,26 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     $build['search_form']['form'] = [
       '#type' => 'form',
       '#method' => 'GET',
-      '#attributes' => ['class' => ['modal-search-form-elements']],
+      '#attributes' => ['class' => ['modal-search-form-wrapper']],
     ];
     
-    $build['search_form']['form']['search'] = [
+    // Input fields container
+    $build['search_form']['form']['inputs'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-search-inputs']],
+    ];
+    
+    $build['search_form']['form']['inputs']['search'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Search campaigns'),
       '#title_display' => 'invisible',
       '#placeholder' => $this->t('🔍 Search campaigns...'),
       '#default_value' => $search,
       '#attributes' => ['class' => ['modal-search-input']],
+      '#wrapper_attributes' => ['class' => ['modal-search-field-wrapper']],
     ];
     
-    $build['search_form']['form']['status'] = [
+    $build['search_form']['form']['inputs']['status'] = [
       '#type' => 'select',
       '#title' => $this->t('Status'),
       '#title_display' => 'invisible', 
@@ -321,6 +328,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       ],
       '#default_value' => $status_filter,
       '#attributes' => ['class' => ['modal-status-filter']],
+      '#wrapper_attributes' => ['class' => ['modal-status-field-wrapper']],
     ];
     
     // Preserve archived filter in search.
@@ -331,13 +339,19 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       ];
     }
     
-    $build['search_form']['form']['submit'] = [
+    // Buttons container
+    $build['search_form']['form']['buttons'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-search-buttons']],
+    ];
+    
+    $build['search_form']['form']['buttons']['submit'] = [
       '#type' => 'submit',
       '#value' => $this->t('Search'),
       '#attributes' => ['class' => ['button', 'button--primary', 'modal-search-submit']],
     ];
     
-    $build['search_form']['form']['clear'] = [
+    $build['search_form']['form']['buttons']['clear'] = [
       '#type' => 'link',
       '#title' => $this->t('Clear'),
       '#url' => Url::fromRoute('entity.modal.collection'),

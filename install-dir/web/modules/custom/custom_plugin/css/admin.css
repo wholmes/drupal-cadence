@@ -433,53 +433,78 @@ tr.modal-archived {
   margin-bottom: 1.5rem;
 }
 
-.modal-search-form-elements {
+.modal-search-form-wrapper {
   display: flex;
   gap: 1rem;
-  align-items: stretch;
+  align-items: flex-end;
   flex-wrap: wrap;
 }
 
-.modal-search-input {
+.modal-search-inputs {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  align-items: flex-end;
+}
+
+.modal-search-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+/* Field wrapper styling to override Drupal defaults */
+.modal-search-field-wrapper,
+.modal-status-field-wrapper {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.modal-search-field-wrapper {
   flex: 2;
   min-width: 280px;
   max-width: 400px;
-  height: 36px;
-  padding: 8px 12px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 14px;
+}
+
+.modal-status-field-wrapper {
+  flex: 0 0 140px;
+}
+
+/* Input field styling */
+.modal-search-input,
+.modal-status-filter {
+  height: 36px !important;
+  padding: 8px 12px !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+  margin: 0 !important;
+}
+
+.modal-search-input {
+  width: 100% !important;
 }
 
 .modal-status-filter {
-  flex: 0 0 140px;
-  height: 36px;
-  padding: 8px 12px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 14px;
-  background: white;
+  width: 100% !important;
+  background: white !important;
 }
 
-.modal-search-submit {
-  flex: 0 0 auto;
-  height: 36px;
-  padding: 8px 16px;
-  font-size: 14px;
+/* Button styling */
+.modal-search-submit,
+.modal-search-clear {
+  height: 36px !important;
+  padding: 8px 16px !important;
+  font-size: 14px !important;
   font-weight: 500;
   white-space: nowrap;
-  border-radius: 4px;
+  border-radius: 4px !important;
+  margin: 0 !important;
+  line-height: 1.2 !important;
 }
 
 .modal-search-clear {
-  flex: 0 0 auto;
-  height: 36px;
-  padding: 8px 16px;
-  font-size: 14px;
-  line-height: 20px;
-  white-space: nowrap;
   text-decoration: none;
-  border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -524,36 +549,36 @@ tr.modal-archived {
     padding: 1rem;
   }
   
-  .modal-search-form-elements {
+  .modal-search-form-wrapper {
     flex-direction: column;
     align-items: stretch;
     gap: 0.75rem;
   }
   
-  .modal-search-input,
-  .modal-status-filter {
+  .modal-search-inputs {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .modal-search-field-wrapper,
+  .modal-status-field-wrapper {
     flex: 1 1 auto;
-    width: 100%;
     min-width: auto;
     max-width: none;
   }
   
-  .modal-search-submit,
-  .modal-search-clear {
-    flex: 0 0 auto;
-    width: auto;
-    display: inline-flex;
-    margin-right: 0.5rem;
+  .modal-search-buttons {
+    align-self: flex-start;
   }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
-  .modal-search-input {
+  .modal-search-field-wrapper {
     flex: 1.5;
     min-width: 220px;
   }
   
-  .modal-status-filter {
+  .modal-status-field-wrapper {
     flex: 0 0 120px;
   }
 }
