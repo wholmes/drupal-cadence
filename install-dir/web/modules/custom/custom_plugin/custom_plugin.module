@@ -110,8 +110,13 @@ function custom_plugin_theme($existing, $type, $theme, $path) {
     'modal_analytics' => [
       'variables' => [
         'analytics_data' => [],
+        'show_archived' => FALSE,
       ],
       'template' => 'modal-analytics',
+    ],
+    'modal_analytics_charts' => [
+      'variables' => [],
+      'template' => 'modal-analytics-charts',
     ],
   ];
 }

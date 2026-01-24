@@ -76,43 +76,5 @@
         </tbody>
       </table>
     </div>
-
-    {# Chart visualizations #}
-    <div class="modal-analytics-charts">
-      <h2>{{ 'Visualization'|t }}</h2>
-      <div class="chart-container">
-        <h3>{{ 'Impressions by Modal'|t }}</h3>
-        <canvas id="impressions-chart"></canvas>
-      </div>
-      <div class="chart-container">
-        <h3>{{ 'Conversion Rate by Modal'|t }}</h3>
-        <canvas id="conversion-chart"></canvas>
-      </div>
-      <div class="chart-container">
-        <h3>{{ 'CTA Performance Comparison'|t }}</h3>
-        <canvas id="cta-comparison-chart"></canvas>
-      </div>
-    </div>
   {% endif %}
-
-  {# Reset analytics data section - collapsible #}
-  <details class="modal-analytics-reset-details">
-    <summary class="modal-analytics-reset-summary">{{ 'Danger Zone: Reset Marketing Analytics'|t }}</summary>
-    <div class="modal-analytics-reset-section">
-      <p class="description">{{ 'This will permanently delete all marketing analytics data for all campaigns. This action cannot be undone.'|t }}</p>
-      <form method="post" action="{{ url('custom_plugin.modal.analytics.reset') }}" onsubmit="return confirmReset();">
-        <button type="submit" class="button button--danger">{{ 'Reset All Marketing Data'|t }}</button>
-      </form>
-    </div>
-  </details>
 </div>
-
-<script>
-function confirmReset() {
-  const confirmed = confirm('{{ 'Are you absolutely sure you want to delete ALL analytics data? This cannot be undone!'|t }}');
-  if (confirmed) {
-    return confirm('{{ 'Final warning: This will delete all impression, click, and submission data for ALL modals. Continue?'|t }}');
-  }
-  return false;
-}
-</script>

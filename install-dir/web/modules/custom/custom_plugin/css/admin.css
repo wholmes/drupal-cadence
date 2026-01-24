@@ -307,6 +307,48 @@ tr.modal-archived {
   padding: 1rem;
 }
 
+/* Analytics page tabs */
+.modal-analytics-page .tabs {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #ccc;
+  list-style: none;
+  padding: 0;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-end !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-bottom: 1px solid #ccc !important;
+  border-radius: 0 !important;
+}
+
+.modal-analytics-page .tabs li {
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+}
+
+.modal-analytics-page .tabs li .tabs__link {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  margin-right: 0.5rem;
+  text-decoration: none;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.modal-analytics-page .tabs li .tabs__link:hover {
+  color: #0073aa;
+  border-bottom-color: #0073aa;
+}
+
+.modal-analytics-page .tabs li .tabs__link.is-active {
+  color: #0073aa;
+  font-weight: 600;
+  border-bottom-color: #0073aa;
+}
+
 .modal-analytics-header {
   display: flex;
   justify-content: space-between;
@@ -320,6 +362,8 @@ tr.modal-archived {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .modal-analytics-table {
