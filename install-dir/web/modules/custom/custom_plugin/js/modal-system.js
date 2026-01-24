@@ -8,28 +8,11 @@
 
   Drupal.behaviors.modalSystem = {
     attach: function (context, settings) {
-      // Debug logging (remove in production).
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Behavior attached', {
-          hasSettings: !!settings,
-          hasModalSystem: !!(settings && settings.modalSystem),
-          hasModals: !!(settings && settings.modalSystem && settings.modalSystem.modals),
-          modalCount: (settings && settings.modalSystem && settings.modalSystem.modals) ? settings.modalSystem.modals.length : 0,
-        });
-      }
-
       if (!settings || !settings.modalSystem || !settings.modalSystem.modals) {
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn('Modal System: No modals found in settings', settings);
-        }
         return;
       }
 
       const modals = settings.modalSystem.modals;
-      
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Initializing ' + modals.length + ' modal(s)', modals);
-      }
 
       // Run localStorage cleanup before initializing modals.
       Drupal.modalSystem.StorageCleanup.cleanup(modals);
@@ -77,17 +60,11 @@
       // Check if modal is already in queue.
       const alreadyQueued = this.queue.some(item => item.modal.id === modalManager.modal.id);
       if (alreadyQueued) {
-        if (typeof console !== 'undefined' && console.log) {
-          console.log('Modal System: Modal', modalManager.modal.id, 'already in queue, skipping');
-        }
         return;
       }
 
       // Don't queue if already dismissed (unless forced open).
       if (modalManager.isDismissed() && !modalManager.isForcedOpen()) {
-        if (typeof console !== 'undefined' && console.log) {
-          console.log('Modal System: Modal', modalManager.modal.id, 'is dismissed, not queuing');
-        }
         return;
       }
 
@@ -101,9 +78,6 @@
         return priorityB - priorityA; // Higher priority first.
       });
 
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal', modalManager.modal.id, 'added to queue. Queue length:', this.queue.length);
-      }
 
       // Process queue if not already processing and no modal is showing.
       if (!this.processing && !this.currentModal) {
@@ -116,24 +90,15 @@
      */
     processQueue: function() {
       if (this.processing || this.currentModal) {
-        if (typeof console !== 'undefined' && console.log) {
-          console.log('Modal System: Queue processing skipped - already processing or modal showing');
-        }
         return; // Already processing or modal is showing.
       }
 
       if (this.queue.length === 0) {
-        if (typeof console !== 'undefined' && console.log) {
-          console.log('Modal System: Queue is empty');
-        }
         return; // Queue is empty.
       }
 
       this.processing = true;
 
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Processing queue,', this.queue.length, 'modal(s) waiting');
-      }
 
       // Get next modal from queue (highest priority).
       // Keep trying until we find one that can be shown.
@@ -142,15 +107,9 @@
         const candidate = this.queue.shift();
         // Check if modal can still be shown (not dismissed, not already in DOM).
         if (candidate.isDismissed() && !candidate.isForcedOpen()) {
-          if (typeof console !== 'undefined' && console.log) {
-            console.log('Modal System: Skipping dismissed modal', candidate.modal.id);
-          }
           continue;
         }
         if (document.querySelector('[data-modal-id="' + candidate.modal.id + '"]')) {
-          if (typeof console !== 'undefined' && console.log) {
-            console.log('Modal System: Skipping modal already in DOM', candidate.modal.id);
-          }
           continue;
         }
         nextModal = candidate;
@@ -158,18 +117,12 @@
 
       if (!nextModal) {
         // No valid modals in queue.
-        if (typeof console !== 'undefined' && console.log) {
-          console.log('Modal System: No valid modals in queue to show');
-        }
         this.processing = false;
         return;
       }
 
       this.currentModal = nextModal;
 
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Showing modal from queue:', nextModal.modal.id, 'Priority:', nextModal.modal.priority || 0);
-      }
 
       // Show the modal.
       nextModal.showModal();
@@ -282,9 +235,6 @@
         }
       });
 
-      if (removedCount > 0 && typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Light cleanup removed ' + removedCount + ' orphaned entries');
-      }
     },
 
     /**
@@ -354,9 +304,6 @@
         }
       });
 
-      if (removedCount > 0 && typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Full cleanup removed ' + removedCount + ' old/expired entries');
-      }
     },
 
     /**
@@ -410,9 +357,6 @@
         }
       }
 
-      if (removedCount > 0 && typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Emergency cleanup removed ' + removedCount + ' entries');
-      }
     },
 
     /**
@@ -450,23 +394,14 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.init = function () {
-    if (typeof console !== 'undefined' && console.log) {
-      console.log('Modal System: Initializing modal', this.modal.id, 'Priority:', this.modal.priority || 0);
-    }
 
     // Check if already dismissed (unless forced open).
     if (this.isDismissed() && !this.isForcedOpen()) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal', this.modal.id, 'is dismissed, skipping init');
-      }
       return;
     }
 
     // Check if forced open via URL parameter.
     if (this.isForcedOpen()) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal ID', this.modal.id, 'forced open via URL parameter - adding to queue.');
-      }
       // Force add to queue immediately, bypassing all rules.
       Drupal.modalSystem.QueueManager.enqueue(this);
       return;
@@ -474,9 +409,6 @@
 
     // Check date range - if set, modal must be within the date range.
     if (!this.checkDateRange()) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal ID', this.modal.id, 'is outside date range - not showing.');
-      }
       return;
     }
 
@@ -523,17 +455,11 @@
 
     // Check start date.
     if (startDate && currentDate < startDate) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal ID', this.modal.id, 'before start date (current:', currentDate, ', start:', startDate, ')');
-      }
       return false;
     }
 
     // Check end date.
     if (endDate && currentDate > endDate) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal ID', this.modal.id, 'after end date (current:', currentDate, ', end:', endDate, ')');
-      }
       return false;
     }
 
@@ -710,9 +636,6 @@
   Drupal.modalSystem.ModalManager.prototype.showModal = function () {
     // Check if already dismissed (unless forced open).
     if (this.isDismissed() && !this.isForcedOpen()) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal', this.modal.id, 'is dismissed, not showing');
-      }
       // Notify queue that this modal can't be shown.
       if (Drupal.modalSystem.QueueManager.currentModal === this) {
         Drupal.modalSystem.QueueManager.currentModal = null;
@@ -727,15 +650,9 @@
 
     // Check if already in DOM.
     if (document.querySelector('[data-modal-id="' + this.modal.id + '"]')) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Modal', this.modal.id, 'already in DOM, not showing');
-      }
       return;
     }
 
-    if (typeof console !== 'undefined' && console.log) {
-      console.log('Modal System: Showing modal', this.modal.id);
-    }
 
     // Track event.
     this.trackEvent('modal_shown');
@@ -793,26 +710,13 @@
         imageUrls = [imageData.url];
       }
       
-      // Debug: Log image data to see what we're working with.
-      console.log('Modal System: Image data:', {
-        hasUrls: !!imageData.urls,
-        urlsCount: imageUrls.length,
-        urls: imageUrls,
-        carousel_enabled: imageData.carousel_enabled,
-        carousel_duration: imageData.carousel_duration,
-        allImageData: imageData
-      });
       
       if (imageUrls.length > 0) {
         // Check for simple carousel first (takes priority over slideshow).
         if (imageUrls.length > 1 && imageData.carousel_enabled) {
           // Build simple carousel (fade transitions, autoplay only).
           const carouselDuration = imageData.carousel_duration || 5;
-          console.log('Modal System: Building carousel with', imageUrls.length, 'images, duration:', carouselDuration, 'seconds');
           imageContainer = this.buildSimpleCarousel(imageUrls, carouselDuration, placement, mobileForceTop, imageHeight, mobileBreakpoint, imageData);
-        }
-        else if (imageUrls.length > 1) {
-          console.log('Modal System: Multiple images but carousel not enabled. imageUrls:', imageUrls.length, 'carousel_enabled:', imageData.carousel_enabled);
         }
         else if (imageUrls.length > 1 && imageData.slideshow) {
           // Build slideshow - use slideshow settings if available, otherwise use defaults.
@@ -1019,13 +923,7 @@
     
     // Load form if configured - add form container with data attributes.
     const formConfig = this.modal.content.form;
-    if (typeof console !== 'undefined' && console.log) {
-      console.log('Modal System: Checking form config for modal', this.modal.id, 'formConfig:', formConfig);
-    }
     if (formConfig && formConfig.type && formConfig.form_id) {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Form config found - type:', formConfig.type, 'form_id:', formConfig.form_id);
-      }
       const formContainer = document.createElement('div');
       formContainer.className = 'modal-system--form-container';
       formContainer.setAttribute('data-modal-id', escapeAttr(this.modal.id));
@@ -1258,9 +1156,6 @@
               
               if (correctAction) {
                 formElement.setAttribute('action', correctAction);
-                if (typeof console !== 'undefined' && console.log) {
-                  console.log('Modal System: Updated form action to:', correctAction);
-                }
               }
             }
             
@@ -1269,9 +1164,6 @@
               Drupal.attachBehaviors(container);
             }
             
-            if (typeof console !== 'undefined' && console.log) {
-              console.log('Modal System: Form loaded successfully for modal', self.modal.id);
-            }
           } else {
             container.innerHTML = '<div class="modal-system--form-error">' + 
               escapeHtml(response.error || 'Failed to load form') + '</div>';
@@ -1307,9 +1199,6 @@
               
               if (correctAction) {
                 formElement.setAttribute('action', correctAction);
-                if (typeof console !== 'undefined' && console.log) {
-                  console.log('Modal System: Updated form action to:', correctAction);
-                }
               }
             }
             
@@ -1318,9 +1207,6 @@
               Drupal.attachBehaviors(container);
             }
             
-            if (typeof console !== 'undefined' && console.log) {
-              console.log('Modal System: Form loaded successfully for modal', self.modal.id);
-            }
           } else {
             container.innerHTML = '<div class="modal-system--form-error">' + 
               escapeHtml(data.error || 'Failed to load form') + '</div>';
@@ -1593,19 +1479,18 @@
   Drupal.modalSystem.ModalManager.prototype.startCarousel = function (container, imageData) {
     const urlsJson = container.getAttribute('data-carousel-urls');
     if (!urlsJson) {
-      console.warn('Modal System: Carousel container missing data-carousel-urls');
+      // Carousel container missing required data - fail silently.
       return;
     }
     
     const urls = JSON.parse(urlsJson);
     if (!urls || urls.length < 2) {
-      console.warn('Modal System: Carousel needs at least 2 images, got:', urls ? urls.length : 0);
+      // Carousel needs at least 2 images - fail silently.
       return; // Need at least 2 images for carousel.
     }
     
     const duration = parseInt(container.getAttribute('data-carousel-duration') || '5', 10) * 1000; // Convert to milliseconds.
     let currentIndex = parseInt(container.getAttribute('data-carousel-current') || '0', 10);
-    console.log('Modal System: Starting carousel with', urls.length, 'images, duration:', duration / 1000, 'seconds');
     
     // Store carousel state on container (including imageData for effects).
     container.carouselState = {
@@ -1649,7 +1534,7 @@
       // Get the layers for crossfade.
       const layers = container.carouselLayers;
       if (!layers) {
-        console.warn('Modal System: Carousel layers not found');
+        // Carousel layers not found - fail silently.
         container.carouselState.isTransitioning = false;
         return;
       }

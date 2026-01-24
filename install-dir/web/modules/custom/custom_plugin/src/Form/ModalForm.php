@@ -85,14 +85,6 @@ class ModalForm extends EntityForm {
     $cta1 = $content['cta1'] ?? [];
     $cta2 = $content['cta2'] ?? [];
     
-    // Debug: Log what content we're getting from the entity.
-    \Drupal::logger('custom_plugin')->debug('ModalForm form(): Loading modal @id, content keys: @keys', [
-      '@id' => $modal->id(),
-      '@keys' => implode(', ', array_keys($content)),
-    ]);
-    \Drupal::logger('custom_plugin')->debug('ModalForm form(): Image data: @data', [
-      '@data' => print_r($content['image'] ?? 'NOT SET', TRUE),
-    ]);
     
     // Text content fieldset - groups headline, subheadline, and body.
     $form['content']['text_content'] = [
@@ -1376,15 +1368,9 @@ class ModalForm extends EntityForm {
    * {@inheritdoc}
    */
   public function save(array $form, FormStateInterface $form_state) {
-    \Drupal::logger('custom_plugin')->error('ModalForm save(): METHOD CALLED - Starting save');
-    
     $modal = $this->entity;
     $content_values = $form_state->getValue('content', []);
     $image_values = $content_values['image'] ?? [];
-    
-    \Drupal::logger('custom_plugin')->error('ModalForm save(): Got image_values: @data', [
-      '@data' => print_r($image_values, TRUE),
-    ]);
     
     // Get existing image data to preserve if no new files uploaded.
     $old_image_data = $modal->getContent()['image'] ?? [];
@@ -1409,10 +1395,6 @@ class ModalForm extends EntityForm {
       $form_fids = [(int) $image_values['fid'][0]];
     }
     
-    \Drupal::logger('custom_plugin')->debug('ModalForm save(): form_fids: @fids, existing_fids: @existing', [
-      '@fids' => print_r($form_fids, TRUE),
-      '@existing' => print_r($existing_fids, TRUE),
-    ]);
     
     // Process all FIDs - make permanent and track usage.
     $image_fids = [];
@@ -1575,76 +1557,38 @@ class ModalForm extends EntityForm {
     $raw_form_values = $user_input['content']['form'] ?? [];
     
     // Log the keys to understand structure.
-    \Drupal::logger('custom_plugin')->debug('ModalForm save(): all_form_values keys: @keys', [
-      '@keys' => implode(', ', array_keys($all_form_values)),
-    ]);
-    \Drupal::logger('custom_plugin')->debug('ModalForm save(): raw_form_values keys: @keys', [
-      '@keys' => implode(', ', array_keys($raw_form_values)),
-    ]);
     
     // Try multiple paths to get form_id.
     // Path 1: Nested in form_id_wrapper container (with #tree => TRUE).
     if (isset($all_form_values['form_id_wrapper']['form_id'])) {
       $raw_form_id = $all_form_values['form_id_wrapper']['form_id'];
       // Log the raw value with full details - use separate log messages to avoid truncation.
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - Raw form_id type: @type', ['@type' => gettype($raw_form_id)]);
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - Raw form_id value: @value', ['@value' => var_export($raw_form_id, TRUE)]);
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - Raw form_id is_array: @val, is_null: @null, is_empty: @empty', [
-        '@val' => is_array($raw_form_id) ? 'YES' : 'NO',
-        '@null' => is_null($raw_form_id) ? 'YES' : 'NO',
-        '@empty' => empty($raw_form_id) ? 'YES' : 'NO',
-      ]);
-      
       // Handle the value - if it's an array (shouldn't happen but be safe), get first element.
       if (is_array($raw_form_id)) {
         $raw_form_id = !empty($raw_form_id) ? reset($raw_form_id) : '';
       }
       $form_id = is_string($raw_form_id) ? trim($raw_form_id) : (string) $raw_form_id;
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - After processing: @trimmed (length: @len)', [
-        '@trimmed' => var_export($form_id, TRUE),
-        '@len' => strlen($form_id),
-      ]);
     }
     // Path 2: From raw user input (before form_state processing).
     elseif (isset($raw_form_values['form_id_wrapper']['form_id'])) {
       $raw_form_id = $raw_form_values['form_id_wrapper']['form_id'];
       $form_id = trim($raw_form_id);
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 2 - Found form_id in raw_form_values[form_id_wrapper][form_id]: raw="@raw", trimmed="@trimmed"', [
-        '@raw' => $raw_form_id,
-        '@trimmed' => $form_id,
-      ]);
     }
     // Path 3: Directly in form values (if container doesn't preserve structure).
     elseif (isset($all_form_values['form_id'])) {
       $raw_form_id = $all_form_values['form_id'];
       $form_id = trim($raw_form_id);
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 3 - Found form_id in all_form_values[form_id]: raw="@raw", trimmed="@trimmed"', [
-        '@raw' => $raw_form_id,
-        '@trimmed' => $form_id,
-      ]);
     }
     // Path 4: From raw user input directly.
     elseif (isset($raw_form_values['form_id'])) {
       $raw_form_id = $raw_form_values['form_id'];
       $form_id = trim($raw_form_id);
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 4 - Found form_id in raw_form_values[form_id]: raw="@raw", trimmed="@trimmed"', [
-        '@raw' => $raw_form_id,
-        '@trimmed' => $form_id,
-      ]);
     }
     // Path 5: Check if form_id_wrapper exists and has nested structure.
     elseif (isset($all_form_values['form_id_wrapper']) && is_array($all_form_values['form_id_wrapper'])) {
-      $wrapper_keys = array_keys($all_form_values['form_id_wrapper']);
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 5 - form_id_wrapper exists with keys: @keys', [
-        '@keys' => implode(', ', $wrapper_keys),
-      ]);
       if (isset($all_form_values['form_id_wrapper']['form_id'])) {
         $raw_form_id = $all_form_values['form_id_wrapper']['form_id'];
         $form_id = trim($raw_form_id);
-        \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 5 - Found form_id: raw="@raw", trimmed="@trimmed"', [
-          '@raw' => $raw_form_id,
-          '@trimmed' => $form_id,
-        ]);
       }
     }
     // Path 6: Try from form_state directly.
@@ -1652,7 +1596,6 @@ class ModalForm extends EntityForm {
       $direct_value = $form_state->getValue(['content', 'form', 'form_id_wrapper', 'form_id']);
       if (!empty($direct_value)) {
         $form_id = trim($direct_value);
-        \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 6 - Found form_id via direct form_state path: @id', ['@id' => $form_id]);
       }
     }
     
@@ -1664,32 +1607,17 @@ class ModalForm extends EntityForm {
       // Only use existing form_id if form_type matches (user didn't change the type).
       if (!empty($existing_form_id) && $existing_form_type === $form_type) {
         $form_id = $existing_form_id;
-        \Drupal::logger('custom_plugin')->debug('ModalForm save(): Using existing form_id: @id (form_type matches)', ['@id' => $form_id]);
       }
     }
-    
-    // Debug logging to help troubleshoot.
-    \Drupal::logger('custom_plugin')->debug('ModalForm save(): Form config - type: @type, form_id: @form_id, form_id length: @length, form_id empty?: @empty', [
-      '@type' => $form_type,
-      '@form_id' => $form_id,
-      '@length' => strlen($form_id),
-      '@empty' => empty($form_id) ? 'YES' : 'NO',
-    ]);
     
     if (!empty($form_type) && !empty($form_id)) {
       $form_config = [
         'type' => $form_type,
         'form_id' => $form_id,
       ];
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): form_config created: @config', [
-        '@config' => print_r($form_config, TRUE),
-      ]);
     }
     else {
-      \Drupal::logger('custom_plugin')->debug('ModalForm save(): form_config NOT created - form_type empty?: @type_empty, form_id empty?: @id_empty', [
-        '@type_empty' => empty($form_type) ? 'YES' : 'NO',
-        '@id_empty' => empty($form_id) ? 'YES' : 'NO',
-      ]);
+      $form_config = [];
     }
 
     $content = [
@@ -1722,11 +1650,6 @@ class ModalForm extends EntityForm {
           ],
         ];
     
-    // Debug: Log what we're saving.
-    \Drupal::logger('custom_plugin')->debug('ModalForm save(): Saving content with image fid=@fid, image_array=@array', [
-      '@fid' => $image_fid ?? 'NULL',
-      '@array' => print_r($image_array, TRUE),
-    ]);
     
     $modal->setContent($content);
 

@@ -91,7 +91,6 @@ class ModalService {
       }
     }
     
-    \Drupal::logger('custom_plugin')->debug('ModalService: Found @count enabled modal entities', ['@count' => count($entities)]);
 
     // Get current path for visibility checking.
     $request = $this->requestStack->getCurrentRequest();
@@ -122,12 +121,10 @@ class ModalService {
     
     // If we're on an admin page, don't show any modals.
     if ($is_admin) {
-      \Drupal::logger('custom_plugin')->debug('ModalService: Skipping all modals - on admin page');
       return [];
     }
 
     foreach ($entities as $modal) {
-      \Drupal::logger('custom_plugin')->debug('ModalService: Processing modal @id', ['@id' => $modal->id()]);
       
       // Check visibility settings.
       $visibility = $modal->getVisibility();
@@ -142,7 +139,6 @@ class ModalService {
         $modal_param = $request->query->get('modal');
         if ($modal_param === $force_open_param) {
           $is_forced_open = TRUE;
-          \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id forced open via URL parameter', ['@id' => $modal->id()]);
         }
       }
 
@@ -163,11 +159,6 @@ class ModalService {
           // Check start date.
           if (!empty($start_date)) {
             if ($current_date < $start_date) {
-              \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id skipped - before start date (current: @current, start: @start)', [
-                '@id' => $modal->id(),
-                '@current' => $current_date,
-                '@start' => $start_date,
-              ]);
               continue; // Skip this modal - not yet started.
             }
           }
@@ -175,11 +166,6 @@ class ModalService {
           // Check end date.
           if (!empty($end_date)) {
             if ($current_date > $end_date) {
-              \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id skipped - after end date (current: @current, end: @end)', [
-                '@id' => $modal->id(),
-                '@current' => $current_date,
-                '@end' => $end_date,
-              ]);
               continue; // Skip this modal - already ended.
             }
           }
@@ -192,28 +178,18 @@ class ModalService {
         $matches = $this->pathMatcher->matchPath($path_alias, $pages) ||
           (($path != $path_alias) && $this->pathMatcher->matchPath($path, $pages));
 
-        \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id visibility check - pages: @pages, path: @path, alias: @alias, matches: @matches, negate: @negate', [
-          '@id' => $modal->id(),
-          '@pages' => $pages,
-          '@path' => $path,
-          '@alias' => $path_alias,
-          '@matches' => $matches ? 'yes' : 'no',
-          '@negate' => $negate ? 'yes' : 'no',
-        ]);
 
         // If negate is true, show on all pages EXCEPT matching ones.
         // If negate is false, show ONLY on matching pages.
         if ($negate) {
           // Negate: show on all pages EXCEPT these.
           if ($matches) {
-            \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id skipped - negate match', ['@id' => $modal->id()]);
             continue; // Skip this modal.
           }
         }
         else {
           // Normal: show ONLY on these pages.
           if (!$matches) {
-            \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id skipped - no match', ['@id' => $modal->id()]);
             continue; // Skip this modal.
           }
         }
@@ -326,9 +302,6 @@ class ModalService {
             } else {
               // No valid URLs found, remove image data but keep modal.
               unset($content['image']);
-              \Drupal::logger('custom_plugin')->debug('ModalService: No valid image URLs for modal @id, removing image data', [
-                '@id' => $modal->id(),
-              ]);
             }
           }
           catch (\Exception $image_error) {
@@ -354,15 +327,6 @@ class ModalService {
           'visibility' => $visibility, // Include visibility for date range checking on frontend.
         ];
         
-        // Debug: Log form configuration if present.
-        if (!empty($content['form'])) {
-          \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id has form config: @config', [
-            '@id' => $modal->id(),
-            '@config' => print_r($content['form'], TRUE),
-          ]);
-        }
-        
-        \Drupal::logger('custom_plugin')->debug('ModalService: Successfully added modal @id', ['@id' => $modal->id()]);
       }
       catch (\Exception $e) {
         // Log error but continue processing other modals.
@@ -382,7 +346,6 @@ class ModalService {
             'dismissal' => $modal->getDismissal(),
             'analytics' => $modal->getAnalytics(),
           ];
-          \Drupal::logger('custom_plugin')->debug('ModalService: Added modal @id despite error', ['@id' => $modal->id()]);
         }
         catch (\Exception $e2) {
           \Drupal::logger('custom_plugin')->error('Error adding modal @id to array: @message', [
@@ -393,7 +356,6 @@ class ModalService {
       }
     }
 
-    \Drupal::logger('custom_plugin')->debug('ModalService: Returning @count modals', ['@count' => count($modals)]);
     return $modals;
   }
 
