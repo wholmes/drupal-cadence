@@ -441,16 +441,11 @@ tr.modal-archived {
 }
 
 .modal-search-inputs {
-  display: flex;
-  gap: 1rem;
-  flex: 1;
-  align-items: flex-end;
+  display: contents; /* Flatten this container so children participate in parent flex */
 }
 
 .modal-search-buttons {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-end;
+  display: contents; /* Flatten this container so children participate in parent flex */
 }
 
 /* Field wrapper styling to override Drupal defaults */
