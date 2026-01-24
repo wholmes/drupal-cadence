@@ -21,9 +21,52 @@
   };
 
   /**
-   * Modal Manager class - handles one modal instance.
+   * Analytics Tracker - handles server-side analytics.
    */
   Drupal.modalSystem = Drupal.modalSystem || {};
+
+  Drupal.modalSystem.AnalyticsTracker = {
+    trackEvent: function (modalId, eventType, eventDetail) {
+      if (typeof Drupal.url === 'undefined') {
+        console.error('Modal System: Drupal.url not available');
+        return;
+      }
+
+      const url = Drupal.url('admin/config/content/modal-system/analytics/track');
+      const data = new FormData();
+      data.append('modal_id', modalId);
+      data.append('event_type', eventType);
+      data.append('event_detail', eventDetail || '');
+
+      if (typeof jQuery !== 'undefined' && jQuery.ajax) {
+        jQuery.ajax({
+          url: url,
+          type: 'POST',
+          data: data,
+          processData: false,
+          contentType: false,
+          success: function(response) {
+            // Analytics tracked successfully
+          },
+          error: function(xhr, status, error) {
+            console.error('Modal System: Analytics tracking failed', error);
+          }
+        });
+      } else {
+        // Fallback to fetch
+        fetch(url, {
+          method: 'POST',
+          body: data
+        }).catch(function(error) {
+          console.error('Modal System: Analytics tracking failed', error);
+        });
+      }
+    }
+  };
+
+  /**
+   * Modal Manager class - handles one modal instance.
+   */
 
   Drupal.modalSystem.ModalManager = function (modal) {
     this.modal = modal;
@@ -157,7 +200,10 @@
       return;
     }
 
-    // Track event.
+    // Track server-side analytics.
+    Drupal.modalSystem.AnalyticsTracker.trackEvent(this.modal.id, 'modal_shown', 'impression');
+    
+    // Track Google Analytics.
     this.trackEvent('modal_shown');
 
     // Create modal element with data-attributes.

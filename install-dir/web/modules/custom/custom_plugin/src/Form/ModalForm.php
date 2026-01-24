@@ -477,6 +477,81 @@ class ModalForm extends EntityForm {
       '#default_value' => $cta2['hover_animation'] ?? '',
     ];
 
+    // Form fieldset.
+    $form['content']['form'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Embed Form'),
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-form-fieldset']],
+    ];
+
+    $form_data = $content['form'] ?? [];
+    
+    // Get available form types.
+    $form_type_options = ['' => $this->t('- None -')];
+    
+    // Check if Contact module is enabled.
+    if (\Drupal::moduleHandler()->moduleExists('contact')) {
+      $form_type_options['contact'] = $this->t('Contact Form');
+    }
+    
+    // Check if Webform module is enabled.
+    if (\Drupal::moduleHandler()->moduleExists('webform')) {
+      $form_type_options['webform'] = $this->t('Webform');
+    }
+
+    $form['content']['form']['type'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Form Type'),
+      '#description' => $this->t('Select the type of form to embed in this modal.'),
+      '#options' => $form_type_options,
+      '#default_value' => $form_data['type'] ?? '',
+      '#ajax' => [
+        'callback' => '::updateFormIdOptions',
+        'wrapper' => 'form-id-wrapper',
+        'method' => 'replace',
+      ],
+    ];
+
+    // Form ID selection - dynamically populated based on form type.
+    $form['content']['form']['form_id_wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'form-id-wrapper'],
+      '#tree' => TRUE, // Preserve nested structure in form values.
+    ];
+
+    $selected_form_type = $form_state->getValue(['content', 'form', 'type']) ?? $form_data['type'] ?? '';
+    if ($selected_form_type) {
+      $form_id_options = $this->getFormIdOptions($selected_form_type);
+      $current_form_id = $form_state->getValue(['content', 'form', 'form_id']) ?? $form_data['form_id'] ?? '';
+      
+      if (!empty($form_id_options)) {
+        // If we have a saved form_id that's not in current options, add it.
+        if ($current_form_id && !isset($form_id_options[$current_form_id])) {
+          $form_id_options[$current_form_id] = $this->t('@id (saved)', ['@id' => $current_form_id]);
+        }
+        
+        $form['content']['form']['form_id_wrapper']['form_id'] = [
+          '#type' => 'select',
+          '#title' => $this->t('Select Form'),
+          '#options' => $form_id_options,
+          '#default_value' => $current_form_id,
+          '#required' => TRUE,
+          // Don't use #validated => TRUE - let validation work normally.
+          // We'll handle saved values not in options in validation.
+        ];
+      }
+      else {
+        $form['content']['form']['form_id_wrapper']['form_id'] = [
+          '#type' => 'textfield',
+          '#title' => $this->t('Form ID'),
+          '#description' => $this->t('Enter the form ID manually (e.g., contact_message_feedback_form).'),
+          '#default_value' => $current_form_id,
+          '#required' => TRUE,
+        ];
+      }
+    }
+
     // Rules tab - simple checkboxes and options.
     $form['rules'] = [
       '#type' => 'fieldset',
@@ -1160,11 +1235,145 @@ class ModalForm extends EntityForm {
     // Get text content from the fieldset.
     $text_content = $content_values['text_content'] ?? [];
     
+    // Collect form configuration.
+    // Initialize to prevent undefined variable errors.
+    $form_config = [];
+    
+    // Access form values directly from form_state to handle container nesting.
+    $form_type = trim($form_state->getValue(['content', 'form', 'type']) ?? '');
+    $form_id = '';
+    
+    // Get all form values to debug structure.
+    $all_form_values = $form_state->getValue(['content', 'form']) ?? [];
+    
+    // Also check raw user input in case form_state hasn't processed it yet.
+    $user_input = $form_state->getUserInput();
+    $raw_form_values = $user_input['content']['form'] ?? [];
+    
+    // Log the keys to understand structure.
+    \Drupal::logger('custom_plugin')->debug('ModalForm save(): all_form_values keys: @keys', [
+      '@keys' => implode(', ', array_keys($all_form_values)),
+    ]);
+    \Drupal::logger('custom_plugin')->debug('ModalForm save(): raw_form_values keys: @keys', [
+      '@keys' => implode(', ', array_keys($raw_form_values)),
+    ]);
+    
+    // Try multiple paths to get form_id.
+    // Path 1: Nested in form_id_wrapper container (with #tree => TRUE).
+    if (isset($all_form_values['form_id_wrapper']['form_id'])) {
+      $raw_form_id = $all_form_values['form_id_wrapper']['form_id'];
+      // Log the raw value with full details - use separate log messages to avoid truncation.
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - Raw form_id type: @type', ['@type' => gettype($raw_form_id)]);
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - Raw form_id value: @value', ['@value' => var_export($raw_form_id, TRUE)]);
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - Raw form_id is_array: @val, is_null: @null, is_empty: @empty', [
+        '@val' => is_array($raw_form_id) ? 'YES' : 'NO',
+        '@null' => is_null($raw_form_id) ? 'YES' : 'NO',
+        '@empty' => empty($raw_form_id) ? 'YES' : 'NO',
+      ]);
+      
+      // Handle the value - if it's an array (shouldn't happen but be safe), get first element.
+      if (is_array($raw_form_id)) {
+        $raw_form_id = !empty($raw_form_id) ? reset($raw_form_id) : '';
+      }
+      $form_id = is_string($raw_form_id) ? trim($raw_form_id) : (string) $raw_form_id;
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 1 - After processing: @trimmed (length: @len)', [
+        '@trimmed' => var_export($form_id, TRUE),
+        '@len' => strlen($form_id),
+      ]);
+    }
+    // Path 2: From raw user input (before form_state processing).
+    elseif (isset($raw_form_values['form_id_wrapper']['form_id'])) {
+      $raw_form_id = $raw_form_values['form_id_wrapper']['form_id'];
+      $form_id = trim($raw_form_id);
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 2 - Found form_id in raw_form_values[form_id_wrapper][form_id]: raw="@raw", trimmed="@trimmed"', [
+        '@raw' => $raw_form_id,
+        '@trimmed' => $form_id,
+      ]);
+    }
+    // Path 3: Directly in form values (if container doesn't preserve structure).
+    elseif (isset($all_form_values['form_id'])) {
+      $raw_form_id = $all_form_values['form_id'];
+      $form_id = trim($raw_form_id);
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 3 - Found form_id in all_form_values[form_id]: raw="@raw", trimmed="@trimmed"', [
+        '@raw' => $raw_form_id,
+        '@trimmed' => $form_id,
+      ]);
+    }
+    // Path 4: From raw user input directly.
+    elseif (isset($raw_form_values['form_id'])) {
+      $raw_form_id = $raw_form_values['form_id'];
+      $form_id = trim($raw_form_id);
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 4 - Found form_id in raw_form_values[form_id]: raw="@raw", trimmed="@trimmed"', [
+        '@raw' => $raw_form_id,
+        '@trimmed' => $form_id,
+      ]);
+    }
+    // Path 5: Check if form_id_wrapper exists and has nested structure.
+    elseif (isset($all_form_values['form_id_wrapper']) && is_array($all_form_values['form_id_wrapper'])) {
+      $wrapper_keys = array_keys($all_form_values['form_id_wrapper']);
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 5 - form_id_wrapper exists with keys: @keys', [
+        '@keys' => implode(', ', $wrapper_keys),
+      ]);
+      if (isset($all_form_values['form_id_wrapper']['form_id'])) {
+        $raw_form_id = $all_form_values['form_id_wrapper']['form_id'];
+        $form_id = trim($raw_form_id);
+        \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 5 - Found form_id: raw="@raw", trimmed="@trimmed"', [
+          '@raw' => $raw_form_id,
+          '@trimmed' => $form_id,
+        ]);
+      }
+    }
+    // Path 6: Try from form_state directly.
+    else {
+      $direct_value = $form_state->getValue(['content', 'form', 'form_id_wrapper', 'form_id']);
+      if (!empty($direct_value)) {
+        $form_id = trim($direct_value);
+        \Drupal::logger('custom_plugin')->debug('ModalForm save(): Path 6 - Found form_id via direct form_state path: @id', ['@id' => $form_id]);
+      }
+    }
+    
+    // If form_id is empty but we have a saved form_id and form_type matches, use the saved one.
+    if (empty($form_id) && !empty($form_type) && !$this->entity->isNew()) {
+      $existing_form = $this->entity->getContent()['form'] ?? [];
+      $existing_form_id = $existing_form['form_id'] ?? '';
+      $existing_form_type = $existing_form['type'] ?? '';
+      // Only use existing form_id if form_type matches (user didn't change the type).
+      if (!empty($existing_form_id) && $existing_form_type === $form_type) {
+        $form_id = $existing_form_id;
+        \Drupal::logger('custom_plugin')->debug('ModalForm save(): Using existing form_id: @id (form_type matches)', ['@id' => $form_id]);
+      }
+    }
+    
+    // Debug logging to help troubleshoot.
+    \Drupal::logger('custom_plugin')->debug('ModalForm save(): Form config - type: @type, form_id: @form_id, form_id length: @length, form_id empty?: @empty', [
+      '@type' => $form_type,
+      '@form_id' => $form_id,
+      '@length' => strlen($form_id),
+      '@empty' => empty($form_id) ? 'YES' : 'NO',
+    ]);
+    
+    if (!empty($form_type) && !empty($form_id)) {
+      $form_config = [
+        'type' => $form_type,
+        'form_id' => $form_id,
+      ];
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): form_config created: @config', [
+        '@config' => print_r($form_config, TRUE),
+      ]);
+    }
+    else {
+      \Drupal::logger('custom_plugin')->debug('ModalForm save(): form_config NOT created - form_type empty?: @type_empty, form_id empty?: @id_empty', [
+        '@type_empty' => empty($form_type) ? 'YES' : 'NO',
+        '@id_empty' => empty($form_id) ? 'YES' : 'NO',
+      ]);
+    }
+
     $content = [
       'headline' => $text_content['headline'] ?? '',
       'subheadline' => $text_content['subheadline'] ?? '',
       'body' => $text_content['body'] ?? '',
       'image' => $image_array,
+      'form' => $form_config,
       'cta1' => [
             'text' => $content_values['cta1']['text'] ?? '',
             'url' => $content_values['cta1']['url'] ?? '',
@@ -1247,6 +1456,9 @@ class ModalForm extends EntityForm {
     ];
     $modal->setStyling($styling);
 
+    // Form configuration is already collected above in the content array.
+    // No need to duplicate it here.
+
     // Collect dismissal.
     $dismissal_values = $form_state->getValue('dismissal', []);
     $dismissal = [
@@ -1323,6 +1535,97 @@ class ModalForm extends EntityForm {
       ->condition('id', $entity_id)
       ->execute();
     return (bool) $result;
+  }
+
+  /**
+   * AJAX callback to update form ID options based on form type.
+   */
+  public function updateFormIdOptions(array &$form, FormStateInterface $form_state) {
+    $form_type = $form_state->getValue(['content', 'form', 'type']);
+    $form_id_options = $this->getFormIdOptions($form_type);
+    
+    // Get current form_id value from form state - check both possible paths.
+    // Path 1: From form_id_wrapper container (correct path).
+    $current_form_id = $form_state->getValue(['content', 'form', 'form_id_wrapper', 'form_id']) ?? '';
+    // Path 2: Direct path (fallback).
+    if (empty($current_form_id)) {
+      $current_form_id = $form_state->getValue(['content', 'form', 'form_id']) ?? '';
+    }
+    // Path 3: From existing entity if form is being edited.
+    if (empty($current_form_id) && !$this->entity->isNew()) {
+      $existing_form = $this->entity->getContent()['form'] ?? [];
+      $current_form_id = $existing_form['form_id'] ?? '';
+    }
+    
+    $form_id_element = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'form-id-wrapper'],
+    ];
+
+    if (!empty($form_id_options)) {
+      // If we have a saved form_id that's not in current options, add it.
+      if ($current_form_id && !isset($form_id_options[$current_form_id])) {
+        $form_id_options[$current_form_id] = $this->t('@id (saved)', ['@id' => $current_form_id]);
+      }
+      
+      $form_id_element['form_id'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Select Form'),
+        '#options' => $form_id_options,
+        '#default_value' => $current_form_id,
+        '#required' => TRUE,
+      ];
+    }
+    else {
+      $form_id_element['form_id'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Form ID'),
+        '#description' => $this->t('Enter the form ID manually (e.g., contact_message_feedback_form).'),
+        '#default_value' => $current_form_id,
+        '#required' => TRUE,
+      ];
+    }
+
+    $response = new AjaxResponse();
+    $response->addCommand(new ReplaceCommand('#form-id-wrapper', $form_id_element));
+    return $response;
+  }
+
+  /**
+   * Gets available form IDs for a given form type.
+   *
+   * @param string $form_type
+   *   The form type (contact, webform, etc.).
+   *
+   * @return array
+   *   Array of form options keyed by form ID.
+   */
+  protected function getFormIdOptions($form_type) {
+    $options = [];
+
+    if ($form_type === 'contact' && \Drupal::moduleHandler()->moduleExists('contact')) {
+      // Load all contact forms.
+      $contact_forms = \Drupal::entityTypeManager()
+        ->getStorage('contact_form')
+        ->loadMultiple();
+      
+      foreach ($contact_forms as $contact_form) {
+        $form_id = 'contact_message_' . $contact_form->id() . '_form';
+        $options[$form_id] = $contact_form->label();
+      }
+    }
+    elseif ($form_type === 'webform' && \Drupal::moduleHandler()->moduleExists('webform')) {
+      // Load all webforms.
+      $webforms = \Drupal::entityTypeManager()
+        ->getStorage('webform')
+        ->loadMultiple();
+      
+      foreach ($webforms as $webform) {
+        $options[$webform->id()] = $webform->label();
+      }
+    }
+
+    return $options;
   }
 
 }

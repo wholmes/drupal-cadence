@@ -11,7 +11,8 @@
       <a href="{{ url('custom_plugin.modal.analytics', {}, {'query': show_archived ? {} : {'show_archived': '1'}}) }}" class="button">
         {{ show_archived ? 'Hide Archived'|t : 'Show Archived'|t }}
       </a>
-      <a href="{{ url('custom_plugin.modal.analytics.download') }}" class="button">{{ 'Download All Data (CSV)'|t }}</a>
+      <a href="javascript:location.reload();" class="button" title="{{ 'Refresh analytics data'|t }}">🔄 {{ 'Refresh'|t }}</a>
+      <a href="{{ url('custom_plugin.modal.analytics.download') }}" class="button" title="{{ 'Download All Data (CSV)'|t }}">📊 {{ 'CSV'|t }}</a>
     </div>
   </div>
 
@@ -23,14 +24,15 @@
         <thead>
           <tr>
             <th>{{ 'Modal'|t }}</th>
-            <th>{{ 'Impressions'|t }}</th>
-            <th>{{ 'CTA 1 Clicks'|t }}</th>
-            <th>{{ 'CTA 2 Clicks'|t }}</th>
-            <th>{{ 'Total CTA Clicks'|t }}</th>
-            <th>{{ 'Conversion Rate'|t }}</th>
-            <th>{{ 'Dismissals'|t }}</th>
-            <th>{{ 'Last 30 Days'|t }}</th>
-            <th>{{ 'Actions'|t }}</th>
+            <th class="analytics-number">{{ 'Impressions'|t }}</th>
+            <th class="analytics-number">{{ 'CTA 1 Clicks'|t }}</th>
+            <th class="analytics-number">{{ 'CTA 2 Clicks'|t }}</th>
+            <th class="analytics-number">{{ 'Form Submissions'|t }}</th>
+            <th class="analytics-number" title="{{ 'Total interactions'|t }}">{{ 'Interactions'|t }}</th>
+            <th class="analytics-number">{{ 'Conversion Rate'|t }}</th>
+            <th class="analytics-number">{{ 'Dismissals'|t }}</th>
+            <th class="analytics-number">{{ 'Last 30 Days'|t }}</th>
+            <th class="analytics-actions">{{ 'Actions'|t }}</th>
           </tr>
         </thead>
         <tbody>
@@ -43,12 +45,15 @@
               <td class="analytics-number">{{ data.impressions }}</td>
               <td class="analytics-number">{{ data.cta1_clicks }}</td>
               <td class="analytics-number">{{ data.cta2_clicks }}</td>
-              <td class="analytics-number">{{ data.total_cta_clicks }}</td>
+              <td class="analytics-number">{{ data.form_submissions }}</td>
+              <td class="analytics-number"><strong>{{ data.total_interactions }}</strong></td>
               <td class="analytics-number">{{ data.conversion_rate }}%</td>
               <td class="analytics-number">{{ data.dismissals }}</td>
               <td class="analytics-number">{{ data.recent_impressions }}</td>
-              <td>
-                <a href="{{ url('custom_plugin.modal.analytics.download', {'modal_id': modal_id}) }}" class="button button--small">{{ 'Download CSV'|t }}</a>
+              <td class="analytics-actions">
+                <a href="{{ url('entity.modal.edit_form', {'modal': modal_id}) }}" class="button button--small" title="{{ 'Edit'|t }}">✏️</a>
+                <a href="{{ url('entity.modal.delete_form', {'modal': modal_id}) }}" class="button button--small button--danger" title="{{ data.is_archived ? 'Restore'|t : 'Archive'|t }}">{{ data.is_archived ? '🔄' : '📦' }}</a>
+                <a href="{{ url('custom_plugin.modal.analytics.download', {'modal_id': modal_id}) }}" class="button button--small" title="{{ 'Download CSV'|t }}">📊</a>
               </td>
             </tr>
           {% endfor %}
@@ -73,4 +78,25 @@
       </div>
     </div>
   {% endif %}
+
+  {# Reset analytics data section - collapsible #}
+  <details class="modal-analytics-reset-details">
+    <summary class="modal-analytics-reset-summary">{{ 'Danger Zone: Reset Analytics Data'|t }}</summary>
+    <div class="modal-analytics-reset-section">
+      <p class="description">{{ 'This will permanently delete all analytics data for all modals. This action cannot be undone.'|t }}</p>
+      <form method="post" action="{{ url('custom_plugin.modal.analytics.reset') }}" onsubmit="return confirmReset();">
+        <button type="submit" class="button button--danger">{{ 'Reset All Analytics Data'|t }}</button>
+      </form>
+    </div>
+  </details>
 </div>
+
+<script>
+function confirmReset() {
+  const confirmed = confirm('{{ 'Are you absolutely sure you want to delete ALL analytics data? This cannot be undone!'|t }}');
+  if (confirmed) {
+    return confirm('{{ 'Final warning: This will delete all impression, click, and submission data for ALL modals. Continue?'|t }}');
+  }
+  return false;
+}
+</script>

@@ -24,6 +24,18 @@ custom_plugin.modal.*:
         body:
           type: text
           label: 'Body content'
+        form:
+          type: mapping
+          label: 'Form'
+          mapping:
+            type:
+              type: string
+              label: 'Form Type'
+              nullable: true
+            form_id:
+              type: string
+              label: 'Form ID'
+              nullable: true
         image:
           type: mapping
           label: 'Image'

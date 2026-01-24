@@ -317,6 +317,14 @@ class ModalService {
           'visibility' => $visibility, // Include visibility for date range checking on frontend.
         ];
         
+        // Debug: Log form configuration if present.
+        if (!empty($content['form'])) {
+          \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id has form config: @config', [
+            '@id' => $modal->id(),
+            '@config' => print_r($content['form'], TRUE),
+          ]);
+        }
+        
         \Drupal::logger('custom_plugin')->debug('ModalService: Successfully added modal @id', ['@id' => $modal->id()]);
       }
       catch (\Exception $e) {

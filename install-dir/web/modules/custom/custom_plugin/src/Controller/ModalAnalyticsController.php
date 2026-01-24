@@ -7,6 +7,8 @@ use Drupal\Core\Database\Database;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\Core\Url;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -104,10 +106,10 @@ class ModalAnalyticsController extends ControllerBase {
       foreach ($modals as $modal) {
         $modal_id = $modal->id();
         
-        // Get impressions (shown events).
+        // Get impressions (modal_shown events).
         $impressions = $connection->select('modal_analytics', 'ma')
         ->condition('modal_id', $modal_id)
-        ->condition('event_type', 'shown')
+        ->condition('event_type', 'modal_shown')
         ->countQuery()
         ->execute()
         ->fetchField();
@@ -129,6 +131,26 @@ class ModalAnalyticsController extends ControllerBase {
         ->execute()
         ->fetchField();
       
+      // Get form submissions - simplified approach to avoid complex queries.
+      $form_submissions = 0;
+      $form_submission_details = [];
+      
+      try {
+        // Simple count query first.
+        $form_submissions_query = $connection->select('modal_analytics', 'ma')
+          ->condition('modal_id', $modal_id)
+          ->condition('event_type', '%submission', 'LIKE');
+        $form_submissions = (int) $form_submissions_query->countQuery()->execute()->fetchField();
+      }
+      catch (\Exception $e) {
+        // If form submission queries fail, just set to 0 and continue.
+        $form_submissions = 0;
+        \Drupal::logger('custom_plugin')->warning('Error querying form submissions for modal @modal_id: @message', [
+          '@modal_id' => $modal_id,
+          '@message' => $e->getMessage(),
+        ]);
+      }
+      
       // Get dismissals.
       $dismissals = $connection->select('modal_analytics', 'ma')
         ->condition('modal_id', $modal_id)
@@ -137,16 +159,25 @@ class ModalAnalyticsController extends ControllerBase {
         ->execute()
         ->fetchField();
       
-      // Get conversion rate (CTA clicks / impressions).
-      $conversion_rate = $impressions > 0 
-        ? round((($cta1_clicks + $cta2_clicks) / $impressions) * 100, 2) 
+      // Calculate total interactions (safely cast to int).
+      $total_cta_clicks = (int) ($cta1_clicks + $cta2_clicks);
+      $total_interactions = $total_cta_clicks + $form_submissions;
+      
+      // Get conversion rate (total interactions / impressions) - safely handle division by zero.
+      $conversion_rate = ($impressions > 0 && $total_interactions > 0)
+        ? round(($total_interactions / $impressions) * 100, 2) 
+        : 0;
+      
+      // Get form conversion rate (form submissions / impressions) - safely handle division by zero.
+      $form_conversion_rate = ($impressions > 0 && $form_submissions > 0)
+        ? round(($form_submissions / $impressions) * 100, 2) 
         : 0;
       
       // Get recent events (last 30 days).
       $thirty_days_ago = \Drupal::time()->getRequestTime() - (30 * 24 * 60 * 60);
       $recent_impressions = $connection->select('modal_analytics', 'ma')
         ->condition('modal_id', $modal_id)
-        ->condition('event_type', 'shown')
+        ->condition('event_type', 'modal_shown')
         ->condition('timestamp', $thirty_days_ago, '>=')
         ->countQuery()
         ->execute()
@@ -170,9 +201,13 @@ class ModalAnalyticsController extends ControllerBase {
         'impressions' => (int) $impressions,
         'cta1_clicks' => (int) $cta1_clicks,
         'cta2_clicks' => (int) $cta2_clicks,
-        'total_cta_clicks' => (int) ($cta1_clicks + $cta2_clicks),
+        'total_cta_clicks' => $total_cta_clicks,
+        'form_submissions' => (int) $form_submissions,
+        'form_submission_details' => [],
+        'total_interactions' => $total_interactions,
         'dismissals' => (int) $dismissals,
         'conversion_rate' => $conversion_rate,
+        'form_conversion_rate' => $form_conversion_rate,
         'recent_impressions' => (int) $recent_impressions,
       ];
     }
@@ -189,6 +224,8 @@ class ModalAnalyticsController extends ControllerBase {
         'cta1_clicks' => $data['cta1_clicks'],
         'cta2_clicks' => $data['cta2_clicks'],
         'total_cta_clicks' => $data['total_cta_clicks'],
+        'form_submissions' => $data['form_submissions'],
+        'total_interactions' => $data['total_interactions'],
         'conversion_rate' => $data['conversion_rate'],
         'dismissals' => $data['dismissals'],
         'recent_impressions' => $data['recent_impressions'],
@@ -284,6 +321,47 @@ class ModalAnalyticsController extends ControllerBase {
     $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
     
     return $response;
+  }
+
+  /**
+   * Reset all analytics data.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request object.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse
+   *   Redirect back to analytics page with message.
+   */
+  public function reset(Request $request) {
+    try {
+      // Check if table exists before trying to truncate.
+      $connection = Database::getConnection();
+      if (!$connection->schema()->tableExists('modal_analytics')) {
+        \Drupal::messenger()->addWarning($this->t('Analytics table does not exist. No data to reset.'));
+        return new RedirectResponse(Url::fromRoute('custom_plugin.modal.analytics')->toString());
+      }
+
+      // Truncate the analytics table to reset all data.
+      $connection->truncate('modal_analytics')->execute();
+      
+      \Drupal::messenger()->addStatus($this->t('All analytics data has been successfully reset to zero.'));
+      
+      // Log the reset action.
+      \Drupal::logger('custom_plugin')->notice('Analytics data reset by user @user', [
+        '@user' => \Drupal::currentUser()->getAccountName(),
+      ]);
+      
+    } catch (\Exception $e) {
+      \Drupal::messenger()->addError($this->t('Failed to reset analytics data: @error', [
+        '@error' => $e->getMessage(),
+      ]));
+      
+      \Drupal::logger('custom_plugin')->error('Failed to reset analytics data: @error', [
+        '@error' => $e->getMessage(),
+      ]);
+    }
+
+    return new RedirectResponse(Url::fromRoute('custom_plugin.modal.analytics')->toString());
   }
 
 }
