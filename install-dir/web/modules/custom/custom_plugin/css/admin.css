@@ -3,6 +3,73 @@
  * Admin CSS for Modal System.
  */
 
+/* Remove box shadow and border from vertical tabs - override CSS variable */
+:root {
+  --vertical-tabs-shadow: none;
+  --vertical-tabs-border: none;
+}
+
+/* Also directly target the element with high specificity */
+.vertical-tabs__items,
+.vertical-tabs__items.vertical-tabs__items,
+body .vertical-tabs__items {
+  box-shadow: none !important;
+  border: none !important;
+  --vertical-tabs-shadow: none !important;
+  --vertical-tabs-border: none !important;
+}
+
+/* Also target the wrapper if needed */
+.vertical-tabs,
+body .vertical-tabs {
+  box-shadow: none !important;
+}
+
+.vertical-tabs__panes,
+body .vertical-tabs__panes {
+  box-shadow: none !important;
+}
+
+/* All fieldset labels - add bottom border */
+.fieldset__label {
+  border-bottom: 1px solid #ccc;
+}
+
+/* Modal list date styling */
+.modal-date-expired {
+  color: #d32f2f !important;
+  font-weight: bold;
+}
+
+.modal-date-empty {
+  color: #999;
+  font-style: italic;
+}
+
+/* Modal list actions */
+.modal-list-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Archived modal styling */
+.modal-archived-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #666;
+  color: #fff;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+tr.modal-archived {
+  opacity: 0.7;
+  background-color: #f9f9f9;
+}
+
 /* Flexbox operations container */
 .modal-operations {
   display: flex;
@@ -29,4 +96,180 @@
 .modal-operations a:focus {
   outline: 2px solid #005177;
   outline-offset: 2px;
+}
+
+/* Image effects preview */
+.image-effects-preview-container {
+  margin-top: 1rem;
+}
+
+.image-effects-preview-container .image-preview {
+  display: block;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+}
+
+/* Wide screen layout improvements */
+@media (min-width: 1024px) {
+  /* CTA fieldsets side by side */
+  .modal-cta-fieldset {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 1rem);
+    margin-right: 1rem;
+  }
+  
+  .modal-cta-fieldset.modal-cta-2 {
+    margin-right: 0;
+    margin-left: 1rem;
+  }
+  
+  /* Image effects and preview container - flexbox layout */
+  .modal-effects-preview-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  
+  /* Image effects and preview side by side */
+  .modal-effects-preview-container .modal-image-effects,
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1;
+    min-width: 0; /* Prevents flex items from overflowing */
+  }
+  
+  .modal-effects-preview-container .modal-image-effects {
+    flex: 1.5; /* Slightly larger for effects */
+  }
+  
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1; /* Smaller for preview */
+  }
+  
+  /* Image effects - 3 columns for background color, blend mode, grayscale */
+  .modal-image-effects .form-item {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(33.333% - 0.75rem);
+    margin-right: 0.75rem;
+  }
+  
+  .modal-image-effects .form-item:last-child {
+    margin-right: 0;
+  }
+  
+  /* Rules - checkbox and value side by side */
+  .modal-rules-fieldset .form-item--checkbox {
+    display: inline-block;
+    width: auto;
+    margin-right: 1rem;
+  }
+  
+  .modal-rules-fieldset .form-item:not(.form-item--checkbox) {
+    display: inline-block;
+    width: calc(50% - 0.5rem);
+    vertical-align: top;
+  }
+  
+  /* Styling - layout and colors side by side (exclude fieldsets) */
+  .modal-styling-fieldset > .form-item:not(fieldset) {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(33.333% - 0.75rem);
+    margin-right: 0.75rem;
+  }
+  
+  .modal-styling-fieldset > .form-item:not(fieldset):nth-child(3n) {
+    margin-right: 0;
+  }
+  
+  /* Typography container - flexbox layout for side by side fieldsets */
+  .modal-typography-container {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  /* Typography fieldsets - headline and subheadline side by side */
+  .modal-typography-container .fieldset--headline,
+  .modal-typography-container .fieldset--subheadline {
+    flex: 1;
+    min-width: 0; /* Prevents flex items from overflowing */
+  }
+  
+  /* Typography fields within fieldsets - 2 columns */
+  .modal-styling-fieldset .fieldset--headline .form-item,
+  .modal-styling-fieldset .fieldset--subheadline .form-item {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 0.5rem);
+    margin-right: 0.5rem;
+  }
+  
+  .modal-styling-fieldset .fieldset--headline .form-item:nth-child(even),
+  .modal-styling-fieldset .fieldset--subheadline .form-item:nth-child(even) {
+    margin-right: 0;
+  }
+}
+
+/* Medium screens - some improvements */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Typography container - flexbox layout for medium screens too */
+  .modal-typography-container {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .modal-typography-container .fieldset--headline,
+  .modal-typography-container .fieldset--subheadline {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  /* CTA fieldsets side by side on medium screens too */
+  .modal-cta-fieldset {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 1rem);
+    margin-right: 1rem;
+  }
+  
+  .modal-cta-fieldset.modal-cta-2 {
+    margin-right: 0;
+    margin-left: 1rem;
+  }
+  
+  /* Image effects and preview container - flexbox layout for medium screens */
+  .modal-effects-preview-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  
+  .modal-effects-preview-container .modal-image-effects,
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .modal-effects-preview-container .modal-image-effects {
+    flex: 1.5;
+  }
+  
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1;
+  }
+  
+  /* Image effects - 2 columns */
+  .modal-image-effects .form-item {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 0.5rem);
+    margin-right: 0.5rem;
+  }
+  
+  .modal-image-effects .form-item:nth-child(even) {
+    margin-right: 0;
+  }
 }

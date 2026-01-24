@@ -18,6 +18,9 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     $header['label'] = $this->t('Label');
     $header['id'] = $this->t('ID');
     $header['status'] = $this->t('Status');
+    $header['archived'] = $this->t('Archived');
+    $header['start_date'] = $this->t('Start Date');
+    $header['end_date'] = $this->t('End Date');
     return $header + parent::buildHeader();
   }
 
@@ -26,9 +29,74 @@ class ModalListBuilder extends ConfigEntityListBuilder {
    */
   public function buildRow(EntityInterface $entity) {
     /** @var \Drupal\custom_plugin\ModalInterface $entity */
-    $row['label'] = $entity->label();
+    $is_archived = $entity->isArchived();
+    $row['label'] = [
+      '#markup' => $is_archived 
+        ? '<em>' . $entity->label() . '</em>' 
+        : $entity->label(),
+    ];
     $row['id'] = $entity->id();
     $row['status'] = $entity->status() ? $this->t('Enabled') : $this->t('Disabled');
+    $row['archived'] = [
+      '#markup' => $is_archived 
+        ? '<span class="modal-archived-badge">' . $this->t('Archived') . '</span>' 
+        : $this->t('—'),
+      '#wrapper_attributes' => ['class' => $is_archived ? ['modal-archived'] : []],
+    ];
+    
+    // Get visibility settings for dates.
+    $visibility = $entity->getVisibility();
+    $start_date = $visibility['start_date'] ?? NULL;
+    $end_date = $visibility['end_date'] ?? NULL;
+    
+    // Format start date.
+    if (!empty($start_date)) {
+      // If it's a timestamp, convert to date string first.
+      if (is_numeric($start_date)) {
+        $start_date = date('Y-m-d', (int) $start_date);
+      }
+      // Format for display (e.g., "Jan 15, 2024").
+      $start_timestamp = strtotime($start_date);
+      $formatted_start = date('M j, Y', $start_timestamp);
+      $row['start_date'] = [
+        '#markup' => '<span class="modal-date-start">' . $formatted_start . '</span>',
+      ];
+    }
+    else {
+      $row['start_date'] = [
+        '#markup' => '<span class="modal-date-empty">' . $this->t('—') . '</span>',
+      ];
+    }
+    
+    // Format end date and check if expired.
+    if (!empty($end_date)) {
+      // If it's a timestamp, convert to date string first.
+      if (is_numeric($end_date)) {
+        $end_date = date('Y-m-d', (int) $end_date);
+      }
+      // Format for display.
+      $end_timestamp = strtotime($end_date);
+      $formatted_end = date('M j, Y', $end_timestamp);
+      
+      // Check if expired (past current date).
+      $current_date = date('Y-m-d', \Drupal::time()->getRequestTime());
+      $is_expired = ($current_date > $end_date);
+      
+      $class = 'modal-date-end';
+      if ($is_expired) {
+        $class .= ' modal-date-expired';
+      }
+      
+      $row['end_date'] = [
+        '#markup' => '<span class="' . $class . '">' . $formatted_end . '</span>',
+      ];
+    }
+    else {
+      $row['end_date'] = [
+        '#markup' => '<span class="modal-date-empty">' . $this->t('—') . '</span>',
+      ];
+    }
+    
     return $row + parent::buildRow($entity);
   }
 
@@ -66,7 +134,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
           'modal' => $entity->id(),
         ]);
         $operations['delete'] = [
-          'title' => $this->t('Delete'),
+          'title' => $entity->isArchived() ? $this->t('Restore') : $this->t('Archive'),
           'weight' => 100,
           'attributes' => [
             'class' => ['use-ajax'],
@@ -135,15 +203,47 @@ class ModalListBuilder extends ConfigEntityListBuilder {
   public function render() {
     $build = parent::render();
     
-    // Add "Add modal" button at the top.
-    $build['add_modal'] = [
+    // Get filter parameter from query string.
+    $request = \Drupal::request();
+    $show_archived = $request->query->get('show_archived', FALSE);
+    
+    // Filter entities if not showing archived.
+    if (!$show_archived && isset($build['table']['#rows'])) {
+      $filtered_rows = [];
+      foreach ($build['table']['#rows'] as $key => $row) {
+        $entity = $this->getStorage()->load($key);
+        if ($entity && !$entity->isArchived()) {
+          $filtered_rows[$key] = $row;
+        }
+      }
+      $build['table']['#rows'] = $filtered_rows;
+    }
+    
+    // Add filter toggle and "Add modal" button.
+    $build['actions'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-list-actions']],
+      '#weight' => -10,
+    ];
+    
+    $build['actions']['add_modal'] = [
       '#type' => 'link',
       '#title' => $this->t('Add modal'),
       '#url' => Url::fromRoute('entity.modal.add_form'),
       '#attributes' => [
         'class' => ['button', 'button--primary', 'button--small'],
       ],
-      '#weight' => -10,
+    ];
+    
+    $build['actions']['filter_archived'] = [
+      '#type' => 'link',
+      '#title' => $show_archived ? $this->t('Hide Archived') : $this->t('Show Archived'),
+      '#url' => Url::fromRoute('entity.modal.collection', [], [
+        'query' => $show_archived ? [] : ['show_archived' => '1'],
+      ]),
+      '#attributes' => [
+        'class' => ['button', 'button--small'],
+      ],
     ];
     
     // Update empty message to include add link.

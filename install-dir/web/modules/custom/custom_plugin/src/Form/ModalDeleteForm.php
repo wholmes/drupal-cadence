@@ -8,7 +8,7 @@ use Drupal\Core\Url;
 use Drupal\file\Entity\File;
 
 /**
- * Form handler for the modal delete form.
+ * Form handler for the modal archive/restore form.
  */
 class ModalDeleteForm extends EntityConfirmFormBase {
 
@@ -16,7 +16,10 @@ class ModalDeleteForm extends EntityConfirmFormBase {
    * {@inheritdoc}
    */
   public function getQuestion() {
-    return $this->t('Are you sure you want to delete %name?', ['%name' => $this->entity->label()]);
+    if ($this->entity->isArchived()) {
+      return $this->t('Are you sure you want to restore %name?', ['%name' => $this->entity->label()]);
+    }
+    return $this->t('Are you sure you want to archive %name?', ['%name' => $this->entity->label()]);
   }
 
   /**
@@ -30,26 +33,35 @@ class ModalDeleteForm extends EntityConfirmFormBase {
    * {@inheritdoc}
    */
   public function getConfirmText() {
-    return $this->t('Delete');
+    if ($this->entity->isArchived()) {
+      return $this->t('Restore');
+    }
+    return $this->t('Archive');
   }
 
   /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    // Clean up file usage before deleting the entity.
-    $content = $this->entity->getContent();
-    if (!empty($content['image']['fid'])) {
-      $file = File::load($content['image']['fid']);
-      if ($file) {
-        \Drupal::service('file.usage')->delete($file, 'custom_plugin', 'modal', $this->entity->id());
-      }
+    if ($this->entity->isArchived()) {
+      // Restore the modal.
+      $this->entity->setArchived(FALSE);
+      $this->entity->save();
+      $this->messenger()->addMessage($this->t('Restored %label.', [
+        '%label' => $this->entity->label(),
+      ]));
+    }
+    else {
+      // Archive the modal (don't delete - preserves analytics data).
+      $this->entity->setArchived(TRUE);
+      // Also disable it when archiving.
+      $this->entity->set('status', FALSE);
+      $this->entity->save();
+      $this->messenger()->addMessage($this->t('Archived %label. Analytics data has been preserved.', [
+        '%label' => $this->entity->label(),
+      ]));
     }
     
-    $this->entity->delete();
-    $this->messenger()->addMessage($this->t('Deleted %label.', [
-      '%label' => $this->entity->label(),
-    ]));
     $form_state->setRedirectUrl($this->getCancelUrl());
   }
 

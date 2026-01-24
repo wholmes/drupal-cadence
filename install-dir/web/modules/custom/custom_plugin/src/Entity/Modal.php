@@ -44,17 +44,19 @@ use Drupal\custom_plugin\ModalInterface;
  *     "delete-form" = "/admin/config/content/modal-system/{modal}/delete",
  *     "collection" = "/admin/config/content/modal-system"
  *   },
-   *   config_export = {
-   *     "id",
-   *     "label",
-   *     "status",
-   *     "content",
-   *     "rules",
-   *     "styling",
-   *     "dismissal",
-   *     "analytics",
-   *     "visibility"
-   *   }
+  *   config_export = {
+  *     "id",
+  *     "label",
+  *     "status",
+  *     "archived",
+  *     "priority",
+  *     "content",
+  *     "rules",
+  *     "styling",
+  *     "dismissal",
+  *     "analytics",
+  *     "visibility"
+  *   }
  * )
  */
 class Modal extends ConfigEntityBase implements ModalInterface {
@@ -79,6 +81,20 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    * @var bool
    */
   protected $status = TRUE;
+
+  /**
+   * Whether the modal is archived.
+   *
+   * @var bool
+   */
+  protected $archived = FALSE;
+
+  /**
+   * Modal priority (higher = shows first).
+   *
+   * @var int
+   */
+  protected $priority = 0;
 
   /**
    * The modal content configuration.
@@ -211,7 +227,39 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    * {@inheritdoc}
    */
   public function isEnabled(): bool {
-    return (bool) $this->status;
+    return (bool) $this->status && !$this->isArchived();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isArchived(): bool {
+    $archived = $this->get('archived');
+    return is_bool($archived) ? $archived : FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setArchived(bool $archived) {
+    $this->set('archived', $archived);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPriority(): int {
+    $priority = $this->get('priority');
+    return is_numeric($priority) ? (int) $priority : 0;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setPriority(int $priority) {
+    $this->set('priority', $priority);
+    return $this;
   }
 
   /**

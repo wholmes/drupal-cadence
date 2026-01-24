@@ -1,13 +1,107 @@
-# Modal System - Debugging & Maintenance Guide
+# Modal System - AI Reference & Debugging Guide
+
+**Purpose**: This document serves as a reference guide for AI assistants working on this codebase. It provides critical context, architecture details, and debugging patterns to help diagnose and fix issues quickly.
 
 ## Table of Contents
-1. [Architecture Overview](#architecture-overview)
-2. [Key Components](#key-components)
-3. [Data Flow](#data-flow)
-4. [Debugging Techniques](#debugging-techniques)
-5. [Common Issues & Solutions](#common-issues--solutions)
-6. [Extending the Module](#extending-the-module)
-7. [Best Practices](#best-practices)
+1. [Critical Context for AI](#critical-context-for-ai)
+2. [Architecture Overview](#architecture-overview)
+3. [Key Components](#key-components)
+4. [Data Flow](#data-flow)
+5. [Debugging Techniques](#debugging-techniques)
+6. [Common Issues & Solutions](#common-issues--solutions)
+7. [Extending the Module](#extending-the-module)
+8. [Best Practices](#best-practices)
+
+---
+
+## Critical Context for AI
+
+### When Debugging "Nothing on Frontend" Issues
+
+**ALWAYS CHECK FIRST**:
+1. **Drupal Logs** (Reports > Recent log messages, filter: `custom_plugin`)
+   - Look for "Throwable" or "Exception" errors
+   - Common: `Call to undefined method Drupal\custom_plugin\Entity\Modal::[method]()`
+   - **If you see this**: Entity property exists but getter/setter method is missing
+   - **Fix**: Add method to both `Modal` entity AND `ModalInterface`
+
+2. **Hook Execution**
+   - Check logs for: "Modal System: hook_page_attachments() called"
+   - If missing: Hook is failing silently due to PHP error
+   - Check for fatal errors in logs
+
+3. **JavaScript Loading**
+   - View page source, search for: `modal-system.js`
+   - If missing: Library not attached (hook failed or no modals found)
+   - Check browser console for any JavaScript errors
+
+### Entity Method Requirements
+
+**CRITICAL RULE**: Every config entity property MUST have:
+1. Property declaration: `protected $propertyName = defaultValue;`
+2. Getter method: `public function getPropertyName(): type`
+3. Setter method: `public function setPropertyName(type $value)`
+4. Both methods in `ModalInterface` with matching signatures
+5. Property in `config_export` array in entity annotation
+
+**Why**: Missing methods cause fatal errors that prevent `hook_page_attachments()` from executing, which silently breaks the entire frontend.
+
+### When Adding New Features
+
+**Before coding**:
+1. Check if similar feature exists (don't duplicate)
+2. Review this document for patterns
+3. Check schema file for data structure
+4. Verify entity has all required methods
+
+**After coding**:
+1. Clear cache (always)
+2. Check logs for errors
+3. Test on frontend (not just admin)
+4. Verify JavaScript loads (check console)
+
+### Code Patterns to Follow
+
+**Entity Access**:
+```php
+// ✅ CORRECT
+$content = $this->get('content');
+$this->set('content', $content);
+
+// ❌ WRONG
+$content = $this->content;
+$this->content = $content;
+```
+
+**Form Value Access**:
+```php
+// ✅ CORRECT - Always use ?? operator
+$content = $form_state->getValue('content', []);
+$headline = $content['headline'] ?? '';
+
+// ❌ WRONG - Assumes value exists
+$headline = $form_state->getValue('content')['headline'];
+```
+
+**Error Handling**:
+```php
+// ✅ CORRECT - Always wrap risky operations
+try {
+  $modals = $service->getEnabledModals();
+}
+catch (\Exception $e) {
+  \Drupal::logger('custom_plugin')->error('Error: @message', ['@message' => $e->getMessage()]);
+  return []; // Graceful fallback
+}
+```
+
+### Common Mistakes to Avoid
+
+1. **Don't add properties without getters/setters** - Causes fatal errors
+2. **Don't access form values without defaults** - Causes undefined index errors
+3. **Don't forget to clear cache** - Changes won't appear
+4. **Don't skip error handling** - Breaks during cache rebuilds
+5. **Don't modify code outside the module** - User explicitly requested not to touch other code
 
 ---
 
@@ -60,14 +154,18 @@ custom_plugin/
 - `id`: Machine name (e.g., `sale_modal`)
 - `label`: Human-readable name
 - `status`: Enabled/disabled
+- `archived`: Whether modal is archived (preserves analytics data)
+- `priority`: Display priority (higher numbers show first when multiple modals triggered)
 - `content`: Headline, subheadline, body, CTAs, image
 - `rules`: Scroll, visit count, time on page, referrer, exit intent
 - `styling`: Layout, colors, typography, max-width
 - `dismissal`: Session/cookie/never with expiration
 - `analytics`: Google Analytics settings
-- `visibility`: Page restrictions
+- `visibility`: Page restrictions, date range, force-open parameter
 
-**Important**: Uses `$this->get('property')` and `$this->set('property', $value)` to access config data, not direct property access.
+**Important**: 
+- Uses `$this->get('property')` and `$this->set('property', $value)` to access config data, not direct property access
+- **Every property must have corresponding getter/setter methods** - missing methods cause fatal errors
 
 ### 2. ModalService (`src/ModalService.php`)
 
@@ -114,20 +212,29 @@ custom_plugin/
 
 **Architecture**:
 - `Drupal.behaviors.modalSystem`: Entry point (runs on page load)
+- `Drupal.modalSystem.QueueManager`: Global queue manager (shows modals one at a time)
 - `Drupal.modalSystem.ModalManager`: Class that manages one modal instance
 
 **Key Methods**:
-- `init()`: Check if dismissed, evaluate rules
+- `init()`: Check if dismissed, evaluate rules, enqueue modal
 - `setupRules()`: Initialize rule checking
-- `evaluateAllRules()`: Check if all enabled rules are met
-- `showModal()`: Render and display modal
-- `closeModal()`: Hide and dismiss modal
+- `evaluateAllRules()`: Check if all enabled rules are met, enqueue when ready
+- `showModal()`: Render and display modal (called by QueueManager)
+- `closeModal()`: Hide and dismiss modal, trigger next in queue
 - `isDismissed()`: Check dismissal state (session/cookie)
+
+**Queue System**:
+- Modals are queued when rules are met (not shown immediately)
+- Queue is sorted by priority (higher priority first)
+- Only one modal shows at a time
+- When modal is dismissed, next modal in queue is shown after 300ms delay
+- Prevents modal stacking/overlap
 
 **Rule Evaluation**:
 - All enabled rules must be met (AND logic)
 - If no rules enabled, modal shows immediately (for testing)
 - Rules checked every 1 second via `setInterval`
+- When rules met, modal is added to queue (not shown directly)
 
 ---
 
@@ -169,6 +276,7 @@ The module logs extensively. Check logs at:
 
 **Hook Execution**:
 ```
+Modal System: hook_page_attachments() called
 Modal System: Hook running on route [route_name]
 Modal System: Found X enabled modal(s)
 Modal System: Library attached successfully on route [route_name]
@@ -186,6 +294,7 @@ ModalService: Returning X modals
 - Check: "ModalService: Skipping all modals - on admin page" (you're on admin page)
 - Check: "ModalService: Modal [id] skipped - no match" (visibility mismatch)
 - Check: "Modal System: No enabled modals found" (no modals or all filtered out)
+- **Critical**: If you don't see "hook_page_attachments() called" at all, the hook is failing silently - check for PHP errors
 
 ### 3. Browser Console Debugging
 
@@ -277,20 +386,29 @@ $modals = $service->getEnabledModals();
 
 ### Issue: "Modal not showing on frontend"
 
-**Symptoms**: No modal appears, no JavaScript errors
+**Symptoms**: No modal appears, no JavaScript errors, no console messages at all
 
 **Causes & Solutions**:
 1. **Library not attached**
    - Check HTML source for `modal-system.js`
    - Check logs: "Modal System: Library attached successfully"
    - If missing: Check if `getEnabledModals()` returns empty array
+   - **Critical**: Check for PHP errors in logs - if `hook_page_attachments()` throws an exception, library won't attach
 
-2. **All modals filtered out**
+2. **Missing entity methods (Fatal Error)**
+   - **Error**: `Call to undefined method Drupal\custom_plugin\Entity\Modal::getPriority()`
+   - **Cause**: Entity property exists but getter/setter methods are missing
+   - **Solution**: Ensure all entity properties have corresponding `getProperty()` and `setProperty()` methods
+   - **Check**: Verify `ModalInterface` and `Modal` entity have matching method signatures
+   - **How to diagnose**: Check Drupal logs for "Throwable" errors - these prevent hook execution
+   - **Prevention**: When adding new properties, always add both getter and setter methods to entity AND interface
+
+3. **All modals filtered out**
    - Check visibility settings (Pages field, Negate checkbox)
    - Check if on admin page (logs will show "Skipping all modals - on admin page")
    - Check if modal is enabled (Status = Enabled)
 
-3. **Rules not met**
+4. **Rules not met**
    - Check browser console for rule evaluation logs
    - If no rules enabled, modal should show immediately
    - Check dismissal state (sessionStorage/cookies)
@@ -327,6 +445,28 @@ $modals = $service->getEnabledModals();
 2. **Service not available**
    - Check `\Drupal::hasService('custom_plugin.modal_service')`
    - Check entity type definition exists
+
+### Issue: "JavaScript not loading - no console messages"
+
+**Symptoms**: No JavaScript file in page source, no console messages, no errors visible
+
+**Causes & Solutions**:
+1. **Hook failing silently**
+   - **Error in logs**: `Call to undefined method Drupal\custom_plugin\Entity\Modal::[method]()`
+   - **Cause**: Entity property exists but getter/setter method is missing
+   - **Solution**: Add missing method to both `Modal` entity and `ModalInterface`
+   - **How to find**: Check Drupal logs (Reports > Recent log messages) for "Throwable" errors
+   - **Example**: If you see `getPriority()` error, add both `getPriority()` and `setPriority()` methods
+
+2. **Hook not executing**
+   - Check if you see "hook_page_attachments() called" in logs
+   - If not, check for PHP fatal errors
+   - Verify module is enabled
+
+3. **Library definition missing**
+   - Check `custom_plugin.libraries.yml` exists
+   - Verify library name matches: `custom_plugin/modal.system`
+   - Check file paths are correct: `js/modal-system.js` exists
 
 ### Issue: "Visibility not working correctly"
 
@@ -451,6 +591,14 @@ $this->content = $content; // Direct property assignment
 ```
 
 **Why**: Config entities store data in underlying config objects. `get()`/`set()` ensure proper loading and saving.
+
+**Critical**: When adding new properties to a config entity:
+1. Add property to `config_export` array in entity annotation
+2. Add property declaration: `protected $propertyName = defaultValue;`
+3. **Always add getter method**: `public function getPropertyName(): type`
+4. **Always add setter method**: `public function setPropertyName(type $value)`
+5. **Add methods to interface**: Update `ModalInterface` with same method signatures
+6. **Why**: Missing methods cause fatal errors that prevent hooks from executing, breaking the entire module silently
 
 ### 2. Form Value Access
 
@@ -581,11 +729,40 @@ console.log(drupalSettings.modalSystem);
 
 // Check dismissal state
 console.log(sessionStorage.getItem('modal_dismissed_sale_modal'));
+
+// Check queue status
+console.log(Drupal.modalSystem.QueueManager.queue);
+console.log(Drupal.modalSystem.QueueManager.currentModal);
 ```
 
 ---
 
 ## Support & Troubleshooting
+
+### For AI Assistants
+
+**When user reports an issue**:
+1. **Read logs first** - Check Drupal logs (Reports > Recent log messages, filter: `custom_plugin`)
+2. **Check for fatal errors** - Look for "Throwable" or "Exception" entries
+3. **Verify hook execution** - Look for "hook_page_attachments() called" in logs
+4. **Check browser console** - User should check console for JavaScript errors
+5. **Verify entity methods** - If error mentions missing method, check entity file
+6. **Clear cache** - Always suggest clearing cache after code changes
+
+**When user says "nothing on frontend"**:
+1. Check if JavaScript file is in page source (`modal-system.js`)
+2. Check logs for hook execution
+3. Check for PHP fatal errors (missing methods)
+4. Verify modals are enabled and not filtered out
+5. Check visibility settings match current page
+
+**When user says "it was working before"**:
+1. Check what changed recently (git history if available)
+2. Look for missing methods (common after adding properties)
+3. Check if cache needs clearing
+4. Verify no syntax errors introduced
+
+### For Users
 
 If you encounter issues:
 

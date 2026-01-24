@@ -11,6 +11,9 @@ use Drupal\Core\Render\Element;
  * Implements hook_page_attachments().
  */
 function custom_plugin_page_attachments(array &$attachments) {
+  // Log that hook is being called.
+  \Drupal::logger('custom_plugin')->debug('Modal System: hook_page_attachments() called');
+  
   // Skip during maintenance mode or install operations.
   if (defined('MAINTENANCE_MODE')) {
     \Drupal::logger('custom_plugin')->debug('Modal System: Skipped - maintenance mode');
@@ -57,15 +60,20 @@ function custom_plugin_page_attachments(array &$attachments) {
 
     \Drupal::logger('custom_plugin')->debug('Modal System: Found @count enabled modal(s)', ['@count' => count($modals)]);
 
+    // Always attach library and settings, even if empty (for debugging).
+    $attachments['#attached']['drupalSettings']['modalSystem'] = [
+      'modals' => $modals,
+    ];
+    $attachments['#attached']['library'][] = 'custom_plugin/modal.system';
+    
     if (!empty($modals)) {
-      $attachments['#attached']['drupalSettings']['modalSystem'] = [
-        'modals' => $modals,
-      ];
-      $attachments['#attached']['library'][] = 'custom_plugin/modal.system';
-      \Drupal::logger('custom_plugin')->debug('Modal System: Library attached successfully on route @route', ['@route' => $route_name ?? 'NULL']);
+      \Drupal::logger('custom_plugin')->debug('Modal System: Library attached successfully on route @route with @count modal(s)', [
+        '@route' => $route_name ?? 'NULL',
+        '@count' => count($modals),
+      ]);
     }
     else {
-      \Drupal::logger('custom_plugin')->debug('Modal System: No enabled modals found - library not attached');
+      \Drupal::logger('custom_plugin')->debug('Modal System: Library attached but no enabled modals found - attaching empty array for debugging');
     }
   }
   catch (\Exception $e) {
@@ -92,4 +100,18 @@ function custom_plugin_page_attachments(array &$attachments) {
   catch (\Exception $e) {
     // Silently fail for admin CSS attachment.
   }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function custom_plugin_theme($existing, $type, $theme, $path) {
+  return [
+    'modal_analytics' => [
+      'variables' => [
+        'analytics_data' => [],
+      ],
+      'template' => 'modal-analytics',
+    ],
+  ];
 }

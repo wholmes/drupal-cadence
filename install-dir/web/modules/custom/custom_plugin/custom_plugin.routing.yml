@@ -20,3 +20,32 @@ entity.modal.delete_form:
       modal:
         type: entity:modal
     _admin_route: TRUE
+
+custom_plugin.modal.analytics:
+  path: '/admin/config/content/modal-system/analytics'
+  defaults:
+    _controller: '\Drupal\custom_plugin\Controller\ModalAnalyticsController::analytics'
+    _title: 'Modal Analytics'
+  requirements:
+    _permission: 'administer modal system'
+  options:
+    _admin_route: TRUE
+
+custom_plugin.modal.analytics.ajax:
+  path: '/modal-analytics/track'
+  defaults:
+    _controller: '\Drupal\custom_plugin\Controller\ModalAnalyticsController::trackEvent'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+  options:
+    no_cache: TRUE
+
+custom_plugin.modal.analytics.download:
+  path: '/admin/config/content/modal-system/analytics/download'
+  defaults:
+    _controller: '\Drupal\custom_plugin\Controller\ModalAnalyticsController::download'
+  requirements:
+    _permission: 'administer modal system'
+  options:
+    _admin_route: TRUE

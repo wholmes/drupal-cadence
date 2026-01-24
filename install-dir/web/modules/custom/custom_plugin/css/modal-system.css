@@ -126,6 +126,14 @@
   padding: 0;
 }
 
+/* Max height for top/bottom placement - controlled by CSS custom property */
+.modal-system--image-top[data-max-height-top-bottom],
+.modal-system--image-bottom[data-max-height-top-bottom],
+.modal-system--slideshow-top[data-max-height-top-bottom],
+.modal-system--slideshow-bottom[data-max-height-top-bottom] {
+  max-height: var(--max-height-top-bottom);
+}
+
 /* Slideshow container */
 .modal-system--slideshow {
   position: relative;
@@ -298,7 +306,7 @@
   flex: 0 0 40%;
   max-width: 40%;
   height: 100%;
-  min-height: 400px; /* Minimum height for side images */
+  /* min-height is set via JavaScript from admin form */
 }
 
 .modal-system--content-left .modal-system--modal,
@@ -307,47 +315,182 @@
   max-width: 60%;
 }
 
-/* Responsive: stack on mobile */
-@media (max-width: 768px) {
-  .modal-system--content-wrapper {
+/* Responsive breakpoints are controlled by data-mobile-breakpoint attribute */
+
+/* Custom breakpoints for individual modals - controlled by data-mobile-breakpoint attribute */
+@media (max-width: 1600px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="1600px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1600px"]) {
     flex-direction: column !important;
     max-width: 90%;
   }
-
-  /* Force image to top on mobile when enabled */
-  .modal-system--mobile-force-top {
-    order: -1; /* Force to top using flexbox order */
-  }
-  
-  /* Ensure stacked wrapper respects mobile force top */
-  .modal-system--stacked-wrapper {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .modal-system--stacked-wrapper .modal-system--mobile-force-top {
-    order: -1; /* Force to top */
-  }
-  
-  .modal-system--content-left .modal-system--image-container,
-  .modal-system--content-right .modal-system--image-container {
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1600px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1600px"] {
     flex: 1 1 auto;
     max-width: 100%;
     width: 100%;
-    min-height: 250px; /* Smaller min-height on mobile */
   }
-  
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
   }
-  
-  /* On mobile, restore all rounded corners when stacked */
-  .modal-system--content-wrapper .modal-system--modal-image-left,
-  .modal-system--content-wrapper .modal-system--modal-image-right {
-    border-radius: 8px;
+}
+@media (max-width: 1500px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="1500px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1500px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1500px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1500px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
   }
 }
+@media (max-width: 1400px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="1400px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1400px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1400px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1400px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
+  }
+}
+@media (max-width: 1300px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="1300px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1300px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1300px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1300px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
+  }
+}
+@media (max-width: 1200px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="1200px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1200px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1200px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1200px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
+  }
+}
+@media (max-width: 1100px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="1100px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1100px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1100px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1100px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
+  }
+}
+@media (max-width: 1000px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="1000px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1000px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1000px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1000px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
+  }
+}
+@media (max-width: 900px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="900px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="900px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="900px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="900px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
+  }
+}
+@media (max-width: 800px) {
+  .modal-system--mobile-force-top[data-mobile-breakpoint="800px"] {
+    order: -1 !important;
+  }
+  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="800px"]) {
+    flex-direction: column !important;
+    max-width: 90%;
+  }
+  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="800px"],
+  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="800px"] {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-system--content-left .modal-system--modal,
+  .modal-system--content-right .modal-system--modal {
+    max-width: 100%;
+  }
+}
+
+
 
 /* CTAs */
 .modal-system--cta-wrapper {

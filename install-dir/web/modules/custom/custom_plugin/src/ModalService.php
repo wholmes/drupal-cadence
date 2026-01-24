@@ -82,7 +82,14 @@ class ModalService {
     $storage = $this->entityTypeManager->getStorage('modal');
 
     /** @var \Drupal\custom_plugin\ModalInterface[] $entities */
-    $entities = $storage->loadByProperties(['status' => TRUE]);
+    // Load enabled modals, then filter out archived ones.
+    $all_entities = $storage->loadByProperties(['status' => TRUE]);
+    $entities = [];
+    foreach ($all_entities as $entity) {
+      if (!$entity->isArchived()) {
+        $entities[] = $entity;
+      }
+    }
     
     \Drupal::logger('custom_plugin')->debug('ModalService: Found @count enabled modal entities', ['@count' => count($entities)]);
 
@@ -126,6 +133,58 @@ class ModalService {
       $visibility = $modal->getVisibility();
       $pages = $visibility['pages'] ?? '';
       $negate = !empty($visibility['negate']);
+      $force_open_param = $visibility['force_open_param'] ?? NULL;
+
+      // Check if forced open via URL parameter - if so, always include this modal.
+      $is_forced_open = FALSE;
+      if (!empty($force_open_param)) {
+        $request = $this->requestStack->getCurrentRequest();
+        $modal_param = $request->query->get('modal');
+        if ($modal_param === $force_open_param) {
+          $is_forced_open = TRUE;
+          \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id forced open via URL parameter', ['@id' => $modal->id()]);
+        }
+      }
+
+      // If forced open, skip all other visibility checks and include the modal.
+      if ($is_forced_open) {
+        // Still check date range even for forced open (optional - you might want to remove this).
+        // For now, we'll skip date range check for forced open to allow testing expired modals.
+      }
+      else {
+        // Check date range - if set, modal must be within the date range.
+        $start_date = $visibility['start_date'] ?? NULL;
+        $end_date = $visibility['end_date'] ?? NULL;
+        
+        if (!empty($start_date) || !empty($end_date)) {
+          $current_timestamp = \Drupal::time()->getRequestTime();
+          $current_date = date('Y-m-d', $current_timestamp);
+          
+          // Check start date.
+          if (!empty($start_date)) {
+            if ($current_date < $start_date) {
+              \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id skipped - before start date (current: @current, start: @start)', [
+                '@id' => $modal->id(),
+                '@current' => $current_date,
+                '@start' => $start_date,
+              ]);
+              continue; // Skip this modal - not yet started.
+            }
+          }
+          
+          // Check end date.
+          if (!empty($end_date)) {
+            if ($current_date > $end_date) {
+              \Drupal::logger('custom_plugin')->debug('ModalService: Modal @id skipped - after end date (current: @current, end: @end)', [
+                '@id' => $modal->id(),
+                '@current' => $current_date,
+                '@end' => $end_date,
+              ]);
+              continue; // Skip this modal - already ended.
+            }
+          }
+        }
+      }
 
       // If pages are specified, check if current path matches.
       if (!empty($pages)) {
@@ -207,6 +266,26 @@ class ModalService {
                 'placement' => $image_data['placement'] ?? 'top',
                 'mobile_force_top' => !empty($image_data['mobile_force_top']),
               ];
+
+              // Include mobile breakpoint if configured.
+              if (!empty($image_data['mobile_breakpoint'])) {
+                $content['image']['mobile_breakpoint'] = $image_data['mobile_breakpoint'];
+              }
+
+              // Include height if configured.
+              if (!empty($image_data['height'])) {
+                $content['image']['height'] = $image_data['height'];
+              }
+
+              // Include max_height_top_bottom if configured.
+              if (!empty($image_data['max_height_top_bottom'])) {
+                $content['image']['max_height_top_bottom'] = $image_data['max_height_top_bottom'];
+              }
+              
+              // Include effects if configured.
+              if (!empty($image_data['effects'])) {
+                $content['image']['effects'] = $image_data['effects'];
+              }
             } else {
               // No valid URLs found, remove image data but keep modal.
               unset($content['image']);
@@ -229,11 +308,13 @@ class ModalService {
         $modals[] = [
           'id' => $modal->id(),
           'label' => $modal->label(),
+          'priority' => $modal->getPriority(),
           'content' => $content,
           'rules' => $modal->getRules(),
           'styling' => $modal->getStyling(),
           'dismissal' => $modal->getDismissal(),
           'analytics' => $modal->getAnalytics(),
+          'visibility' => $visibility, // Include visibility for date range checking on frontend.
         ];
         
         \Drupal::logger('custom_plugin')->debug('ModalService: Successfully added modal @id', ['@id' => $modal->id()]);
@@ -249,6 +330,7 @@ class ModalService {
           $modals[] = [
             'id' => $modal->id(),
             'label' => $modal->label(),
+            'priority' => $modal->getPriority(),
             'content' => $modal->getContent(),
             'rules' => $modal->getRules(),
             'styling' => $modal->getStyling(),

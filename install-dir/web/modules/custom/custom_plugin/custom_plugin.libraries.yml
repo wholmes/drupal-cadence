@@ -23,3 +23,14 @@ admin:
   css:
     theme:
       css/admin.css: {}
+
+modal.analytics:
+  css:
+    theme:
+      css/modal-analytics.css: {}
+  js:
+    https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js: { type: external, minified: true }
+    js/modal-analytics.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
