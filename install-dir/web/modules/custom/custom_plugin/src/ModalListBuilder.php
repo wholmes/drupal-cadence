@@ -5,6 +5,7 @@ namespace Drupal\custom_plugin;
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Url;
+use Drupal\Core\Render\Markup;
 
 /**
  * Provides a listing of Modal entities.
@@ -254,20 +255,8 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     // Build links array for rendering with icons.
     $links = [];
     foreach ($operations as $key => $operation) {
-      // Map operations to icons.
-      $archive_icon = '📦'; // Default to archive
-      if (method_exists($entity, 'isArchived') && $entity->isArchived()) {
-        $archive_icon = '🔄'; // Restore icon for archived modals
-      }
-      
-      $icon_map = [
-        'edit' => '✏️',
-        'duplicate' => '📋', 
-        'archive' => $archive_icon,
-        'delete' => '🗑️',
-      ];
-      
-      $title_with_icon = isset($icon_map[$key]) ? $icon_map[$key] : $operation['title'];
+      // Get SVG icon for this operation.
+      $icon_svg = $this->getOperationIcon($key, $entity);
       
       // Add danger class for delete operations.
       $button_classes = ['button', 'button--small'];
@@ -275,14 +264,26 @@ class ModalListBuilder extends ConfigEntityListBuilder {
         $button_classes[] = 'button--danger';
       }
       
+      // Build link with SVG icon or text fallback.
+      // Wrap SVG in a span for better control and centering.
+      if ($icon_svg) {
+        $link_title = Markup::create('<span class="modal-operation-icon">' . $icon_svg . '</span>');
+      }
+      else {
+        $link_title = $operation['title'];
+      }
+      
+      $link_attributes = array_merge($operation['attributes'] ?? [], [
+        'title' => $operation['title'], // Tooltip shows full text
+        'class' => array_merge($operation['attributes']['class'] ?? [], $button_classes),
+        'aria-label' => $operation['title'], // Screen reader text
+      ]);
+      
       $links[$key] = [
         '#type' => 'link',
-        '#title' => $title_with_icon,
+        '#title' => $link_title,
         '#url' => $operation['url'],
-        '#attributes' => array_merge($operation['attributes'] ?? [], [
-          'title' => $operation['title'], // Tooltip shows full text
-          'class' => array_merge($operation['attributes']['class'] ?? [], $button_classes),
-        ]),
+        '#attributes' => $link_attributes,
       ];
       if (isset($operation['query'])) {
         $links[$key]['#url']->setOption('query', $operation['query']);
@@ -431,6 +432,38 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     }
     
     return $build;
+  }
+
+  /**
+   * Get SVG icon for an operation.
+   *
+   * @param string $operation_key
+   *   The operation key (edit, duplicate, archive, delete).
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity being operated on.
+   *
+   * @return string|null
+   *   SVG markup or NULL if no icon available.
+   */
+  protected function getOperationIcon($operation_key, EntityInterface $entity) {
+    $icons = [
+      'edit' => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M11.333 2.000a2.646 2.646 0 0 1 3.742 3.742l-9.333 9.333a1.333 1.333 0 0 1-.943.39H2.667a1.333 1.333 0 0 1-1.334-1.333v-1.14a1.333 1.333 0 0 1 .39-.943l9.333-9.333a2.667 2.667 0 0 1 .377-.424zm1.81 1.048a1.333 1.333 0 0 0-1.886 0l-.667.667L13.333 5.333l.667-.667a1.333 1.333 0 0 0 0-1.886l-.857-.857zM12 6.000L9.333 3.333 3.333 9.333v2.667H6l6-6z" fill="currentColor"/></svg>',
+      'duplicate' => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5.333 2.667h6.667a1.333 1.333 0 0 1 1.333 1.333v6.667a1.333 1.333 0 0 1-1.333 1.333H5.333A1.333 1.333 0 0 1 4 10.667V4a1.333 1.333 0 0 1 1.333-1.333zm0 1.333v6.667h6.667V4H5.333zM2.667 5.333a1.333 1.333 0 0 0-1.334 1.334v6.667a1.333 1.333 0 0 0 1.334 1.333h6.666a1.333 1.333 0 0 0 1.334-1.333V6.667a1.333 1.333 0 0 0-1.334-1.334H2.667zm0 1.333h6.666v6.667H2.667V6.666z" fill="currentColor"/></svg>',
+      'archive' => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2.667 2.667h10.666a1.333 1.333 0 0 1 1.334 1.333v1.333a1.333 1.333 0 0 1-1.334 1.334H2.667a1.333 1.333 0 0 1-1.334-1.334V4a1.333 1.333 0 0 1 1.334-1.333zm0 4h10.666v6.667a1.333 1.333 0 0 1-1.334 1.333H4a1.333 1.333 0 0 1-1.333-1.333V6.667zm1.333 1.333v5.333h8V8H4z" fill="currentColor"/></svg>',
+      'restore' => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 2.667a5.333 5.333 0 1 0 0 10.666 5.333 5.333 0 0 0 0-10.666zM1.333 8a6.667 6.667 0 1 1 13.334 0A6.667 6.667 0 0 1 1.333 8zm6.667-2.667V8l2.667 2.667 1.333-1.333L9.333 6.667H8z" fill="currentColor"/></svg>',
+      'delete' => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 2.667V1.333a1.333 1.333 0 0 1 1.333-1.333h1.334a1.333 1.333 0 0 1 1.333 1.333v1.334h3.333a.667.667 0 1 1 0 1.333H2.667a.667.667 0 0 1 0-1.333H6zm1.333 0h1.334V1.333H7.333v1.334zM3.333 6v7.333a1.333 1.333 0 0 0 1.334 1.334h6.666a1.333 1.333 0 0 0 1.334-1.334V6H3.333zm1.333 1.333h6.667v6H4.667v-6zm1.333 1.333v4h1.333v-4H6zm2.667 0v4h1.333v-4H8.667z" fill="currentColor"/></svg>',
+      'download' => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 1.333a6.667 6.667 0 1 0 0 13.334A6.667 6.667 0 0 0 8 1.333zM1.333 8a6.667 6.667 0 1 1 13.334 0A6.667 6.667 0 0 1 1.333 8zm7.334 1.333V6.667H7.333v2.666H5.333L8 11.667l2.667-2.334H8.667z" fill="currentColor"/></svg>',
+    ];
+
+    // Handle archive/restore based on entity state.
+    if ($operation_key === 'archive') {
+      if (method_exists($entity, 'isArchived') && $entity->isArchived()) {
+        return $icons['restore'] ?? NULL;
+      }
+      return $icons['archive'] ?? NULL;
+    }
+
+    return $icons[$operation_key] ?? NULL;
   }
 
 }
