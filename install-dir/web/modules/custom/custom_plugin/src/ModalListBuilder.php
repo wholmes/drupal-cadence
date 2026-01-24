@@ -349,14 +349,14 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       '#type' => 'button',
       '#value' => $this->t('Search'),
       '#button_type' => 'submit',
-      '#attributes' => ['class' => ['button', 'button--primary', 'modal-search-submit']],
+      '#attributes' => ['class' => ['button', 'button--primary', 'button--large', 'modal-search-submit']],
     ];
     
     $build['search_form']['form']['buttons']['clear'] = [
       '#type' => 'button',
       '#value' => $this->t('Clear'),
       '#attributes' => [
-        'class' => ['button', 'modal-search-clear'],
+        'class' => ['button', 'button--large', 'modal-search-clear'],
         'onclick' => 'window.location.href="' . Url::fromRoute('entity.modal.collection')->toString() . '"; return false;',
       ],
     ];
