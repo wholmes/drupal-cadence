@@ -120,3 +120,59 @@ function custom_plugin_theme($existing, $type, $theme, $path) {
     ],
   ];
 }
+
+/**
+ * Implements hook_cron().
+ */
+function custom_plugin_cron() {
+  // Check for expired modals and disable them automatically.
+  try {
+    $storage = \Drupal::entityTypeManager()->getStorage('modal');
+    $modals = $storage->loadMultiple();
+    $current_date = date('Y-m-d', \Drupal::time()->getRequestTime());
+    $disabled_count = 0;
+
+    foreach ($modals as $modal) {
+      // Only check enabled modals (skip already disabled ones).
+      if (!$modal->status()) {
+        continue;
+      }
+
+      // Check if modal has an end date that has passed.
+      $visibility = $modal->getVisibility();
+      $end_date = $visibility['end_date'] ?? NULL;
+
+      if (!empty($end_date)) {
+        // Convert timestamp to date string if needed.
+        if (is_numeric($end_date)) {
+          $end_date = date('Y-m-d', (int) $end_date);
+        }
+
+        // Check if end date has passed.
+        if ($current_date > $end_date) {
+          // Disable the modal.
+          $modal->set('status', FALSE);
+          $modal->save();
+          $disabled_count++;
+
+          \Drupal::logger('custom_plugin')->info('Modal @id (@label) automatically disabled - end date (@end_date) has passed.', [
+            '@id' => $modal->id(),
+            '@label' => $modal->label(),
+            '@end_date' => $end_date,
+          ]);
+        }
+      }
+    }
+
+    if ($disabled_count > 0) {
+      \Drupal::logger('custom_plugin')->info('Automatically disabled @count expired modal(s) during cron run.', [
+        '@count' => $disabled_count,
+      ]);
+    }
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('custom_plugin')->error('Error checking for expired modals during cron: @message', [
+      '@message' => $e->getMessage(),
+    ]);
+  }
+}
