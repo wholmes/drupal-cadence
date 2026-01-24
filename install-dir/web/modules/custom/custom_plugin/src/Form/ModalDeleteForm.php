@@ -96,9 +96,9 @@ class ModalDeleteForm extends EntityConfirmFormBase {
    */
   protected function cleanupFiles() {
     try {
-      $content = $this->entity->get('content')->getValue();
-      if (!empty($content[0]['images'])) {
-        $images = $content[0]['images'];
+      $content = $this->entity->get('content');
+      if (!empty($content['images'])) {
+        $images = $content['images'];
         foreach ($images as $image_data) {
           if (!empty($image_data['fid'])) {
             $file = File::load($image_data['fid']);

@@ -39,13 +39,13 @@ use Drupal\custom_plugin\ModalInterface;
  *     "status" = "status",
  *     "uuid" = "uuid"
  *   },
- *   links = {
- *     "add-form" = "/admin/config/content/modal-system/add",
- *     "edit-form" = "/admin/config/content/modal-system/{modal}/edit",
- *     "delete-form" = "/admin/config/content/modal-system/{modal}/delete",
- *     "archive-form" = "/admin/config/content/modal-system/{modal}/archive",
- *     "collection" = "/admin/config/content/modal-system"
- *   },
+  *   links = {
+  *     "add-form" = "/admin/config/content/modal-system/add",
+  *     "edit-form" = "/admin/config/content/modal-system/{modal}/edit",
+  *     "delete-form" = "/admin/config/content/modal-system/{modal}/delete",
+  *     "archive-form" = "/admin/config/content/modal-system/{modal}/archive",
+  *     "collection" = "/admin/config/content/modal-system"
+  *   },
   *   config_export = {
   *     "id",
   *     "label",

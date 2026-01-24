@@ -9,7 +9,7 @@ entity.modal.collection:
     _admin_route: TRUE
 
 entity.modal.delete_form:
-  path: '/admin/config/content/cadence-marketing-modals/{modal}/delete'
+  path: '/admin/config/content/modal-system/{modal}/delete'
   defaults:
     _entity_form: 'modal.delete'
     _title: 'Delete Marketing Campaign'
@@ -22,7 +22,7 @@ entity.modal.delete_form:
         type: 'entity:modal'
 
 entity.modal.archive_form:
-  path: '/admin/config/content/cadence-marketing-modals/{modal}/archive'
+  path: '/admin/config/content/modal-system/{modal}/archive'
   defaults:
     _entity_form: 'modal.archive'
     _title: 'Archive Marketing Campaign'
@@ -33,7 +33,6 @@ entity.modal.archive_form:
     parameters:
       modal:
         type: 'entity:modal'
-    _admin_route: TRUE
 
 custom_plugin.modal.analytics:
   path: '/admin/config/content/modal-system/analytics'
