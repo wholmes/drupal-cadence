@@ -44,6 +44,31 @@ custom_plugin.modal.*:
             mobile_force_top:
               type: boolean
               label: 'Force image to top on mobile'
+            mobile_breakpoint:
+              type: string
+              label: 'Mobile Breakpoint'
+              nullable: true
+            height:
+              type: string
+              label: 'Image Height'
+              nullable: true
+            max_height_top_bottom:
+              type: string
+              label: 'Max Height (Top/Bottom)'
+              nullable: true
+            effects:
+              type: mapping
+              label: 'Image Effects'
+              mapping:
+                background_color:
+                  type: string
+                  label: 'Background Color'
+                blend_mode:
+                  type: string
+                  label: 'Blend Mode'
+                grayscale:
+                  type: integer
+                  label: 'Grayscale'
             slideshow:
               type: mapping
               label: 'Slideshow settings'
@@ -188,6 +213,18 @@ custom_plugin.modal.*:
             line_height:
               type: string
               label: 'Line height'
+            margin_top:
+              type: string
+              label: 'Margin top'
+              nullable: true
+        spacing:
+          type: mapping
+          label: 'Spacing'
+          mapping:
+            cta_margin_bottom:
+              type: string
+              label: 'CTA margin bottom'
+              nullable: true
         subheadline:
           type: mapping
           label: 'Subheadline typography'

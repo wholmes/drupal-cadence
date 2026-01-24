@@ -31,6 +31,9 @@
         console.log('Modal System: Initializing ' + modals.length + ' modal(s)', modals);
       }
 
+      // Run localStorage cleanup before initializing modals.
+      Drupal.modalSystem.StorageCleanup.cleanup(modals);
+
       modals.forEach((modal) => {
         const modalManager = new Drupal.modalSystem.ModalManager(modal);
         modalManager.init();
@@ -39,9 +42,392 @@
   };
 
   /**
-   * Modal Manager class - handles one modal instance.
+   * Storage Cleanup utility for managing localStorage.
    */
   Drupal.modalSystem = Drupal.modalSystem || {};
+
+  /**
+   * Global Modal Queue Manager - handles showing modals one at a time.
+   */
+      Drupal.modalSystem.QueueManager = {
+        /**
+         * Queue of modals waiting to be shown.
+         * @type {Array}
+         */
+        queue: [],
+
+        /**
+         * Currently showing modal manager instance.
+         * @type {Drupal.modalSystem.ModalManager|null}
+         */
+        currentModal: null,
+
+        /**
+         * Whether queue processing is in progress.
+         * @type {boolean}
+         */
+        processing: false,
+
+    /**
+     * Add a modal to the queue.
+     * @param {Drupal.modalSystem.ModalManager} modalManager
+     *   The modal manager instance.
+     */
+    enqueue: function(modalManager) {
+      // Check if modal is already in queue.
+      const alreadyQueued = this.queue.some(item => item.modal.id === modalManager.modal.id);
+      if (alreadyQueued) {
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Modal', modalManager.modal.id, 'already in queue, skipping');
+        }
+        return;
+      }
+
+      // Don't queue if already dismissed (unless forced open).
+      if (modalManager.isDismissed() && !modalManager.isForcedOpen()) {
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Modal', modalManager.modal.id, 'is dismissed, not queuing');
+        }
+        return;
+      }
+
+      // Add to queue.
+      this.queue.push(modalManager);
+
+      // Sort queue by priority (higher priority first).
+      this.queue.sort((a, b) => {
+        const priorityA = a.modal.priority || 0;
+        const priorityB = b.modal.priority || 0;
+        return priorityB - priorityA; // Higher priority first.
+      });
+
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal', modalManager.modal.id, 'added to queue. Queue length:', this.queue.length);
+      }
+
+      // Process queue if not already processing and no modal is showing.
+      if (!this.processing && !this.currentModal) {
+        this.processQueue();
+      }
+    },
+
+    /**
+     * Process the queue - show the next modal.
+     */
+    processQueue: function() {
+      if (this.processing || this.currentModal) {
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Queue processing skipped - already processing or modal showing');
+        }
+        return; // Already processing or modal is showing.
+      }
+
+      if (this.queue.length === 0) {
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Queue is empty');
+        }
+        return; // Queue is empty.
+      }
+
+      this.processing = true;
+
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Processing queue,', this.queue.length, 'modal(s) waiting');
+      }
+
+      // Get next modal from queue (highest priority).
+      // Keep trying until we find one that can be shown.
+      let nextModal = null;
+      while (this.queue.length > 0 && !nextModal) {
+        const candidate = this.queue.shift();
+        // Check if modal can still be shown (not dismissed, not already in DOM).
+        if (candidate.isDismissed() && !candidate.isForcedOpen()) {
+          if (typeof console !== 'undefined' && console.log) {
+            console.log('Modal System: Skipping dismissed modal', candidate.modal.id);
+          }
+          continue;
+        }
+        if (document.querySelector('[data-modal-id="' + candidate.modal.id + '"]')) {
+          if (typeof console !== 'undefined' && console.log) {
+            console.log('Modal System: Skipping modal already in DOM', candidate.modal.id);
+          }
+          continue;
+        }
+        nextModal = candidate;
+      }
+
+      if (!nextModal) {
+        // No valid modals in queue.
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: No valid modals in queue to show');
+        }
+        this.processing = false;
+        return;
+      }
+
+      this.currentModal = nextModal;
+
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Showing modal from queue:', nextModal.modal.id, 'Priority:', nextModal.modal.priority || 0);
+      }
+
+      // Show the modal.
+      nextModal.showModal();
+
+      this.processing = false;
+    },
+
+    /**
+     * Called when a modal is dismissed - show next in queue.
+     * @param {Drupal.modalSystem.ModalManager} modalManager
+     *   The modal manager that was dismissed.
+     */
+    onDismissed: function(modalManager) {
+      // Only process if this was the currently showing modal.
+      if (this.currentModal === modalManager) {
+        this.currentModal = null;
+
+        // Small delay before showing next modal (better UX).
+        setTimeout(() => {
+          this.processQueue();
+        }, 300); // 300ms delay between modals.
+      }
+    },
+
+    /**
+     * Clear the queue (useful for cleanup).
+     */
+    clear: function() {
+      this.queue = [];
+      this.currentModal = null;
+      this.processing = false;
+    }
+  };
+
+  Drupal.modalSystem.StorageCleanup = {
+    /**
+     * Maximum age for localStorage entries in days (180 days = ~6 months).
+     */
+    MAX_AGE_DAYS: 180,
+
+    /**
+     * Timestamp key for tracking when cleanup last ran.
+     */
+    LAST_CLEANUP_KEY: 'modal_system_last_cleanup',
+
+    /**
+     * Main cleanup function - runs light cleanup always, full cleanup once per session.
+     */
+    cleanup: function(activeModals) {
+      try {
+        // Light cleanup: remove entries for non-existent modals (always runs).
+        this.lightCleanup(activeModals);
+
+        // Full cleanup: remove old entries (runs once per session).
+        if (this.shouldRunFullCleanup()) {
+          this.fullCleanup(activeModals);
+          // Mark that we've run full cleanup this session.
+          sessionStorage.setItem(this.LAST_CLEANUP_KEY, Date.now().toString());
+        }
+      }
+      catch (e) {
+        // If cleanup fails (e.g., quota exceeded), run emergency cleanup.
+        if (e.name === 'QuotaExceededError' || e.code === 22) {
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn('Modal System: localStorage quota exceeded, running emergency cleanup');
+          }
+          this.emergencyCleanup(activeModals);
+        }
+        else {
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('Modal System: Cleanup error:', e);
+          }
+        }
+      }
+    },
+
+    /**
+     * Light cleanup: remove entries for modals that no longer exist or are disabled.
+     */
+    lightCleanup: function(activeModals) {
+      const activeModalIds = new Set(activeModals.map(m => m.id));
+      let removedCount = 0;
+
+      // Get all localStorage keys related to modals.
+      const allKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('modal_')) {
+          allKeys.push(key);
+        }
+      }
+
+      // Remove entries for non-existent modals.
+      allKeys.forEach(key => {
+        // Extract modal ID from key patterns:
+        // - modal_visit_count_{id}
+        // - modal_dismissed_{id} (if using localStorage, though we use sessionStorage/cookies)
+        const match = key.match(/^modal_(?:visit_count|dismissed)_(.+)$/);
+        if (match) {
+          const modalId = match[1];
+          if (!activeModalIds.has(modalId)) {
+            try {
+              localStorage.removeItem(key);
+              removedCount++;
+            }
+            catch (e) {
+              // Ignore errors removing individual items.
+            }
+          }
+        }
+      });
+
+      if (removedCount > 0 && typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Light cleanup removed ' + removedCount + ' orphaned entries');
+      }
+    },
+
+    /**
+     * Full cleanup: remove old entries and expired modal data.
+     */
+    fullCleanup: function(activeModals) {
+      const activeModalIds = new Set(activeModals.map(m => m.id));
+      const now = Date.now();
+      const maxAge = this.MAX_AGE_DAYS * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+      let removedCount = 0;
+
+      // Get all localStorage keys related to modals.
+      const allKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('modal_')) {
+          allKeys.push(key);
+        }
+      }
+
+      allKeys.forEach(key => {
+        try {
+          const match = key.match(/^modal_(?:visit_count|dismissed)_(.+)$/);
+          if (match) {
+            const modalId = match[1];
+            
+            // Skip active modals - we want to keep their data.
+            if (activeModalIds.has(modalId)) {
+              return;
+            }
+
+            // For non-active modals, check if entry is old.
+            // Since we don't store timestamps with visit counts, we'll remove
+            // entries for non-active modals (already handled in light cleanup).
+            // But we can also check for entries that might have timestamps in the future.
+            
+            // Remove visit count entries for non-active modals (they're already removed in light cleanup,
+            // but this is a safety net).
+            if (key.startsWith('modal_visit_count_')) {
+              localStorage.removeItem(key);
+              removedCount++;
+            }
+          }
+        }
+        catch (e) {
+          // Ignore errors removing individual items.
+        }
+      });
+
+      // Also check for expired modals based on end_date.
+      activeModals.forEach(modal => {
+        const visibility = modal.visibility || {};
+        const endDate = visibility.end_date || null;
+        
+        if (endDate) {
+          const endTimestamp = new Date(endDate).getTime();
+          if (now > endTimestamp) {
+            // Modal has expired - remove its localStorage entries.
+            try {
+              localStorage.removeItem('modal_visit_count_' + modal.id);
+              removedCount++;
+            }
+            catch (e) {
+              // Ignore errors.
+            }
+          }
+        }
+      });
+
+      if (removedCount > 0 && typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Full cleanup removed ' + removedCount + ' old/expired entries');
+      }
+    },
+
+    /**
+     * Emergency cleanup: remove oldest entries when quota is exceeded.
+     */
+    emergencyCleanup: function(activeModalIds) {
+      const activeIds = new Set(activeModalIds.map(m => m.id));
+      let removedCount = 0;
+
+      // Collect all modal-related entries with their keys.
+      const entries = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('modal_')) {
+          const match = key.match(/^modal_(?:visit_count|dismissed)_(.+)$/);
+          if (match) {
+            const modalId = match[1];
+            // Prioritize: keep active modals, remove non-active first.
+            entries.push({
+              key: key,
+              modalId: modalId,
+              isActive: activeIds.has(modalId),
+              priority: activeIds.has(modalId) ? 1 : 0, // Lower priority = remove first
+            });
+          }
+        }
+      }
+
+      // Sort: non-active first, then by key (for consistent ordering).
+      entries.sort((a, b) => {
+        if (a.priority !== b.priority) {
+          return a.priority - b.priority;
+        }
+        return a.key.localeCompare(b.key);
+      });
+
+      // Remove entries starting with lowest priority until we have space.
+      // Remove up to 50% of non-active entries.
+      const nonActiveCount = entries.filter(e => !e.isActive).length;
+      const removeCount = Math.max(1, Math.floor(nonActiveCount * 0.5));
+
+      for (let i = 0; i < removeCount && i < entries.length; i++) {
+        if (!entries[i].isActive) {
+          try {
+            localStorage.removeItem(entries[i].key);
+            removedCount++;
+          }
+          catch (e) {
+            // Continue even if removal fails.
+          }
+        }
+      }
+
+      if (removedCount > 0 && typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Emergency cleanup removed ' + removedCount + ' entries');
+      }
+    },
+
+    /**
+     * Check if full cleanup should run (once per session).
+     */
+    shouldRunFullCleanup: function() {
+      const lastCleanup = sessionStorage.getItem(this.LAST_CLEANUP_KEY);
+      // If no record of cleanup this session, run it.
+      return !lastCleanup;
+    },
+  };
+
+  /**
+   * Modal Manager class - handles one modal instance.
+   */
 
   Drupal.modalSystem.ModalManager = function (modal) {
     this.modal = modal;
@@ -50,13 +436,95 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.init = function () {
-    // Check if already dismissed.
-    if (this.isDismissed()) {
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('Modal System: Initializing modal', this.modal.id, 'Priority:', this.modal.priority || 0);
+    }
+
+    // Check if already dismissed (unless forced open).
+    if (this.isDismissed() && !this.isForcedOpen()) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal', this.modal.id, 'is dismissed, skipping init');
+      }
+      return;
+    }
+
+    // Check if forced open via URL parameter.
+    if (this.isForcedOpen()) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal ID', this.modal.id, 'forced open via URL parameter - adding to queue.');
+      }
+      // Force add to queue immediately, bypassing all rules.
+      Drupal.modalSystem.QueueManager.enqueue(this);
+      return;
+    }
+
+    // Check date range - if set, modal must be within the date range.
+    if (!this.checkDateRange()) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal ID', this.modal.id, 'is outside date range - not showing.');
+      }
       return;
     }
 
     // Initialize rule checking.
     this.setupRules();
+  };
+
+  Drupal.modalSystem.ModalManager.prototype.isForcedOpen = function () {
+    const visibility = this.modal.visibility || {};
+    const forceOpenParam = visibility.force_open_param || null;
+
+    // If no force open parameter is set, not forced.
+    if (!forceOpenParam) {
+      return false;
+    }
+
+    // Get URL parameter from query string.
+    const urlParams = new URLSearchParams(window.location.search);
+    const modalParam = urlParams.get('modal');
+
+    // Check if the URL parameter matches this modal's force open parameter.
+    if (modalParam === forceOpenParam) {
+      return true;
+    }
+
+    return false;
+  };
+
+  Drupal.modalSystem.ModalManager.prototype.checkDateRange = function () {
+    const visibility = this.modal.visibility || {};
+    const startDate = visibility.start_date || null;
+    const endDate = visibility.end_date || null;
+
+    // If no dates are set, always show (backward compatible).
+    if (!startDate && !endDate) {
+      return true;
+    }
+
+    // Get current date in YYYY-MM-DD format.
+    const now = new Date();
+    const currentDate = now.getFullYear() + '-' + 
+      String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+      String(now.getDate()).padStart(2, '0');
+
+    // Check start date.
+    if (startDate && currentDate < startDate) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal ID', this.modal.id, 'before start date (current:', currentDate, ', start:', startDate, ')');
+      }
+      return false;
+    }
+
+    // Check end date.
+    if (endDate && currentDate > endDate) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal ID', this.modal.id, 'after end date (current:', currentDate, ', end:', endDate, ')');
+      }
+      return false;
+    }
+
+    // Date range check passed.
+    return true;
   };
 
   Drupal.modalSystem.ModalManager.prototype.setupRules = function () {
@@ -108,11 +576,51 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.checkVisitCount = function (requiredCount) {
+    try {
     const count = parseInt(localStorage.getItem('modal_visit_count_' + this.modal.id) || '0', 10) + 1;
     localStorage.setItem('modal_visit_count_' + this.modal.id, count.toString());
     
     if (count >= requiredCount) {
       this.rulesMet.visit_count = true;
+      }
+    }
+    catch (e) {
+      // If localStorage quota exceeded, run emergency cleanup and try again.
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('Modal System: localStorage quota exceeded, running emergency cleanup');
+        }
+        const activeModals = (typeof drupalSettings !== 'undefined' && drupalSettings.modalSystem?.modals) || [];
+        Drupal.modalSystem.StorageCleanup.emergencyCleanup(activeModals);
+        // Try once more after cleanup.
+        try {
+          const count = parseInt(localStorage.getItem('modal_visit_count_' + this.modal.id) || '0', 10) + 1;
+          localStorage.setItem('modal_visit_count_' + this.modal.id, count.toString());
+          if (count >= requiredCount) {
+            this.rulesMet.visit_count = true;
+          }
+        }
+        catch (e2) {
+          // If still failing, use current count without storing (graceful degradation).
+          const currentCount = parseInt(localStorage.getItem('modal_visit_count_' + this.modal.id) || '0', 10);
+          if (currentCount >= requiredCount) {
+            this.rulesMet.visit_count = true;
+          }
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('Modal System: Failed to store visit count after cleanup:', e2);
+          }
+        }
+      }
+      else {
+        // Other error - use current count without storing.
+        const currentCount = parseInt(localStorage.getItem('modal_visit_count_' + this.modal.id) || '0', 10);
+        if (currentCount >= requiredCount) {
+          this.rulesMet.visit_count = true;
+        }
+        if (typeof console !== 'undefined' && console.error) {
+          console.error('Modal System: Error storing visit count:', e);
+        }
+      }
     }
   };
 
@@ -152,10 +660,10 @@
                            rules.referrer_enabled || 
                            rules.exit_intent_enabled;
     
-    // If no rules are enabled, show modal immediately (for testing).
+    // If no rules are enabled, add to queue immediately (for testing).
     if (!hasEnabledRules) {
       clearInterval(this.checkInterval);
-      this.showModal();
+      Drupal.modalSystem.QueueManager.enqueue(this);
       return;
     }
     
@@ -178,16 +686,41 @@
       allMet = false;
     }
 
-    // If all enabled rules are met, show modal.
+    // If all enabled rules are met, add to queue.
     if (allMet && Object.keys(this.rulesMet).length > 0) {
       clearInterval(this.checkInterval);
-      this.showModal();
+      Drupal.modalSystem.QueueManager.enqueue(this);
     }
   };
 
   Drupal.modalSystem.ModalManager.prototype.showModal = function () {
-    if (this.isDismissed() || document.querySelector('[data-modal-id="' + this.modal.id + '"]')) {
+    // Check if already dismissed (unless forced open).
+    if (this.isDismissed() && !this.isForcedOpen()) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal', this.modal.id, 'is dismissed, not showing');
+      }
+      // Notify queue that this modal can't be shown.
+      if (Drupal.modalSystem.QueueManager.currentModal === this) {
+        Drupal.modalSystem.QueueManager.currentModal = null;
+        Drupal.modalSystem.QueueManager.processing = false;
+        // Try next in queue.
+        setTimeout(() => {
+          Drupal.modalSystem.QueueManager.processQueue();
+        }, 100);
+      }
       return;
+    }
+
+    // Check if already in DOM.
+    if (document.querySelector('[data-modal-id="' + this.modal.id + '"]')) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal', this.modal.id, 'already in DOM, not showing');
+      }
+      return;
+    }
+
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('Modal System: Showing modal', this.modal.id);
     }
 
     // Track event.
@@ -231,10 +764,12 @@
     let imageContainer = null;
     let placement = 'top'; // Default placement
     const imageData = this.modal.content.image;
+    const imageHeight = imageData && imageData.height ? imageData.height.trim() : null;
     
     if (imageData) {
       placement = imageData.placement || 'top';
       const mobileForceTop = imageData.mobile_force_top || false;
+      const mobileBreakpoint = imageData.mobile_breakpoint || '1400px';
       
       // Get image URL(s) - support both url (single) and urls (array) formats.
       let imageUrls = [];
@@ -257,17 +792,59 @@
             show_dots: true,
             show_arrows: true,
           };
-          imageContainer = this.buildSlideshow(imageUrls, slideshowConfig, placement, mobileForceTop);
+          // Add max_height_top_bottom to slideshow config if set.
+          if (imageData.max_height_top_bottom) {
+            slideshowConfig.max_height_top_bottom = imageData.max_height_top_bottom;
+          }
+          imageContainer = this.buildSlideshow(imageUrls, slideshowConfig, placement, mobileForceTop, imageHeight, mobileBreakpoint);
         } else {
           // Single image - always use simple image container.
           imageContainer = document.createElement('div');
           imageContainer.className = 'modal-system--image-container modal-system--image-' + escapeAttr(placement);
           if (mobileForceTop) {
             imageContainer.classList.add('modal-system--mobile-force-top');
+            imageContainer.setAttribute('data-mobile-breakpoint', mobileBreakpoint);
           }
           imageContainer.style.backgroundImage = 'url(' + escapeAttr(imageUrls[0]) + ')';
           imageContainer.setAttribute('role', 'img');
           imageContainer.setAttribute('aria-label', this.modal.content.headline || 'Modal image');
+          
+          // Apply image height if configured (use min-height for flex layouts).
+          if (imageData.height) {
+            const heightValue = String(imageData.height).trim();
+            if (heightValue !== '') {
+              imageContainer.style.minHeight = heightValue;
+            }
+          }
+
+          // Apply max-height for top/bottom placement if configured.
+          if ((placement === 'top' || placement === 'bottom') && imageData.max_height_top_bottom) {
+            const maxHeightValue = String(imageData.max_height_top_bottom).trim();
+            if (maxHeightValue !== '') {
+              imageContainer.setAttribute('data-max-height-top-bottom', maxHeightValue);
+              imageContainer.style.setProperty('--max-height-top-bottom', maxHeightValue);
+            }
+          }
+          
+          // Apply image effects if configured.
+          const effects = imageData.effects || {};
+          if (effects.background_color) {
+            imageContainer.style.backgroundColor = effects.background_color;
+          }
+          
+          // Build filter string.
+          const filters = [];
+          if (effects.grayscale && effects.grayscale > 0) {
+            filters.push('grayscale(' + effects.grayscale + '%)');
+          }
+          if (filters.length > 0) {
+            imageContainer.style.filter = filters.join(' ');
+          }
+          
+          // Apply blend mode.
+          if (effects.blend_mode && effects.blend_mode !== 'normal') {
+            imageContainer.style.mixBlendMode = effects.blend_mode;
+          }
         }
       }
     }
@@ -289,7 +866,7 @@
       textContent += '<div class="modal-system--body">' + 
         this.modal.content.body + '</div>';
     }
-    
+
     // Add CTAs with data-attributes.
     const hasCta1 = this.modal.content.cta1 && this.modal.content.cta1.text;
     const hasCta2 = this.modal.content.cta2 && this.modal.content.cta2.text;
@@ -459,6 +1036,9 @@
       if (headlineStyle.line_height) {
         headlineElement.style.lineHeight = headlineStyle.line_height;
       }
+      if (headlineStyle.margin_top) {
+        headlineElement.style.marginTop = headlineStyle.margin_top;
+      }
     }
 
     // Apply subheadline typography styling.
@@ -482,6 +1062,12 @@
       }
     }
 
+    // Apply spacing for CTA wrapper (margin bottom after buttons).
+    const ctaWrapper = modalElement.querySelector('.modal-system--cta-wrapper');
+    if (ctaWrapper && this.modal.styling.spacing && this.modal.styling.spacing.cta_margin_bottom) {
+      ctaWrapper.style.marginBottom = this.modal.styling.spacing.cta_margin_bottom;
+    }
+
     // Prevent body scroll.
     document.body.style.overflow = 'hidden';
 
@@ -495,6 +1081,20 @@
       if (e.target === overlay) {
         this.closeModal();
       }
+    });
+
+    // Track CTA clicks.
+    const ctaButtons = modalElement.querySelectorAll('[data-modal-cta="' + escapeAttr(this.modal.id) + '"]');
+    const self = this;
+    ctaButtons.forEach((button) => {
+      button.addEventListener('click', function(e) {
+        // Determine which CTA was clicked (1 or 2).
+        const ctaNumber = this.classList.contains('modal-system--cta-1') ? 1 : 
+                         (this.classList.contains('modal-system--cta-2') ? 2 : null);
+        if (ctaNumber) {
+          self.trackEvent('cta_click', { cta_number: ctaNumber });
+        }
+      });
     });
 
     // Focus management.
@@ -517,6 +1117,10 @@
         overlay.remove();
         document.body.style.overflow = '';
         this.dismissModal();
+        // Track dismissal event.
+        this.trackEvent('dismissed');
+        // Notify queue manager that this modal was dismissed.
+        Drupal.modalSystem.QueueManager.onDismissed(this);
       }
     }
   };
@@ -559,16 +1163,77 @@
     return false;
   };
 
-  Drupal.modalSystem.ModalManager.prototype.trackEvent = function (eventName) {
-    if (!this.modal.analytics.google_analytics) {
-      return;
-    }
+  Drupal.modalSystem.ModalManager.prototype.trackEvent = function (eventName, data) {
+    data = data || {};
+    
+    // Always track to Drupal (for built-in analytics).
+    this.trackToDrupal(eventName, data);
 
-    // Google Analytics 4 tracking.
+    // Also track to Google Analytics if enabled.
+    if (this.modal.analytics.google_analytics) {
     if (typeof gtag !== 'undefined') {
-      gtag('event', 'modal_shown', {
+        gtag('event', eventName, {
         modal_id: this.modal.id,
         modal_label: this.modal.label,
+          ...data,
+        });
+      }
+    }
+  };
+
+  Drupal.modalSystem.ModalManager.prototype.trackToDrupal = function (eventName, data) {
+    // Generate or get user session ID.
+    let sessionId = sessionStorage.getItem('modal_session_id');
+    if (!sessionId) {
+      sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      sessionStorage.setItem('modal_session_id', sessionId);
+    }
+
+    // Determine which rule triggered (for shown events).
+    let ruleTriggered = null;
+    if (eventName === 'shown') {
+      // Check which rule was met.
+      if (this.rulesMet.scroll) {
+        ruleTriggered = 'scroll';
+      } else if (this.rulesMet.exit_intent) {
+        ruleTriggered = 'exit_intent';
+      } else if (this.rulesMet.time_on_page) {
+        ruleTriggered = 'time_on_page';
+      } else if (this.rulesMet.visit_count) {
+        ruleTriggered = 'visit_count';
+      } else if (this.rulesMet.referrer) {
+        ruleTriggered = 'referrer';
+      } else if (this.isForcedOpen && this.isForcedOpen()) {
+        ruleTriggered = 'force_open';
+      }
+    }
+
+    const payload = {
+      modal_id: this.modal.id,
+      event_type: eventName,
+      cta_number: data.cta_number || null,
+      rule_triggered: ruleTriggered || data.rule_triggered || null,
+      timestamp: Math.floor(Date.now() / 1000),
+      user_session: sessionId,
+      page_path: window.location.pathname + window.location.search,
+    };
+
+    // Send to Drupal via AJAX.
+    if (typeof jQuery !== 'undefined') {
+      jQuery.ajax({
+        url: '/modal-analytics/track',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function() {
+          // Silently succeed.
+        },
+        error: function(xhr, status, error) {
+          // Silently fail - don't break user experience.
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn('Modal System: Failed to track analytics event:', error);
+          }
+        },
       });
     }
   };
@@ -576,7 +1241,7 @@
   /**
    * Builds a slideshow container with multiple images.
    */
-  Drupal.modalSystem.ModalManager.prototype.buildSlideshow = function (urls, slideshowConfig, placement, mobileForceTop) {
+  Drupal.modalSystem.ModalManager.prototype.buildSlideshow = function (urls, slideshowConfig, placement, mobileForceTop, imageHeight, mobileBreakpoint) {
     const slideshow = slideshowConfig || {};
     const transition = slideshow.transition || 'slide';
     const autoplay = slideshow.autoplay !== false; // Default to true.
@@ -593,6 +1258,24 @@
     container.setAttribute('aria-label', 'Image slideshow');
     if (mobileForceTop) {
       container.classList.add('modal-system--mobile-force-top');
+      container.setAttribute('data-mobile-breakpoint', mobileBreakpoint);
+    }
+    
+    // Apply image height if configured (use min-height for flex layouts).
+    if (imageHeight) {
+      const heightValue = String(imageHeight).trim();
+      if (heightValue !== '') {
+        container.style.minHeight = heightValue;
+      }
+    }
+
+    // Apply max-height for top/bottom placement if configured.
+    if ((placement === 'top' || placement === 'bottom') && slideshowConfig.max_height_top_bottom) {
+      const maxHeightValue = String(slideshowConfig.max_height_top_bottom).trim();
+      if (maxHeightValue !== '') {
+        container.setAttribute('data-max-height-top-bottom', maxHeightValue);
+        container.style.setProperty('--max-height-top-bottom', maxHeightValue);
+      }
     }
 
     // Create slides wrapper.

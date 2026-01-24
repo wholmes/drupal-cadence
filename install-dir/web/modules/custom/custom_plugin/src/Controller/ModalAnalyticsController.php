@@ -1,0 +1,289 @@
+<?php
+
+namespace Drupal\custom_plugin\Controller;
+
+use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Database\Database;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+
+/**
+ * Controller for modal analytics.
+ */
+class ModalAnalyticsController extends ControllerBase {
+
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * Constructs a ModalAnalyticsController.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   */
+  public function __construct(EntityTypeManagerInterface $entity_type_manager) {
+    $this->entityTypeManager = $entity_type_manager;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('entity_type.manager')
+    );
+  }
+
+  /**
+   * AJAX endpoint to track analytics events.
+   */
+  public function trackEvent(Request $request) {
+    $data = json_decode($request->getContent(), TRUE);
+    
+    if (!$data || !isset($data['modal_id']) || !isset($data['event_type'])) {
+      return new JsonResponse(['status' => 'error', 'message' => 'Invalid data'], 400);
+    }
+
+    try {
+      $connection = Database::getConnection();
+      $connection->insert('modal_analytics')
+        ->fields([
+          'modal_id' => $data['modal_id'],
+          'event_type' => $data['event_type'],
+          'cta_number' => $data['cta_number'] ?? NULL,
+          'rule_triggered' => $data['rule_triggered'] ?? NULL,
+          'timestamp' => $data['timestamp'] ?? \Drupal::time()->getRequestTime(),
+          'user_session' => $data['user_session'] ?? NULL,
+          'page_path' => $data['page_path'] ?? NULL,
+        ])
+        ->execute();
+
+      return new JsonResponse(['status' => 'success']);
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('custom_plugin')->error('Error tracking analytics event: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return new JsonResponse(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+  }
+
+  /**
+   * Analytics page.
+   */
+  public function analytics(Request $request) {
+    try {
+      $connection = Database::getConnection();
+      
+      // Check if analytics table exists.
+      $schema = $connection->schema();
+      if (!$schema->tableExists('modal_analytics')) {
+        // Table doesn't exist - return empty state.
+        return [
+          '#markup' => '<p>' . $this->t('Analytics table not found. Please reinstall the module or run database updates.') . '</p>',
+        ];
+      }
+      
+      // Get filter parameter from query string.
+      $show_archived_param = $request->query->get('show_archived');
+      $show_archived = $show_archived_param !== NULL ? (bool) $show_archived_param : TRUE; // Default: show all
+      
+      // Get all modals (including archived for historical analytics).
+      $storage = $this->entityTypeManager->getStorage('modal');
+      $modals = $storage->loadMultiple();
+      
+      // Get analytics data for each modal.
+      $analytics_data = [];
+      foreach ($modals as $modal) {
+        $modal_id = $modal->id();
+        
+        // Get impressions (shown events).
+        $impressions = $connection->select('modal_analytics', 'ma')
+        ->condition('modal_id', $modal_id)
+        ->condition('event_type', 'shown')
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+      
+      // Get CTA clicks.
+      $cta1_clicks = $connection->select('modal_analytics', 'ma')
+        ->condition('modal_id', $modal_id)
+        ->condition('event_type', 'cta_click')
+        ->condition('cta_number', 1)
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+      
+      $cta2_clicks = $connection->select('modal_analytics', 'ma')
+        ->condition('modal_id', $modal_id)
+        ->condition('event_type', 'cta_click')
+        ->condition('cta_number', 2)
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+      
+      // Get dismissals.
+      $dismissals = $connection->select('modal_analytics', 'ma')
+        ->condition('modal_id', $modal_id)
+        ->condition('event_type', 'dismissed')
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+      
+      // Get conversion rate (CTA clicks / impressions).
+      $conversion_rate = $impressions > 0 
+        ? round((($cta1_clicks + $cta2_clicks) / $impressions) * 100, 2) 
+        : 0;
+      
+      // Get recent events (last 30 days).
+      $thirty_days_ago = \Drupal::time()->getRequestTime() - (30 * 24 * 60 * 60);
+      $recent_impressions = $connection->select('modal_analytics', 'ma')
+        ->condition('modal_id', $modal_id)
+        ->condition('event_type', 'shown')
+        ->condition('timestamp', $thirty_days_ago, '>=')
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+      
+      // Safely check if archived (handle modals that might not have the property yet).
+      $is_archived = FALSE;
+      if (method_exists($modal, 'isArchived')) {
+        try {
+          $is_archived = $modal->isArchived();
+        }
+        catch (\Exception $e) {
+          // If method fails, assume not archived.
+          $is_archived = FALSE;
+        }
+      }
+      
+      $analytics_data[$modal_id] = [
+        'modal' => $modal,
+        'is_archived' => $is_archived,
+        'impressions' => (int) $impressions,
+        'cta1_clicks' => (int) $cta1_clicks,
+        'cta2_clicks' => (int) $cta2_clicks,
+        'total_cta_clicks' => (int) ($cta1_clicks + $cta2_clicks),
+        'dismissals' => (int) $dismissals,
+        'conversion_rate' => $conversion_rate,
+        'recent_impressions' => (int) $recent_impressions,
+      ];
+    }
+    
+    // Prepare data for JavaScript - include all metrics for charts.
+    $js_data = [];
+    foreach ($analytics_data as $modal_id => $data) {
+      $js_data[$modal_id] = [
+        'modal' => [
+          'id' => $modal_id,
+          'label' => $data['modal']->label(),
+        ],
+        'impressions' => $data['impressions'],
+        'cta1_clicks' => $data['cta1_clicks'],
+        'cta2_clicks' => $data['cta2_clicks'],
+        'total_cta_clicks' => $data['total_cta_clicks'],
+        'conversion_rate' => $data['conversion_rate'],
+        'dismissals' => $data['dismissals'],
+        'recent_impressions' => $data['recent_impressions'],
+      ];
+    }
+    
+    // Filter out archived modals if not showing them.
+    if (!$show_archived) {
+      $analytics_data = array_filter($analytics_data, function($data) {
+        return !$data['is_archived'];
+      });
+    }
+    
+      // Build render array.
+      $build = [
+        '#theme' => 'modal_analytics',
+        '#analytics_data' => $analytics_data,
+        '#show_archived' => $show_archived,
+        '#attached' => [
+          'library' => ['custom_plugin/modal.analytics'],
+          'drupalSettings' => [
+            'modalAnalytics' => [
+              'analyticsData' => $js_data,
+            ],
+          ],
+        ],
+      ];
+      
+      return $build;
+    }
+    catch (\Exception $e) {
+      // Log the error and return a user-friendly message.
+      \Drupal::logger('custom_plugin')->error('Error loading analytics: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return [
+        '#markup' => '<p>' . $this->t('An error occurred while loading analytics data. Please check the logs for details.') . '</p>',
+      ];
+    }
+  }
+
+  /**
+   * Download analytics data as CSV.
+   */
+  public function download(Request $request) {
+    $connection = Database::getConnection();
+    $modal_id = $request->query->get('modal_id');
+    
+    $query = $connection->select('modal_analytics', 'ma')
+      ->fields('ma', [
+        'modal_id',
+        'event_type',
+        'cta_number',
+        'rule_triggered',
+        'timestamp',
+        'page_path',
+      ])
+      ->orderBy('timestamp', 'DESC');
+    
+    if ($modal_id) {
+      $query->condition('modal_id', $modal_id);
+    }
+    
+    $results = $query->execute()->fetchAll();
+    
+    // Generate CSV content.
+    $csv_lines = [];
+    
+    // Headers.
+    $csv_lines[] = '"Modal ID","Event Type","CTA Number","Rule Triggered","Date/Time","Page Path"';
+    
+    // Data rows.
+    foreach ($results as $row) {
+      $csv_lines[] = sprintf(
+        '"%s","%s","%s","%s","%s","%s"',
+        str_replace('"', '""', $row->modal_id),
+        str_replace('"', '""', $row->event_type),
+        str_replace('"', '""', $row->cta_number ?? ''),
+        str_replace('"', '""', $row->rule_triggered ?? ''),
+        date('Y-m-d H:i:s', $row->timestamp),
+        str_replace('"', '""', $row->page_path ?? '')
+      );
+    }
+    
+    $csv_content = implode("\n", $csv_lines);
+    
+    $filename = $modal_id 
+      ? 'modal-analytics-' . $modal_id . '-' . date('Y-m-d') . '.csv'
+      : 'modal-analytics-all-' . date('Y-m-d') . '.csv';
+    
+    $response = new Response($csv_content);
+    $response->headers->set('Content-Type', 'text/csv; charset=utf-8');
+    $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    
+    return $response;
+  }
+
+}

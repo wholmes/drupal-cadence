@@ -108,6 +108,42 @@ interface ModalInterface extends ConfigEntityInterface {
   public function isEnabled(): bool;
 
   /**
+   * Checks if the modal is archived.
+   *
+   * @return bool
+   *   TRUE if archived, FALSE otherwise.
+   */
+  public function isArchived(): bool;
+
+  /**
+   * Sets the archived status.
+   *
+   * @param bool $archived
+   *   Whether the modal is archived.
+   *
+   * @return $this
+   */
+  public function setArchived(bool $archived);
+
+  /**
+   * Gets the priority of the modal.
+   *
+   * @return int
+   *   The priority value. Higher numbers mean higher priority.
+   */
+  public function getPriority(): int;
+
+  /**
+   * Sets the priority of the modal.
+   *
+   * @param int $priority
+   *   The priority value.
+   *
+   * @return $this
+   */
+  public function setPriority(int $priority);
+
+  /**
    * Gets the visibility configuration.
    *
    * @return array

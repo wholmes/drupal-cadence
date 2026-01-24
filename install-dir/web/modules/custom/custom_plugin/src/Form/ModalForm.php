@@ -7,6 +7,8 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file\Entity\File;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\ReplaceCommand;
 
 /**
  * Form handler for the modal add/edit forms.
@@ -18,6 +20,10 @@ class ModalForm extends EntityForm {
    */
   public function form(array $form, FormStateInterface $form_state) {
     $form = parent::form($form, $form_state);
+    
+    // Attach admin CSS library.
+    $form['#attached']['library'][] = 'custom_plugin/admin';
+    
     $modal = $this->entity;
 
     // Use vertical tabs for organization.
@@ -42,11 +48,21 @@ class ModalForm extends EntityForm {
       '#disabled' => !$modal->isNew(),
     ];
 
-    $form['status'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enabled'),
-      '#default_value' => $modal->isEnabled(),
-    ];
+        $form['status'] = [
+          '#type' => 'checkbox',
+          '#title' => $this->t('Enabled'),
+          '#default_value' => $modal->isEnabled(),
+        ];
+
+        $form['priority'] = [
+          '#type' => 'number',
+          '#title' => $this->t('Priority'),
+          '#description' => $this->t('Higher priority modals show first when multiple modals are triggered. Default is 0. Use positive numbers for higher priority, negative for lower.'),
+          '#default_value' => $modal->getPriority(),
+          '#min' => -100,
+          '#max' => 100,
+          '#size' => 5,
+        ];
 
     // Define advanced vertical tabs container before fieldsets use it.
     $form['advanced'] = [
@@ -75,12 +91,43 @@ class ModalForm extends EntityForm {
       '@data' => print_r($content['image'] ?? 'NOT SET', TRUE),
     ]);
     
-    // Image upload field.
-    $form['content']['image'] = [
+    // Text content fieldset - groups headline, subheadline, and body.
+    $form['content']['text_content'] = [
       '#type' => 'fieldset',
-      '#title' => $this->t('Modal Image(s)'),
+      '#title' => $this->t('Text Content'),
       '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-text-content-fieldset']],
     ];
+
+    $form['content']['text_content']['headline'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Headline'),
+      '#default_value' => $content['headline'] ?? '',
+      '#required' => TRUE,
+      '#attributes' => ['class' => ['modal-headline-field']],
+    ];
+
+    $form['content']['text_content']['subheadline'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Subheadline'),
+      '#default_value' => $content['subheadline'] ?? '',
+      '#attributes' => ['class' => ['modal-subheadline-field']],
+    ];
+
+    $form['content']['text_content']['body'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Body Content'),
+      '#default_value' => $content['body'] ?? '',
+      '#rows' => 5,
+    ];
+    
+        // Image upload field.
+        $form['content']['image'] = [
+          '#type' => 'fieldset',
+          '#title' => $this->t('Modal Image(s)'),
+          '#tree' => TRUE,
+          '#attributes' => ['class' => ['modal-image-fieldset']],
+        ];
     
     // Load image data - simple approach.
     $image_data = $content['image'] ?? [];
@@ -149,31 +196,184 @@ class ModalForm extends EntityForm {
         ],
       ],
     ];
+
+    $form['content']['image']['mobile_breakpoint'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mobile Breakpoint'),
+      '#description' => $this->t('Screen width at which the image moves to the top (e.g., 1200px, 1400px). Leave empty for default (1400px).'),
+      '#default_value' => $image_data['mobile_breakpoint'] ?? '',
+      '#size' => 20,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+
+
+    $form['content']['image']['height'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Image Height'),
+      '#description' => $this->t('Set the height of the image container (e.g., 300px, 50vh, 20rem). Leave empty for auto height. With background-size: cover, the image will fill this height and crop width as needed.'),
+      '#default_value' => $image_data['height'] ?? '',
+      '#size' => 20,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['content']['image']['max_height_top_bottom'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Max Height (Top/Bottom Placement)'),
+      '#description' => $this->t('Set maximum height when image is placed at top or bottom (e.g., 400px, 50vh). Leave empty for no limit.'),
+      '#default_value' => $image_data['max_height_top_bottom'] ?? '',
+      '#size' => 20,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+          ':input[name="content[image][placement]"]' => ['value' => ['top', 'bottom']],
+        ],
+      ],
+    ];
+
+    // Image effects and preview container - wraps both side by side.
+    $form['content']['image']['effects_preview_container'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-effects-preview-container']],
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+
+    // Image Effects section.
+    $form['content']['image']['effects_preview_container']['effects'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Image Effects'),
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-image-effects']],
+    ];
+
+    $effects = $image_data['effects'] ?? [];
     
-    $form['content']['headline'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Headline'),
-      '#default_value' => $content['headline'] ?? '',
-      '#required' => TRUE,
+    $form['content']['image']['effects_preview_container']['effects']['background_color'] = [
+      '#type' => 'color',
+      '#title' => $this->t('Background Color'),
+      '#description' => $this->t('Solid color that appears behind/under the image. Use transparent (leave default) for no background.'),
+      '#default_value' => $effects['background_color'] ?? '',
     ];
 
-    $form['content']['subheadline'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Subheadline'),
-      '#default_value' => $content['subheadline'] ?? '',
+    $form['content']['image']['effects_preview_container']['effects']['blend_mode'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Blend Mode'),
+      '#description' => $this->t('How the image blends with the background color. Creates interesting overlay effects.'),
+      '#options' => [
+        'normal' => $this->t('Normal'),
+        'multiply' => $this->t('Multiply'),
+        'screen' => $this->t('Screen'),
+        'overlay' => $this->t('Overlay'),
+        'darken' => $this->t('Darken'),
+        'lighten' => $this->t('Lighten'),
+        'color-dodge' => $this->t('Color Dodge'),
+        'color-burn' => $this->t('Color Burn'),
+        'hard-light' => $this->t('Hard Light'),
+        'soft-light' => $this->t('Soft Light'),
+        'difference' => $this->t('Difference'),
+        'exclusion' => $this->t('Exclusion'),
+      ],
+      '#default_value' => $effects['blend_mode'] ?? 'normal',
     ];
 
-    $form['content']['body'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Body Content'),
-      '#default_value' => $content['body'] ?? '',
-      '#rows' => 5,
+    $form['content']['image']['effects_preview_container']['effects']['grayscale'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Grayscale'),
+      '#description' => $this->t('Convert image to grayscale. 0% = full color, 100% = completely grayscale.'),
+      '#default_value' => $effects['grayscale'] ?? 0,
+      '#min' => 0,
+      '#max' => 100,
+      '#field_suffix' => '%',
+      '#size' => 5,
     ];
+
+    // Preview section.
+    $form['content']['image']['effects_preview_container']['preview'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Preview'),
+      '#attributes' => ['class' => ['modal-image-preview']],
+    ];
+
+    $form['content']['image']['effects_preview_container']['preview']['preview_button'] = [
+      '#type' => 'button',
+      '#value' => $this->t('Update Preview'),
+      '#ajax' => [
+        'callback' => '::updateImagePreview',
+        'wrapper' => 'image-effects-preview',
+        'method' => 'replace',
+        'effect' => 'fade',
+      ],
+    ];
+
+    $preview_url = '';
+    if ($default_fid) {
+      $file = File::load($default_fid);
+      if ($file) {
+        $file_url_generator = \Drupal::service('file_url_generator');
+        $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
+      }
+    }
+
+    $form['content']['image']['effects_preview_container']['preview']['preview_container'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'image-effects-preview',
+        'class' => ['image-effects-preview-container'],
+      ],
+    ];
+
+    if ($preview_url) {
+      $preview_effects = $effects;
+      $preview_styles = [];
+      
+      if (!empty($preview_effects['background_color'])) {
+        $preview_styles[] = 'background-color: ' . $preview_effects['background_color'];
+      }
+      
+      $filters = [];
+      if (!empty($preview_effects['grayscale'])) {
+        $filters[] = 'grayscale(' . (int) $preview_effects['grayscale'] . '%)';
+      }
+      if (!empty($filters)) {
+        $preview_styles[] = 'filter: ' . implode(' ', $filters);
+      }
+      
+      if (!empty($preview_effects['blend_mode']) && $preview_effects['blend_mode'] !== 'normal') {
+        $preview_styles[] = 'mix-blend-mode: ' . $preview_effects['blend_mode'];
+      }
+
+      $form['content']['image']['effects_preview_container']['preview']['preview_container']['preview_image'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'div',
+        '#attributes' => [
+          'class' => ['image-preview'],
+          'style' => implode('; ', $preview_styles) . '; background-image: url(' . $preview_url . '); width: 300px; height: 200px; background-size: cover; background-position: center; border: 1px solid #ccc;',
+        ],
+      ];
+    }
+    else {
+      $form['content']['image']['effects_preview_container']['preview']['preview_container']['preview_message'] = [
+        '#markup' => '<p>' . $this->t('Upload an image to see preview.') . '</p>',
+      ];
+    }
 
     // CTA 1.
     $form['content']['cta1'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('CTA 1'),
+      '#attributes' => ['class' => ['modal-cta-fieldset', 'modal-cta-1']],
     ];
     $form['content']['cta1']['text'] = [
       '#type' => 'textfield',
@@ -227,6 +427,7 @@ class ModalForm extends EntityForm {
     $form['content']['cta2'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('CTA 2'),
+      '#attributes' => ['class' => ['modal-cta-fieldset', 'modal-cta-2']],
     ];
     $form['content']['cta2']['text'] = [
       '#type' => 'textfield',
@@ -283,6 +484,7 @@ class ModalForm extends EntityForm {
       '#group' => 'advanced',
       '#description' => $this->t('Configure when this modal should appear. All enabled rules must be met for the modal to show.'),
       '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-rules-fieldset']],
     ];
 
     $rules = $modal->getRules();
@@ -398,6 +600,61 @@ class ModalForm extends EntityForm {
       '#default_value' => $visibility['negate'] ?? FALSE,
     ];
 
+    // Date range fields.
+    $form['visibility']['date_range'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Date Range'),
+      '#description' => $this->t('Optionally set a date range when this modal should be displayed. Leave empty to show at any time.'),
+      '#tree' => TRUE,
+    ];
+
+    // Get date values - convert from timestamp if stored as integer, or use string directly.
+    $start_date_value = NULL;
+    $end_date_value = NULL;
+    
+    if (!empty($visibility['start_date'])) {
+      // If it's a timestamp (integer), convert to date string.
+      if (is_numeric($visibility['start_date'])) {
+        $start_date_value = date('Y-m-d', (int) $visibility['start_date']);
+      } else {
+        $start_date_value = $visibility['start_date'];
+      }
+    }
+    
+    if (!empty($visibility['end_date'])) {
+      // If it's a timestamp (integer), convert to date string.
+      if (is_numeric($visibility['end_date'])) {
+        $end_date_value = date('Y-m-d', (int) $visibility['end_date']);
+      } else {
+        $end_date_value = $visibility['end_date'];
+      }
+    }
+
+    $form['visibility']['date_range']['start_date'] = [
+      '#type' => 'date',
+      '#title' => $this->t('Start Date'),
+      '#description' => $this->t('The date when the modal should start being displayed. Leave empty for no start date.'),
+      '#default_value' => $start_date_value,
+    ];
+
+    $form['visibility']['date_range']['end_date'] = [
+      '#type' => 'date',
+      '#title' => $this->t('End Date'),
+      '#description' => $this->t('The date when the modal should stop being displayed. Leave empty for no end date.'),
+      '#default_value' => $end_date_value,
+    ];
+
+    // Force open URL parameter.
+    $form['visibility']['force_open_param'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Force Open URL Parameter'),
+      '#description' => $this->t('Set a unique URL parameter to force this modal to open. For example, if you set "test123", the modal will open when you visit any page with ?modal=test123 in the URL. Leave empty to disable.'),
+      '#default_value' => $visibility['force_open_param'] ?? '',
+      '#size' => 30,
+      '#maxlength' => 255,
+      '#placeholder' => 'e.g., test123',
+    ];
+
     // Styling tab - simple options.
     $form['styling'] = [
       '#type' => 'fieldset',
@@ -407,7 +664,16 @@ class ModalForm extends EntityForm {
     ];
 
     $styling = $modal->getStyling();
-    $form['styling']['layout'] = [
+    
+    // Layout and colors fieldset - groups layout, max width, background, and text color.
+    $form['styling']['layout_colors'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Layout & Colors'),
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-layout-colors-fieldset']],
+    ];
+
+    $form['styling']['layout_colors']['layout'] = [
       '#type' => 'select',
       '#title' => $this->t('Layout'),
       '#options' => [
@@ -418,7 +684,7 @@ class ModalForm extends EntityForm {
       '#required' => TRUE,
     ];
 
-    $form['styling']['max_width'] = [
+    $form['styling']['layout_colors']['max_width'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Maximum Width'),
       '#description' => $this->t('Set a maximum width for the modal (e.g., 800px, 50rem, 90%). Leave empty for default (90% of viewport).'),
@@ -426,27 +692,34 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
-    $form['styling']['background_color'] = [
+    $form['styling']['layout_colors']['background_color'] = [
       '#type' => 'color',
       '#title' => $this->t('Background Color'),
       '#default_value' => $styling['background_color'] ?? '#ffffff',
     ];
 
-    $form['styling']['text_color'] = [
+    $form['styling']['layout_colors']['text_color'] = [
       '#type' => 'color',
       '#title' => $this->t('Text Color'),
       '#default_value' => $styling['text_color'] ?? '#000000',
     ];
 
+    // Typography container - wraps headline and subheadline side by side.
+    $form['styling']['typography_container'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-typography-container']],
+    ];
+
     // Headline typography settings.
-    $form['styling']['headline'] = [
+    $form['styling']['typography_container']['headline'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Headline Typography'),
       '#tree' => TRUE,
+      '#attributes' => ['class' => ['fieldset--headline']],
     ];
 
     $headline_styling = $styling['headline'] ?? [];
-    $form['styling']['headline']['size'] = [
+    $form['styling']['typography_container']['headline']['size'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Size'),
       '#description' => $this->t('Enter size with unit (e.g., 24px, 1.5rem, 2em)'),
@@ -454,13 +727,13 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
-    $form['styling']['headline']['color'] = [
+    $form['styling']['typography_container']['headline']['color'] = [
       '#type' => 'color',
       '#title' => $this->t('Color'),
       '#default_value' => $headline_styling['color'] ?? '',
     ];
 
-    $form['styling']['headline']['font_family'] = [
+    $form['styling']['typography_container']['headline']['font_family'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Family'),
       '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif)'),
@@ -468,7 +741,7 @@ class ModalForm extends EntityForm {
       '#size' => 30,
     ];
 
-    $form['styling']['headline']['letter_spacing'] = [
+    $form['styling']['typography_container']['headline']['letter_spacing'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Letter Spacing (Kerning)'),
       '#description' => $this->t('Enter spacing with unit (e.g., 0.5px, 0.1em, normal)'),
@@ -476,7 +749,7 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
-    $form['styling']['headline']['line_height'] = [
+    $form['styling']['typography_container']['headline']['line_height'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Line Height'),
       '#description' => $this->t('Enter line height (e.g., 1.5, 24px, 1.2em, normal)'),
@@ -484,15 +757,24 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
+    $form['styling']['typography_container']['headline']['margin_top'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Margin Top (space before headline)'),
+      '#description' => $this->t('Enter spacing with unit (e.g., 0px, 1rem, 2em). Leave empty for default.'),
+      '#default_value' => $headline_styling['margin_top'] ?? '',
+      '#size' => 20,
+    ];
+
     // Subheadline typography settings.
-    $form['styling']['subheadline'] = [
+    $form['styling']['typography_container']['subheadline'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Subheadline Typography'),
       '#tree' => TRUE,
+      '#attributes' => ['class' => ['fieldset--subheadline']],
     ];
 
     $subheadline_styling = $styling['subheadline'] ?? [];
-    $form['styling']['subheadline']['size'] = [
+    $form['styling']['typography_container']['subheadline']['size'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Size'),
       '#description' => $this->t('Enter size with unit (e.g., 18px, 1.125rem, 1.5em)'),
@@ -500,13 +782,13 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
-    $form['styling']['subheadline']['color'] = [
+    $form['styling']['typography_container']['subheadline']['color'] = [
       '#type' => 'color',
       '#title' => $this->t('Color'),
       '#default_value' => $subheadline_styling['color'] ?? '#666666',
     ];
 
-    $form['styling']['subheadline']['font_family'] = [
+    $form['styling']['typography_container']['subheadline']['font_family'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Family'),
       '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif)'),
@@ -514,7 +796,7 @@ class ModalForm extends EntityForm {
       '#size' => 30,
     ];
 
-    $form['styling']['subheadline']['letter_spacing'] = [
+    $form['styling']['typography_container']['subheadline']['letter_spacing'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Letter Spacing (Kerning)'),
       '#description' => $this->t('Enter spacing with unit (e.g., 0.5px, 0.1em, normal)'),
@@ -522,11 +804,28 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
-    $form['styling']['subheadline']['line_height'] = [
+    $form['styling']['typography_container']['subheadline']['line_height'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Line Height'),
       '#description' => $this->t('Enter line height (e.g., 1.5, 24px, 1.2em, normal)'),
       '#default_value' => $subheadline_styling['line_height'] ?? '1.4',
+      '#size' => 20,
+    ];
+
+    // Spacing settings.
+    $form['styling']['spacing'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Spacing'),
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-spacing-fieldset']],
+    ];
+
+    $spacing = $styling['spacing'] ?? [];
+    $form['styling']['spacing']['cta_margin_bottom'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Margin Bottom (space after buttons)'),
+      '#description' => $this->t('Enter spacing with unit (e.g., 0px, 1rem, 2em). Leave empty for default.'),
+      '#default_value' => $spacing['cta_margin_bottom'] ?? '',
       '#size' => 20,
     ];
 
@@ -595,6 +894,105 @@ class ModalForm extends EntityForm {
   }
 
   /**
+   * AJAX callback for image effects preview.
+   */
+  public function updateImagePreview(array &$form, FormStateInterface $form_state) {
+    $image_values = $form_state->getValue(['content', 'image'], []);
+    $effects_preview_container = $image_values['effects_preview_container'] ?? [];
+    $effects = $effects_preview_container['effects'] ?? [];
+    
+    // Get image URL - check multiple possible formats.
+    $preview_url = '';
+    
+    // Try to get FID from form values.
+    $fid = NULL;
+    if (isset($image_values['fid'][0]) && is_numeric($image_values['fid'][0])) {
+      $fid = (int) $image_values['fid'][0];
+    }
+    elseif (isset($image_values['fid']['fids']) && is_array($image_values['fid']['fids']) && !empty($image_values['fid']['fids'][0])) {
+      $fid = (int) $image_values['fid']['fids'][0];
+    }
+    // If no FID in form, try to get from existing entity.
+    if (!$fid) {
+      $modal = $this->entity;
+      if (!$modal->isNew()) {
+        $image_data = $modal->getContent()['image'] ?? [];
+        if (!empty($image_data['fid']) && is_numeric($image_data['fid'])) {
+          $fid = (int) $image_data['fid'];
+        }
+      }
+    }
+    
+    if ($fid) {
+      $file = File::load($fid);
+      if ($file) {
+        $file_url_generator = \Drupal::service('file_url_generator');
+        $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
+      }
+    }
+    
+    // Build preview styles.
+    $preview_styles = [];
+    
+    if (!empty($effects['background_color'])) {
+      $preview_styles[] = 'background-color: ' . $effects['background_color'];
+    }
+    
+    $filters = [];
+    if (!empty($effects['grayscale'])) {
+      $filters[] = 'grayscale(' . (int) $effects['grayscale'] . '%)';
+    }
+    if (!empty($filters)) {
+      $preview_styles[] = 'filter: ' . implode(' ', $filters);
+    }
+    
+    if (!empty($effects['blend_mode']) && $effects['blend_mode'] !== 'normal') {
+      $preview_styles[] = 'mix-blend-mode: ' . $effects['blend_mode'];
+    }
+    
+    if ($preview_url) {
+      $preview_styles[] = 'background-image: url(' . $preview_url . ')';
+    }
+    
+    $preview_styles[] = 'width: 300px';
+    $preview_styles[] = 'height: 200px';
+    $preview_styles[] = 'background-size: cover';
+    $preview_styles[] = 'background-position: center';
+    $preview_styles[] = 'border: 1px solid #ccc';
+    
+    $response = new AjaxResponse();
+    
+    if ($preview_url) {
+      $preview_element = [
+        '#type' => 'html_tag',
+        '#tag' => 'div',
+        '#attributes' => [
+          'id' => 'image-effects-preview',
+          'class' => ['image-preview'],
+          'style' => implode('; ', $preview_styles),
+        ],
+      ];
+    }
+    else {
+      $preview_element = [
+        '#type' => 'html_tag',
+        '#tag' => 'div',
+        '#attributes' => [
+          'id' => 'image-effects-preview',
+        ],
+        '#markup' => '<p>' . $this->t('Upload an image to see preview.') . '</p>',
+      ];
+    }
+    
+    $response->addCommand(new ReplaceCommand(
+      '#image-effects-preview',
+      $preview_element
+    ));
+    
+    return $response;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
@@ -610,6 +1008,20 @@ class ModalForm extends EntityForm {
           continue;
         }
         $form_state->setErrorByName('visibility][pages', $this->t("The path %path requires a leading forward slash when used with the Pages setting.", ['%path' => $path]));
+      }
+    }
+
+    // Validate date range - end date must be after start date.
+    $date_range = $visibility_values['date_range'] ?? [];
+    $start_date = $date_range['start_date'] ?? '';
+    $end_date = $date_range['end_date'] ?? '';
+    
+    if (!empty($start_date) && !empty($end_date)) {
+      $start_timestamp = strtotime($start_date);
+      $end_timestamp = strtotime($end_date);
+      
+      if ($end_timestamp < $start_timestamp) {
+        $form_state->setErrorByName('visibility][date_range][end_date', $this->t('The end date must be after the start date.'));
       }
     }
   }
@@ -717,22 +1129,43 @@ class ModalForm extends EntityForm {
     }
     // If no form data at all, keep existing FID (already set above).
     
-    // Build image array - only include fid if valid.
-    $image_array = [
-      'placement' => $image_values['placement'] ?? ($old_image_data['placement'] ?? 'top'),
-      'mobile_force_top' => !empty($image_values['mobile_force_top']) ? TRUE : (!empty($old_image_data['mobile_force_top']) ? TRUE : FALSE),
-    ];
+        // Build image array - only include fid if valid.
+        $image_array = [
+          'placement' => $image_values['placement'] ?? ($old_image_data['placement'] ?? 'top'),
+          'mobile_force_top' => !empty($image_values['mobile_force_top']) ? TRUE : (!empty($old_image_data['mobile_force_top']) ? TRUE : FALSE),
+          'mobile_breakpoint' => trim($image_values['mobile_breakpoint'] ?? ($old_image_data['mobile_breakpoint'] ?? '')),
+          'height' => trim($image_values['height'] ?? ($old_image_data['height'] ?? '')),
+          'max_height_top_bottom' => trim($image_values['max_height_top_bottom'] ?? ($old_image_data['max_height_top_bottom'] ?? '')),
+        ];
+
+        if ($image_fid && $image_fid > 0) {
+          $image_array['fid'] = $image_fid;
+        }
+
+        // Save image effects.
+        $effects_preview_container = $image_values['effects_preview_container'] ?? [];
+        $effects_values = $effects_preview_container['effects'] ?? [];
+        if (!empty($effects_values)) {
+          $image_array['effects'] = [
+            'background_color' => trim($effects_values['background_color'] ?? ''),
+            'blend_mode' => $effects_values['blend_mode'] ?? 'normal',
+            'grayscale' => (int) ($effects_values['grayscale'] ?? 0),
+          ];
+        }
+        elseif (!empty($old_image_data['effects'])) {
+          // Preserve existing effects if not provided.
+          $image_array['effects'] = $old_image_data['effects'];
+        }
     
-    if ($image_fid && $image_fid > 0) {
-      $image_array['fid'] = $image_fid;
-    }
+    // Get text content from the fieldset.
+    $text_content = $content_values['text_content'] ?? [];
     
     $content = [
-      'headline' => $content_values['headline'] ?? '',
-      'subheadline' => $content_values['subheadline'] ?? '',
-      'body' => $content_values['body'] ?? '',
+      'headline' => $text_content['headline'] ?? '',
+      'subheadline' => $text_content['subheadline'] ?? '',
+      'body' => $text_content['body'] ?? '',
       'image' => $image_array,
-          'cta1' => [
+      'cta1' => [
             'text' => $content_values['cta1']['text'] ?? '',
             'url' => $content_values['cta1']['url'] ?? '',
             'new_tab' => !empty($content_values['cta1']['new_tab']),
@@ -740,8 +1173,8 @@ class ModalForm extends EntityForm {
             'rounded_corners' => !empty($content_values['cta1']['rounded_corners']),
             'reverse_style' => !empty($content_values['cta1']['reverse_style']),
             'hover_animation' => $content_values['cta1']['hover_animation'] ?? '',
-          ],
-          'cta2' => [
+      ],
+      'cta2' => [
             'text' => $content_values['cta2']['text'] ?? '',
             'url' => $content_values['cta2']['url'] ?? '',
             'new_tab' => !empty($content_values['cta2']['new_tab']),
@@ -760,6 +1193,10 @@ class ModalForm extends EntityForm {
     
     $modal->setContent($content);
 
+    // Set priority.
+    $priority = (int) $form_state->getValue('priority', 0);
+    $modal->setPriority($priority);
+
     // Collect rules.
     $rules_values = $form_state->getValue('rules', []);
     $rules = [
@@ -777,19 +1214,25 @@ class ModalForm extends EntityForm {
 
     // Collect styling.
     $styling_values = $form_state->getValue('styling', []);
-    $headline_styling = $styling_values['headline'] ?? [];
-    $subheadline_styling = $styling_values['subheadline'] ?? [];
+    // Read from the new layout_colors fieldset.
+    $layout_colors = $styling_values['layout_colors'] ?? [];
+    // Read from the typography_container.
+    $typography_container = $styling_values['typography_container'] ?? [];
+    $headline_styling = $typography_container['headline'] ?? [];
+    $subheadline_styling = $typography_container['subheadline'] ?? [];
+    $spacing_values = $styling_values['spacing'] ?? [];
     $styling = [
-      'layout' => $styling_values['layout'] ?? 'centered',
-      'max_width' => trim($styling_values['max_width'] ?? ''),
-      'background_color' => $styling_values['background_color'] ?? '#ffffff',
-      'text_color' => $styling_values['text_color'] ?? '#000000',
+      'layout' => $layout_colors['layout'] ?? 'centered',
+      'max_width' => trim($layout_colors['max_width'] ?? ''),
+      'background_color' => $layout_colors['background_color'] ?? '#ffffff',
+      'text_color' => $layout_colors['text_color'] ?? '#000000',
       'headline' => [
         'size' => trim($headline_styling['size'] ?? ''),
         'color' => trim($headline_styling['color'] ?? ''),
         'font_family' => trim($headline_styling['font_family'] ?? ''),
         'letter_spacing' => trim($headline_styling['letter_spacing'] ?? ''),
         'line_height' => trim($headline_styling['line_height'] ?? ''),
+        'margin_top' => trim($headline_styling['margin_top'] ?? ''),
       ],
       'subheadline' => [
         'size' => trim($subheadline_styling['size'] ?? ''),
@@ -797,6 +1240,9 @@ class ModalForm extends EntityForm {
         'font_family' => trim($subheadline_styling['font_family'] ?? ''),
         'letter_spacing' => trim($subheadline_styling['letter_spacing'] ?? ''),
         'line_height' => trim($subheadline_styling['line_height'] ?? ''),
+      ],
+      'spacing' => [
+        'cta_margin_bottom' => trim($spacing_values['cta_margin_bottom'] ?? ''),
       ],
     ];
     $modal->setStyling($styling);
@@ -819,9 +1265,14 @@ class ModalForm extends EntityForm {
 
     // Collect visibility.
     $visibility_values = $form_state->getValue('visibility', []);
+    $date_range = $visibility_values['date_range'] ?? [];
+    
     $visibility = [
       'pages' => $visibility_values['pages'] ?? '',
       'negate' => !empty($visibility_values['negate']),
+      'start_date' => !empty($date_range['start_date']) ? $date_range['start_date'] : NULL,
+      'end_date' => !empty($date_range['end_date']) ? $date_range['end_date'] : NULL,
+      'force_open_param' => !empty($visibility_values['force_open_param']) ? trim($visibility_values['force_open_param']) : NULL,
     ];
     $modal->setVisibility($visibility);
 

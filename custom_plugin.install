@@ -1,0 +1,29 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Modal System module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function custom_plugin_install() {
+  // Install the Modal entity type.
+  $entity_type_manager = \Drupal::entityTypeManager();
+  $update_manager = \Drupal::entityDefinitionUpdateManager();
+  
+  $entity_type = $entity_type_manager->getDefinition('modal', FALSE);
+  if ($entity_type) {
+    $update_manager->installEntityType($entity_type);
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function custom_plugin_uninstall() {
+  // Drupal automatically removes config entities, but we can clean up
+  // any additional state or cache here if needed.
+  \Drupal::cache()->deleteAll();
+}
