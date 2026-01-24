@@ -23,7 +23,8 @@ use Drupal\custom_plugin\ModalInterface;
  *     "form" = {
  *       "add" = "Drupal\custom_plugin\Form\ModalForm",
  *       "edit" = "Drupal\custom_plugin\Form\ModalForm",
- *       "delete" = "Drupal\custom_plugin\Form\ModalDeleteForm"
+ *       "delete" = "Drupal\custom_plugin\Form\ModalDeleteForm",
+ *       "archive" = "Drupal\custom_plugin\Form\ModalArchiveForm"
  *     },
  *     "route_provider" = {
  *       "html" = "Drupal\Core\Entity\Routing\AdminHtmlRouteProvider",
@@ -42,6 +43,7 @@ use Drupal\custom_plugin\ModalInterface;
  *     "add-form" = "/admin/config/content/modal-system/add",
  *     "edit-form" = "/admin/config/content/modal-system/{modal}/edit",
  *     "delete-form" = "/admin/config/content/modal-system/{modal}/delete",
+ *     "archive-form" = "/admin/config/content/modal-system/{modal}/archive",
  *     "collection" = "/admin/config/content/modal-system"
  *   },
   *   config_export = {
