@@ -34,3 +34,10 @@ modal.analytics:
   dependencies:
     - core/drupal
     - core/jquery
+
+modal.form.persistence:
+  version: 1.x
+  js:
+    js/modal-form-persistence.js: {}
+  dependencies:
+    - core/drupal

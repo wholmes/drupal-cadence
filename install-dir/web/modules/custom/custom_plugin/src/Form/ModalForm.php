@@ -21,8 +21,14 @@ class ModalForm extends EntityForm {
   public function form(array $form, FormStateInterface $form_state) {
     $form = parent::form($form, $form_state);
     
+    // Add CSS class for JavaScript targeting.
+    $form['#attributes']['class'][] = 'modal-form';
+    
     // Attach admin CSS library.
     $form['#attached']['library'][] = 'custom_plugin/admin';
+    
+    // Attach form persistence library for collapsible panels.
+    $form['#attached']['library'][] = 'custom_plugin/modal.form.persistence';
     
     $modal = $this->entity;
 
@@ -50,33 +56,28 @@ class ModalForm extends EntityForm {
       '#description' => $this->t('Machine name for this marketing campaign.'),
     ];
 
-        $form['status'] = [
-          '#type' => 'checkbox',
-          '#title' => $this->t('Enabled'),
-          '#default_value' => $modal->isEnabled(),
-        ];
-
-        $form['priority'] = [
-          '#type' => 'number',
-          '#title' => $this->t('Priority'),
-          '#description' => $this->t('Higher priority modals show first when multiple modals are triggered. Default is 0. Use positive numbers for higher priority, negative for lower.'),
-          '#default_value' => $modal->getPriority(),
-          '#min' => -100,
-          '#max' => 100,
-          '#size' => 5,
-        ];
-
-    // Define advanced vertical tabs container before fieldsets use it.
-    $form['advanced'] = [
-      '#type' => 'vertical_tabs',
-      '#weight' => 99,
+    $form['status'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enabled'),
+      '#default_value' => $modal->isEnabled(),
     ];
 
-    // Content tab.
+    $form['priority'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Priority'),
+      '#description' => $this->t('Higher priority modals show first when multiple modals are triggered. Default is 0. Use positive numbers for higher priority, negative for lower.'),
+      '#default_value' => $modal->getPriority(),
+      '#min' => -100,
+      '#max' => 100,
+      '#size' => 5,
+    ];
+
+    // Marketing Content panel (collapsible, open by default).
     $form['content'] = [
-      '#type' => 'fieldset',
+      '#type' => 'details',
       '#title' => $this->t('Marketing Content'),
-      '#group' => 'advanced',
+      '#open' => TRUE,
+      '#weight' => 10,
       '#tree' => TRUE,
     ];
 
@@ -116,10 +117,17 @@ class ModalForm extends EntityForm {
       '#attributes' => ['class' => ['modal-subheadline-field']],
     ];
 
+    // Prepare body content for WYSIWYG (text_format expects array with value and format).
+    $body_content = $content['body'] ?? '';
+    $body_default = is_array($body_content) 
+      ? $body_content 
+      : ['value' => $body_content, 'format' => 'basic_html'];
+
     $form['content']['text_content']['body'] = [
-      '#type' => 'textarea',
+      '#type' => 'text_format',
       '#title' => $this->t('Body Content'),
-      '#default_value' => $content['body'] ?? '',
+      '#default_value' => $body_default['value'] ?? '',
+      '#format' => $body_default['format'] ?? 'basic_html',
       '#rows' => 5,
     ];
     
@@ -205,6 +213,59 @@ class ModalForm extends EntityForm {
       '#description' => $this->t('Screen width at which the image moves to the top (e.g., 1200px, 1400px). Leave empty for default (1400px).'),
       '#default_value' => $image_data['mobile_breakpoint'] ?? '',
       '#size' => 20,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['content']['image']['mobile_height'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mobile Height (when forced to top)'),
+      '#description' => $this->t('Set a specific height for the image when it moves to the top on mobile (e.g., 200px, 30vh, 15rem). Leave empty to use the regular height setting.'),
+      '#default_value' => $image_data['mobile_height'] ?? '',
+      '#size' => 20,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+
+    // Mobile image upload field (optional - only shows when mobile_force_top is enabled).
+    $mobile_fid = NULL;
+    if (!empty($image_data['mobile_fid']) && is_numeric($image_data['mobile_fid'])) {
+      $fid = (int) $image_data['mobile_fid'];
+      if ($fid > 0) {
+        $file = File::load($fid);
+        if ($file) {
+          $mobile_fid = $fid;
+          if ($file->isTemporary()) {
+            $file->setPermanent();
+            $file->save();
+          }
+        }
+      }
+    }
+
+    $form['content']['image']['mobile_fid'] = [
+      '#type' => 'managed_file',
+      '#title' => $this->t('Mobile Image (Optional)'),
+      '#description' => $this->t('Upload a different image to display on mobile devices. If not provided, the regular image will be used. Allowed formats: jpg, jpeg, png, gif, webp'),
+      '#default_value' => $mobile_fid ? [$mobile_fid] : NULL,
+      '#upload_location' => 'public://modal-images',
+      '#upload_validators' => [
+        'FileExtension' => [
+          'extensions' => 'jpg jpeg png gif webp',
+        ],
+        'FileImageDimensions' => [
+          'maxDimensions' => '4096x4096',
+        ],
+      ],
+      '#progress_indicator' => 'throbber',
       '#states' => [
         'visible' => [
           ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
@@ -554,11 +615,12 @@ class ModalForm extends EntityForm {
       }
     }
 
-    // Rules tab - simple checkboxes and options.
+    // Rules panel (collapsible, closed by default).
     $form['rules'] = [
-      '#type' => 'fieldset',
+      '#type' => 'details',
       '#title' => $this->t('Rules'),
-      '#group' => 'advanced',
+      '#open' => FALSE,
+      '#weight' => 20,
       '#description' => $this->t('Configure when this modal should appear. All enabled rules must be met for the modal to show.'),
       '#tree' => TRUE,
       '#attributes' => ['class' => ['modal-rules-fieldset']],
@@ -650,11 +712,12 @@ class ModalForm extends EntityForm {
       '#default_value' => $rules['exit_intent_enabled'] ?? FALSE,
     ];
 
-    // Visibility tab - page restrictions.
+    // Page Visibility panel (collapsible, closed by default).
     $form['visibility'] = [
-      '#type' => 'fieldset',
+      '#type' => 'details',
       '#title' => $this->t('Page Visibility'),
-      '#group' => 'advanced',
+      '#open' => FALSE,
+      '#weight' => 30,
       '#description' => $this->t('Control which pages this modal appears on. Leave blank to show on all pages.'),
       '#tree' => TRUE,
     ];
@@ -732,11 +795,12 @@ class ModalForm extends EntityForm {
       '#placeholder' => 'e.g., test123',
     ];
 
-    // Styling tab - simple options.
+    // Styling panel (collapsible, closed by default).
     $form['styling'] = [
-      '#type' => 'fieldset',
+      '#type' => 'details',
       '#title' => $this->t('Styling'),
-      '#group' => 'advanced',
+      '#open' => FALSE,
+      '#weight' => 40,
       '#tree' => TRUE,
     ];
 
@@ -906,11 +970,12 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
-    // Dismissal tab.
+    // Dismissal panel (collapsible, closed by default).
     $form['dismissal'] = [
-      '#type' => 'fieldset',
+      '#type' => 'details',
       '#title' => $this->t('Dismissal'),
-      '#group' => 'advanced',
+      '#open' => FALSE,
+      '#weight' => 50,
       '#tree' => TRUE,
     ];
 
@@ -940,11 +1005,12 @@ class ModalForm extends EntityForm {
       ],
     ];
 
-    // Analytics tab - simple checkbox.
+    // Analytics panel (collapsible, closed by default).
     $form['analytics'] = [
-      '#type' => 'fieldset',
+      '#type' => 'details',
       '#title' => $this->t('Marketing Analytics'),
-      '#group' => 'advanced',
+      '#open' => FALSE,
+      '#weight' => 60,
       '#tree' => TRUE,
     ];
 
@@ -1206,14 +1272,46 @@ class ModalForm extends EntityForm {
     }
     // If no form data at all, keep existing FID (already set above).
     
+        // Handle mobile image FID.
+        $mobile_image_fid = NULL;
+        if (isset($image_values['mobile_fid'][0]) && is_numeric($image_values['mobile_fid'][0])) {
+          $mobile_image_fid = (int) $image_values['mobile_fid'][0];
+        }
+        elseif (isset($image_values['mobile_fid']['fids'][0]) && is_numeric($image_values['mobile_fid']['fids'][0])) {
+          $mobile_image_fid = (int) $image_values['mobile_fid']['fids'][0];
+        }
+        elseif (!empty($old_image_data['mobile_fid']) && is_numeric($old_image_data['mobile_fid'])) {
+          // Keep existing mobile_fid if no new one uploaded.
+          $mobile_image_fid = (int) $old_image_data['mobile_fid'];
+        }
+
+        // If we have a mobile image FID, ensure it's permanent and track usage.
+        if ($mobile_image_fid && $mobile_image_fid > 0) {
+          $mobile_file = File::load($mobile_image_fid);
+          if ($mobile_file) {
+            if ($mobile_file->isTemporary()) {
+              $mobile_file->setPermanent();
+              $mobile_file->save();
+            }
+            // Track file usage.
+            \Drupal::service('file.usage')->add($mobile_file, 'custom_plugin', 'modal', $modal->id());
+          }
+        }
+
         // Build image array - only include fid if valid.
         $image_array = [
           'placement' => $image_values['placement'] ?? ($old_image_data['placement'] ?? 'top'),
           'mobile_force_top' => !empty($image_values['mobile_force_top']) ? TRUE : (!empty($old_image_data['mobile_force_top']) ? TRUE : FALSE),
           'mobile_breakpoint' => trim($image_values['mobile_breakpoint'] ?? ($old_image_data['mobile_breakpoint'] ?? '')),
+          'mobile_height' => trim($image_values['mobile_height'] ?? ($old_image_data['mobile_height'] ?? '')),
           'height' => trim($image_values['height'] ?? ($old_image_data['height'] ?? '')),
           'max_height_top_bottom' => trim($image_values['max_height_top_bottom'] ?? ($old_image_data['max_height_top_bottom'] ?? '')),
         ];
+
+        // Add mobile_fid if we have one.
+        if ($mobile_image_fid && $mobile_image_fid > 0) {
+          $image_array['mobile_fid'] = $mobile_image_fid;
+        }
 
         if ($image_fid && $image_fid > 0) {
           $image_array['fid'] = $image_fid;
@@ -1373,7 +1471,7 @@ class ModalForm extends EntityForm {
     $content = [
       'headline' => $text_content['headline'] ?? '',
       'subheadline' => $text_content['subheadline'] ?? '',
-      'body' => $text_content['body'] ?? '',
+      'body' => $text_content['body'] ?? ['value' => '', 'format' => 'basic_html'],
       'image' => $image_array,
       'form' => $form_config,
       'cta1' => [

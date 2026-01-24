@@ -805,15 +805,34 @@
             imageContainer.classList.add('modal-system--mobile-force-top');
             imageContainer.setAttribute('data-mobile-breakpoint', mobileBreakpoint);
           }
+          // Set default background image (desktop).
           imageContainer.style.backgroundImage = 'url(' + escapeAttr(imageUrls[0]) + ')';
+          imageContainer.style.setProperty('--desktop-image', 'url(' + escapeAttr(imageUrls[0]) + ')');
+          
+          // Set mobile image if configured.
+          if (imageData.mobile_url) {
+            imageContainer.style.setProperty('--mobile-image', 'url(' + escapeAttr(imageData.mobile_url) + ')');
+            imageContainer.setAttribute('data-has-mobile-image', 'true');
+          }
+          
           imageContainer.setAttribute('role', 'img');
           imageContainer.setAttribute('aria-label', this.modal.content.headline || 'Modal image');
           
-          // Apply image height if configured (use min-height for flex layouts).
+          // Apply image height using CSS custom properties (avoids inline style specificity issues).
           if (imageData.height) {
             const heightValue = String(imageData.height).trim();
             if (heightValue !== '') {
-              imageContainer.style.minHeight = heightValue;
+              imageContainer.style.setProperty('--image-height', heightValue);
+              imageContainer.setAttribute('data-has-height', 'true');
+            }
+          }
+
+          // Apply mobile-specific height if configured and mobile_force_top is enabled.
+          if (mobileForceTop && imageData.mobile_height) {
+            const mobileHeightValue = String(imageData.mobile_height).trim();
+            if (mobileHeightValue !== '') {
+              imageContainer.setAttribute('data-mobile-height', mobileHeightValue);
+              imageContainer.style.setProperty('--mobile-height', mobileHeightValue);
             }
           }
 
@@ -862,9 +881,15 @@
     }
     
     if (this.modal.content.body) {
-      // Body content is allowed to have HTML (from textarea/editor).
-      textContent += '<div class="modal-system--body">' + 
-        this.modal.content.body + '</div>';
+      // Body content can be either a string (legacy) or object with value/format (WYSIWYG).
+      const bodyContent = typeof this.modal.content.body === 'object' && this.modal.content.body.value
+        ? this.modal.content.body.value
+        : this.modal.content.body;
+      
+      if (bodyContent) {
+        textContent += '<div class="modal-system--body">' + 
+          bodyContent + '</div>';
+      }
     }
 
     // Add CTAs with data-attributes.
@@ -1429,7 +1454,8 @@
     if (imageHeight) {
       const heightValue = String(imageHeight).trim();
       if (heightValue !== '') {
-        container.style.minHeight = heightValue;
+        container.style.setProperty('--image-height', heightValue);
+        container.setAttribute('data-has-height', 'true');
       }
     }
 

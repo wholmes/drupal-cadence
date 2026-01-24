@@ -97,21 +97,34 @@ class ModalDeleteForm extends EntityConfirmFormBase {
   protected function cleanupFiles() {
     try {
       $content = $this->entity->get('content');
-      if (!empty($content['images'])) {
-        $images = $content['images'];
-        foreach ($images as $image_data) {
-          if (!empty($image_data['fid'])) {
-            $file = File::load($image_data['fid']);
-            if ($file) {
-              // Remove file usage tracking.
-              \Drupal::service('file.usage')->delete($file, 'custom_plugin', 'modal', $this->entity->id());
-              
-              // If no other usage, delete the file.
-              $usage = \Drupal::service('file.usage')->listUsage($file);
-              if (empty($usage)) {
-                $file->delete();
-              }
-            }
+      $image_data = $content['image'] ?? [];
+      
+      // Clean up regular image.
+      if (!empty($image_data['fid'])) {
+        $file = File::load($image_data['fid']);
+        if ($file) {
+          // Remove file usage tracking.
+          \Drupal::service('file.usage')->delete($file, 'custom_plugin', 'modal', $this->entity->id());
+          
+          // If no other usage, delete the file.
+          $usage = \Drupal::service('file.usage')->listUsage($file);
+          if (empty($usage)) {
+            $file->delete();
+          }
+        }
+      }
+      
+      // Clean up mobile image if configured.
+      if (!empty($image_data['mobile_fid'])) {
+        $mobile_file = File::load($image_data['mobile_fid']);
+        if ($mobile_file) {
+          // Remove file usage tracking.
+          \Drupal::service('file.usage')->delete($mobile_file, 'custom_plugin', 'modal', $this->entity->id());
+          
+          // If no other usage, delete the file.
+          $usage = \Drupal::service('file.usage')->listUsage($mobile_file);
+          if (empty($usage)) {
+            $mobile_file->delete();
           }
         }
       }

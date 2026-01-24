@@ -258,6 +258,18 @@ class ModalService {
               }
             }
             
+            // Process mobile image if configured.
+            $mobile_url = NULL;
+            if (!empty($image_data['mobile_fid'])) {
+              $mobile_fid = (int) $image_data['mobile_fid'];
+              if ($mobile_fid > 0) {
+                $mobile_file = File::load($mobile_fid);
+                if ($mobile_file && $mobile_file->isPermanent()) {
+                  $mobile_url = $file_url_generator->generateAbsoluteString($mobile_file->getFileUri());
+                }
+              }
+            }
+
             // If we have URLs, set up image data for frontend.
             if (!empty($urls)) {
               $content['image'] = [
@@ -267,6 +279,11 @@ class ModalService {
                 'mobile_force_top' => !empty($image_data['mobile_force_top']),
               ];
 
+              // Include mobile image URL if configured.
+              if ($mobile_url) {
+                $content['image']['mobile_url'] = $mobile_url;
+              }
+
               // Include mobile breakpoint if configured.
               if (!empty($image_data['mobile_breakpoint'])) {
                 $content['image']['mobile_breakpoint'] = $image_data['mobile_breakpoint'];
@@ -275,6 +292,11 @@ class ModalService {
               // Include height if configured.
               if (!empty($image_data['height'])) {
                 $content['image']['height'] = $image_data['height'];
+              }
+
+              // Include mobile_height if configured.
+              if (!empty($image_data['mobile_height'])) {
+                $content['image']['mobile_height'] = $image_data['mobile_height'];
               }
 
               // Include max_height_top_bottom if configured.

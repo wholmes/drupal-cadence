@@ -490,6 +490,99 @@
   }
 }
 
+/* Regular image height using CSS custom property (avoids inline style specificity issues) */
+.modal-system--image-container[data-has-height] {
+  min-height: var(--image-height);
+}
+
+/* Mobile height override - applies when image is forced to top at any breakpoint */
+.modal-system--image-container[data-mobile-height] {
+  /* Use mobile height when at mobile breakpoint, otherwise use regular height */
+}
+
+/* Mobile image switching - use mobile image at breakpoint if available */
+@media (max-width: 1600px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1600px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1600px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 1500px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1500px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1500px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 1400px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1400px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1400px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 1300px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1300px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1300px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 1200px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1200px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1200px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 1100px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1100px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1100px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 1000px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1000px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1000px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 900px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="900px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="900px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+@media (max-width: 800px) {
+  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="800px"] {
+    background-image: var(--mobile-image) !important;
+    min-height: var(--mobile-height) !important;
+  }
+  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="800px"] {
+    min-height: var(--mobile-height) !important;
+  }
+}
+
 
 
 /* CTAs */
