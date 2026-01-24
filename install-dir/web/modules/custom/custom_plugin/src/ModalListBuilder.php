@@ -346,16 +346,19 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     ];
     
     $build['search_form']['form']['buttons']['submit'] = [
-      '#type' => 'submit',
+      '#type' => 'button',
       '#value' => $this->t('Search'),
+      '#button_type' => 'submit',
       '#attributes' => ['class' => ['button', 'button--primary', 'modal-search-submit']],
     ];
     
     $build['search_form']['form']['buttons']['clear'] = [
-      '#type' => 'link',
-      '#title' => $this->t('Clear'),
-      '#url' => Url::fromRoute('entity.modal.collection'),
-      '#attributes' => ['class' => ['button', 'modal-search-clear']],
+      '#type' => 'button',
+      '#value' => $this->t('Clear'),
+      '#attributes' => [
+        'class' => ['button', 'modal-search-clear'],
+        'onclick' => 'window.location.href="' . Url::fromRoute('entity.modal.collection')->toString() . '"; return false;',
+      ],
     ];
     
     // Add action buttons.
