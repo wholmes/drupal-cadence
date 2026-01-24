@@ -1062,6 +1062,19 @@ class ModalForm extends EntityForm {
       '#size' => 20,
     ];
 
+    $form['styling']['typography_container']['headline']['text_align'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Text Alignment'),
+      '#description' => $this->t('Choose how to align the headline text.'),
+      '#options' => [
+        '' => $this->t('Default (Left)'),
+        'left' => $this->t('Left'),
+        'center' => $this->t('Center'),
+        'right' => $this->t('Right'),
+      ],
+      '#default_value' => $headline_styling['text_align'] ?? '',
+    ];
+
     // Subheadline typography settings.
     $form['styling']['typography_container']['subheadline'] = [
       '#type' => 'fieldset',
@@ -1107,6 +1120,19 @@ class ModalForm extends EntityForm {
       '#description' => $this->t('Enter line height (e.g., 1.5, 24px, 1.2em, normal)'),
       '#default_value' => $subheadline_styling['line_height'] ?? '1.4',
       '#size' => 20,
+    ];
+
+    $form['styling']['typography_container']['subheadline']['text_align'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Text Alignment'),
+      '#description' => $this->t('Choose how to align the subheadline text.'),
+      '#options' => [
+        '' => $this->t('Default (Left)'),
+        'left' => $this->t('Left'),
+        'center' => $this->t('Center'),
+        'right' => $this->t('Right'),
+      ],
+      '#default_value' => $subheadline_styling['text_align'] ?? '',
     ];
 
     // Spacing settings.
@@ -1744,6 +1770,7 @@ class ModalForm extends EntityForm {
         'letter_spacing' => trim($headline_styling['letter_spacing'] ?? ''),
         'line_height' => trim($headline_styling['line_height'] ?? ''),
         'margin_top' => trim($headline_styling['margin_top'] ?? ''),
+        'text_align' => trim($headline_styling['text_align'] ?? ''),
       ],
       'subheadline' => [
         'size' => trim($subheadline_styling['size'] ?? ''),
@@ -1751,6 +1778,7 @@ class ModalForm extends EntityForm {
         'font_family' => trim($subheadline_styling['font_family'] ?? ''),
         'letter_spacing' => trim($subheadline_styling['letter_spacing'] ?? ''),
         'line_height' => trim($subheadline_styling['line_height'] ?? ''),
+        'text_align' => trim($subheadline_styling['text_align'] ?? ''),
       ],
       'spacing' => [
         'cta_margin_bottom' => trim($spacing_values['cta_margin_bottom'] ?? ''),

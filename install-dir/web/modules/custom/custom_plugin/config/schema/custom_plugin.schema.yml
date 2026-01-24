@@ -249,6 +249,9 @@ custom_plugin.modal.*:
             margin_top:
               type: string
               label: 'Margin top'
+            text_align:
+              type: string
+              label: 'Text alignment'
               nullable: true
         spacing:
           type: mapping
@@ -277,6 +280,10 @@ custom_plugin.modal.*:
             line_height:
               type: string
               label: 'Line height'
+            text_align:
+              type: string
+              label: 'Text alignment'
+              nullable: true
     dismissal:
       type: mapping
       label: 'Dismissal settings'

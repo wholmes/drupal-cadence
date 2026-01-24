@@ -1142,6 +1142,9 @@
       if (headlineStyle.margin_top) {
         headlineElement.style.marginTop = headlineStyle.margin_top;
       }
+      if (headlineStyle.text_align) {
+        headlineElement.style.textAlign = headlineStyle.text_align;
+      }
     }
 
     // Apply subheadline typography styling.
@@ -1162,6 +1165,9 @@
       }
       if (subheadlineStyle.line_height) {
         subheadlineElement.style.lineHeight = subheadlineStyle.line_height;
+      }
+      if (subheadlineStyle.text_align) {
+        subheadlineElement.style.textAlign = subheadlineStyle.text_align;
       }
     }
 
