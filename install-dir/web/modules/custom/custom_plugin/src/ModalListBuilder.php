@@ -14,6 +14,54 @@ class ModalListBuilder extends ConfigEntityListBuilder {
   /**
    * {@inheritdoc}
    */
+  protected function getEntityIds() {
+    // Get search parameters from request.
+    $request = \Drupal::request();
+    $search = $request->query->get('search', '');
+    $status_filter = $request->query->get('status', 'all');
+    $show_archived = $request->query->get('show_archived', FALSE);
+
+    $query = $this->getStorage()->getQuery()
+      ->sort($this->entityType->getKey('id'));
+
+    // Apply search filter at query level for performance.
+    if (!empty($search)) {
+      $or_group = $query->orConditionGroup()
+        ->condition('label', '%' . $search . '%', 'LIKE')
+        ->condition('id', '%' . $search . '%', 'LIKE');
+      $query->condition($or_group);
+    }
+
+    // Apply status filter at query level.
+    if ($status_filter !== 'all') {
+      switch ($status_filter) {
+        case 'enabled':
+          $query->condition('status', TRUE);
+          $query->condition('archived', FALSE);
+          break;
+        case 'disabled':
+          $query->condition('status', FALSE);
+          $query->condition('archived', FALSE);
+          break;
+        case 'archived':
+          $query->condition('archived', TRUE);
+          break;
+      }
+    }
+
+    // Apply archived filter (legacy support).
+    if (!$show_archived && $status_filter !== 'archived') {
+      $query->condition('archived', FALSE);
+    }
+
+    // Only add the pager if we have any conditions or lots of entities.
+    // This enables pagination automatically when needed.
+    return $query->pager(25)->execute();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function buildHeader() {
     $header['label'] = $this->t('Label');
     $header['id'] = $this->t('ID');
@@ -233,7 +281,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
   public function render() {
     $build = parent::render();
     
-    // Get all filter parameters from query string.
+    // Get filter parameters from query string.
     $request = \Drupal::request();
     $search = $request->query->get('search', '');
     $status_filter = $request->query->get('status', 'all');
@@ -295,59 +343,6 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       '#url' => Url::fromRoute('entity.modal.collection'),
       '#attributes' => ['class' => ['button', 'modal-search-clear']],
     ];
-    
-    // Filter entities based on search criteria.
-    if (isset($build['table']['#rows'])) {
-      $filtered_rows = [];
-      foreach ($build['table']['#rows'] as $key => $row) {
-        $entity = $this->getStorage()->load($key);
-        if (!$entity) {
-          continue;
-        }
-        
-        // Apply search filter.
-        if (!empty($search)) {
-          $label = strtolower($entity->label());
-          $id = strtolower($entity->id());
-          $search_term = strtolower($search);
-          if (strpos($label, $search_term) === FALSE && strpos($id, $search_term) === FALSE) {
-            continue;
-          }
-        }
-        
-        // Apply status filter.
-        if ($status_filter !== 'all') {
-          $is_archived = method_exists($entity, 'isArchived') ? $entity->isArchived() : FALSE;
-          $is_enabled = $entity->status();
-          
-          switch ($status_filter) {
-            case 'enabled':
-              if (!$is_enabled || $is_archived) {
-                continue 2;
-              }
-              break;
-            case 'disabled':
-              if ($is_enabled || $is_archived) {
-                continue 2;
-              }
-              break;
-            case 'archived':
-              if (!$is_archived) {
-                continue 2;
-              }
-              break;
-          }
-        }
-        
-        // Apply archived filter (legacy support).
-        if (!$show_archived && method_exists($entity, 'isArchived') && $entity->isArchived()) {
-          continue;
-        }
-        
-        $filtered_rows[$key] = $row;
-      }
-      $build['table']['#rows'] = $filtered_rows;
-    }
     
     // Add action buttons.
     $build['actions'] = [

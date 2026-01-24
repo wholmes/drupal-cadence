@@ -459,6 +459,39 @@ tr.modal-archived {
   text-decoration: none;
 }
 
+/* Pagination styling */
+.pager {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.pager__items {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pager__item {
+  display: inline-block;
+}
+
+.pager__link {
+  padding: 0.5rem 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #495057;
+}
+
+.pager__link:hover,
+.pager__link--is-active {
+  background: #007bff;
+  color: white;
+  text-decoration: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .modal-search-form-elements {
