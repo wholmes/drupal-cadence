@@ -233,23 +233,123 @@ class ModalListBuilder extends ConfigEntityListBuilder {
   public function render() {
     $build = parent::render();
     
-    // Get filter parameter from query string.
+    // Get all filter parameters from query string.
     $request = \Drupal::request();
+    $search = $request->query->get('search', '');
+    $status_filter = $request->query->get('status', 'all');
     $show_archived = $request->query->get('show_archived', FALSE);
     
-    // Filter entities if not showing archived.
-    if (!$show_archived && isset($build['table']['#rows'])) {
+    // Add search form above the table.
+    $build['search_form'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-search-form']],
+      '#weight' => -20,
+    ];
+    
+    $build['search_form']['form'] = [
+      '#type' => 'form',
+      '#method' => 'GET',
+      '#attributes' => ['class' => ['modal-search-form-elements']],
+    ];
+    
+    $build['search_form']['form']['search'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Search campaigns'),
+      '#title_display' => 'invisible',
+      '#placeholder' => $this->t('🔍 Search campaigns...'),
+      '#default_value' => $search,
+      '#attributes' => ['class' => ['modal-search-input']],
+    ];
+    
+    $build['search_form']['form']['status'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Status'),
+      '#title_display' => 'invisible', 
+      '#options' => [
+        'all' => $this->t('All Status'),
+        'enabled' => $this->t('Enabled'),
+        'disabled' => $this->t('Disabled'),
+        'archived' => $this->t('Archived'),
+      ],
+      '#default_value' => $status_filter,
+      '#attributes' => ['class' => ['modal-status-filter']],
+    ];
+    
+    // Preserve archived filter in search.
+    if ($show_archived) {
+      $build['search_form']['form']['show_archived'] = [
+        '#type' => 'hidden',
+        '#value' => '1',
+      ];
+    }
+    
+    $build['search_form']['form']['submit'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Search'),
+      '#attributes' => ['class' => ['button', 'button--primary', 'modal-search-submit']],
+    ];
+    
+    $build['search_form']['form']['clear'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Clear'),
+      '#url' => Url::fromRoute('entity.modal.collection'),
+      '#attributes' => ['class' => ['button', 'modal-search-clear']],
+    ];
+    
+    // Filter entities based on search criteria.
+    if (isset($build['table']['#rows'])) {
       $filtered_rows = [];
       foreach ($build['table']['#rows'] as $key => $row) {
         $entity = $this->getStorage()->load($key);
-        if ($entity && !$entity->isArchived()) {
-          $filtered_rows[$key] = $row;
+        if (!$entity) {
+          continue;
         }
+        
+        // Apply search filter.
+        if (!empty($search)) {
+          $label = strtolower($entity->label());
+          $id = strtolower($entity->id());
+          $search_term = strtolower($search);
+          if (strpos($label, $search_term) === FALSE && strpos($id, $search_term) === FALSE) {
+            continue;
+          }
+        }
+        
+        // Apply status filter.
+        if ($status_filter !== 'all') {
+          $is_archived = method_exists($entity, 'isArchived') ? $entity->isArchived() : FALSE;
+          $is_enabled = $entity->status();
+          
+          switch ($status_filter) {
+            case 'enabled':
+              if (!$is_enabled || $is_archived) {
+                continue 2;
+              }
+              break;
+            case 'disabled':
+              if ($is_enabled || $is_archived) {
+                continue 2;
+              }
+              break;
+            case 'archived':
+              if (!$is_archived) {
+                continue 2;
+              }
+              break;
+          }
+        }
+        
+        // Apply archived filter (legacy support).
+        if (!$show_archived && method_exists($entity, 'isArchived') && $entity->isArchived()) {
+          continue;
+        }
+        
+        $filtered_rows[$key] = $row;
       }
       $build['table']['#rows'] = $filtered_rows;
     }
     
-    // Add filter toggle and "Add modal" button.
+    // Add action buttons.
     $build['actions'] = [
       '#type' => 'container',
       '#attributes' => ['class' => ['modal-list-actions']],
@@ -276,11 +376,18 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       ],
     ];
     
-    // Update empty message to include add link.
+    // Update empty message based on active filters.
     if (isset($build['table']['#empty'])) {
-      $build['table']['#empty'] = $this->t('No marketing campaigns available. <a href=":link">Create your first campaign</a> to start converting visitors into customers!', [
-        ':link' => Url::fromRoute('entity.modal.add_form')->toString(),
-      ]);
+      if (!empty($search) || $status_filter !== 'all') {
+        $build['table']['#empty'] = $this->t('No campaigns match your search criteria. <a href=":clear">Clear filters</a> or <a href=":add">create a new campaign</a>.', [
+          ':clear' => Url::fromRoute('entity.modal.collection')->toString(),
+          ':add' => Url::fromRoute('entity.modal.add_form')->toString(),
+        ]);
+      } else {
+        $build['table']['#empty'] = $this->t('No marketing campaigns available. <a href=":link">Create your first campaign</a> to start converting visitors into customers!', [
+          ':link' => Url::fromRoute('entity.modal.add_form')->toString(),
+        ]);
+      }
     }
     
     return $build;
