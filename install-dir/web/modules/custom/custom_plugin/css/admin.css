@@ -427,36 +427,62 @@ tr.modal-archived {
 /* Campaign search form styling */
 .modal-search-form {
   background: #f8f9fa;
-  padding: 1rem;
+  padding: 1.25rem;
   border: 1px solid #dee2e6;
-  border-radius: 5px;
-  margin-bottom: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
 }
 
 .modal-search-form-elements {
   display: flex;
-  gap: 0.75rem;
-  align-items: end;
+  gap: 1rem;
+  align-items: stretch;
   flex-wrap: wrap;
 }
 
 .modal-search-input {
-  flex: 1;
-  min-width: 250px;
+  flex: 2;
+  min-width: 280px;
   max-width: 400px;
+  height: 36px;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 .modal-status-filter {
-  min-width: 120px;
+  flex: 0 0 140px;
+  height: 36px;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
 }
 
-.modal-search-submit,
-.modal-search-clear {
+.modal-search-submit {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
+  border-radius: 4px;
 }
 
 .modal-search-clear {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
   text-decoration: none;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Pagination styling */
@@ -494,13 +520,19 @@ tr.modal-archived {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .modal-search-form {
+    padding: 1rem;
+  }
+  
   .modal-search-form-elements {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.75rem;
   }
   
   .modal-search-input,
   .modal-status-filter {
+    flex: 1 1 auto;
     width: 100%;
     min-width: auto;
     max-width: none;
@@ -508,7 +540,20 @@ tr.modal-archived {
   
   .modal-search-submit,
   .modal-search-clear {
-    display: inline-block;
+    flex: 0 0 auto;
+    width: auto;
+    display: inline-flex;
     margin-right: 0.5rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .modal-search-input {
+    flex: 1.5;
+    min-width: 220px;
+  }
+  
+  .modal-status-filter {
+    flex: 0 0 120px;
   }
 }
