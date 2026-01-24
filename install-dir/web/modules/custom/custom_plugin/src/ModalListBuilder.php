@@ -167,36 +167,15 @@ class ModalListBuilder extends ConfigEntityListBuilder {
       }
     }
     
-    // Always ensure delete operation has a valid URL.
-    if (isset($operations['delete'])) {
-      // If URL is missing or invalid, create it manually.
-      if (!isset($operations['delete']['url']) || empty($operations['delete']['url'])) {
-        try {
-          $operations['delete']['url'] = Url::fromRoute('entity.modal.delete_form', [
-            'modal' => $entity->id(),
-          ]);
-        }
-        catch (\Exception $e) {
-          // If route doesn't exist, try toUrl as fallback.
-          try {
-            $operations['delete']['url'] = $entity->toUrl('delete-form');
-          }
-          catch (\Exception $e2) {
-            // If both fail, remove delete operation.
-            unset($operations['delete']);
-          }
-        }
-      }
-    }
-    // If delete operation doesn't exist but should, create it.
-    elseif ($entity->access('delete') && $entity->hasLinkTemplate('delete-form')) {
+    // Add archive/restore operation.
+    if ($entity->access('update')) {
       try {
-        $delete_url = Url::fromRoute('entity.modal.delete_form', [
-          'modal' => $entity->id(),
-        ]);
-        $operations['delete'] = [
+        $operations['archive'] = [
           'title' => $entity->isArchived() ? $this->t('Restore') : $this->t('Archive'),
-          'weight' => 100,
+          'weight' => 50,
+          'url' => Url::fromRoute('entity.modal.archive_form', [
+            'modal' => $entity->id(),
+          ]),
           'attributes' => [
             'class' => ['use-ajax'],
             'data-dialog-type' => 'modal',
@@ -204,7 +183,49 @@ class ModalListBuilder extends ConfigEntityListBuilder {
               'width' => 880,
             ]),
           ],
-          'url' => $delete_url,
+        ];
+      } catch (\Exception $e) {
+        // If route doesn't exist, skip archive operation.
+      }
+    }
+    
+    // Ensure delete operation is for permanent deletion.
+    if (isset($operations['delete'])) {
+      $operations['delete']['title'] = $this->t('Delete Permanently');
+      $operations['delete']['weight'] = 100;
+      $operations['delete']['attributes'] = [
+        'class' => ['use-ajax', 'button--danger'],
+        'data-dialog-type' => 'modal',
+        'data-dialog-options' => \Drupal\Component\Serialization\Json::encode([
+          'width' => 880,
+        ]),
+      ];
+      // Ensure it points to the delete form.
+      try {
+        $operations['delete']['url'] = Url::fromRoute('entity.modal.delete_form', [
+          'modal' => $entity->id(),
+        ]);
+      }
+      catch (\Exception $e) {
+        unset($operations['delete']);
+      }
+    }
+    // If delete operation doesn't exist but should, create it.
+    elseif ($entity->access('delete') && $entity->hasLinkTemplate('delete-form')) {
+      try {
+        $operations['delete'] = [
+          'title' => $this->t('Delete Permanently'),
+          'weight' => 100,
+          'url' => Url::fromRoute('entity.modal.delete_form', [
+            'modal' => $entity->id(),
+          ]),
+          'attributes' => [
+            'class' => ['use-ajax', 'button--danger'],
+            'data-dialog-type' => 'modal',
+            'data-dialog-options' => \Drupal\Component\Serialization\Json::encode([
+              'width' => 880,
+            ]),
+          ],
         ];
       }
       catch (\Exception $e) {
@@ -233,19 +254,26 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     // Build links array for rendering with icons.
     $links = [];
     foreach ($operations as $key => $operation) {
-      // Map operations to icons with safe checks.
-      $delete_icon = '📦'; // Default to archive
+      // Map operations to icons.
+      $archive_icon = '📦'; // Default to archive
       if (method_exists($entity, 'isArchived') && $entity->isArchived()) {
-        $delete_icon = '🔄'; // Restore icon for archived modals
+        $archive_icon = '🔄'; // Restore icon for archived modals
       }
       
       $icon_map = [
         'edit' => '✏️',
         'duplicate' => '📋', 
-        'delete' => $delete_icon,
+        'archive' => $archive_icon,
+        'delete' => '🗑️',
       ];
       
       $title_with_icon = isset($icon_map[$key]) ? $icon_map[$key] : $operation['title'];
+      
+      // Add danger class for delete operations.
+      $button_classes = ['button', 'button--small'];
+      if ($key === 'delete') {
+        $button_classes[] = 'button--danger';
+      }
       
       $links[$key] = [
         '#type' => 'link',
@@ -253,7 +281,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
         '#url' => $operation['url'],
         '#attributes' => array_merge($operation['attributes'] ?? [], [
           'title' => $operation['title'], // Tooltip shows full text
-          'class' => array_merge($operation['attributes']['class'] ?? [], ['button', 'button--small']),
+          'class' => array_merge($operation['attributes']['class'] ?? [], $button_classes),
         ]),
       ];
       if (isset($operation['query'])) {
