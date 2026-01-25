@@ -41,3 +41,11 @@ modal.form.persistence:
     js/modal-form-persistence.js: {}
   dependencies:
     - core/drupal
+
+modal.preview:
+  version: 1.x
+  js:
+    js/modal-preview.js: {}
+  dependencies:
+    - core/drupal
+    - custom_plugin/modal.system

@@ -284,6 +284,14 @@ custom_plugin.modal.*:
               type: string
               label: 'Text alignment'
               nullable: true
+        body:
+          type: mapping
+          label: 'Body typography'
+          mapping:
+            text_align:
+              type: string
+              label: 'Text alignment'
+              nullable: true
     dismissal:
       type: mapping
       label: 'Dismissal settings'

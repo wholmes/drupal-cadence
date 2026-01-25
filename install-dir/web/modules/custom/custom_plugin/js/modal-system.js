@@ -18,7 +18,57 @@
       Drupal.modalSystem.StorageCleanup.cleanup(modals);
 
       modals.forEach((modal) => {
+        // Check if this modal is already initialized.
+        if (Drupal.modalSystem.QueueManager.initializedModals.has(modal.id)) {
+          if (typeof console !== 'undefined' && console.log) {
+            console.log('Modal System: Modal', modal.id, 'already initialized, skipping');
+          }
+          return;
+        }
+        
+        // Check if modal is dismissed before creating manager.
+        // Check sessionStorage/cookies directly to avoid creating unnecessary objects.
+        const dismissal = modal.dismissal || {};
+        const type = dismissal.type || 'session';
+        let isDismissed = false;
+        
+        if (type === 'session') {
+          isDismissed = sessionStorage.getItem('modal_dismissed_' + modal.id) === '1';
+        } else if (type === 'cookie') {
+          const name = 'modal_dismissed_' + modal.id + '=';
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+            let cookie = cookies[i];
+            while (cookie.charAt(0) === ' ') {
+              cookie = cookie.substring(1);
+            }
+            if (cookie.indexOf(name) === 0) {
+              isDismissed = true;
+              break;
+            }
+          }
+        }
+        
+        // Check if forced open via URL parameter.
+        const isForcedOpen = (() => {
+          const forceOpenParam = (modal.visibility && modal.visibility.force_open_param) || null;
+          if (!forceOpenParam) {
+            return false;
+          }
+          const urlParams = new URLSearchParams(window.location.search);
+          return urlParams.get('modal') === forceOpenParam;
+        })();
+        
+        if (isDismissed && !isForcedOpen) {
+          if (typeof console !== 'undefined' && console.log) {
+            console.log('Modal System: Modal', modal.id, 'is dismissed, not initializing');
+          }
+          return;
+        }
+        
+        // Create and initialize modal manager.
         const modalManager = new Drupal.modalSystem.ModalManager(modal);
+        Drupal.modalSystem.QueueManager.initializedModals.set(modal.id, modalManager);
         modalManager.init();
       });
     }
@@ -50,6 +100,12 @@
          * @type {boolean}
          */
         processing: false,
+        
+        /**
+         * Track initialized modal managers to prevent duplicates.
+         * @type {Map}
+         */
+        initializedModals: new Map(),
 
     /**
      * Add a modal to the queue.
@@ -65,6 +121,14 @@
 
       // Don't queue if already dismissed (unless forced open).
       if (modalManager.isDismissed() && !modalManager.isForcedOpen()) {
+        return;
+      }
+      
+      // Don't queue if marked as dismissed (internal flag).
+      if (modalManager._dismissed && !modalManager.isForcedOpen()) {
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Modal', modalManager.modal.id, 'is marked as dismissed, not queuing');
+        }
         return;
       }
 
@@ -391,9 +455,22 @@
     this.modal = modal;
     this.rulesMet = {};
     this.checkInterval = null;
+    this.timeOnPageTimeout = null;
+    this.exitIntentHandler = null;
+    this._dismissed = false;
   };
 
   Drupal.modalSystem.ModalManager.prototype.init = function () {
+
+    // Check for preview mode - bypass all rules and show immediately.
+    if (typeof drupalSettings !== 'undefined' && drupalSettings.modalSystem && drupalSettings.modalSystem.previewMode) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Preview mode detected - showing modal immediately');
+      }
+      // In preview mode, show immediately without rule evaluation.
+      // The preview JavaScript will call showModal() directly.
+      return;
+    }
 
     // Check if already dismissed (unless forced open).
     if (this.isDismissed() && !this.isForcedOpen()) {
@@ -579,7 +656,16 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.setupTimeOnPageRule = function (seconds) {
-    setTimeout(() => {
+    // Clear any existing timeout.
+    if (this.timeOnPageTimeout) {
+      clearTimeout(this.timeOnPageTimeout);
+    }
+    
+    this.timeOnPageTimeout = setTimeout(() => {
+      // Check if dismissed before setting rule.
+      if (this.isDismissed() || this._dismissed) {
+        return;
+      }
       this.rulesMet.time_on_page = true;
       this.evaluateAllRules();
     }, seconds * 1000);
@@ -593,20 +679,43 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.setupExitIntent = function () {
-    const handler = (e) => {
+    // Remove existing handler if any.
+    if (this.exitIntentHandler) {
+      document.removeEventListener('mouseleave', this.exitIntentHandler);
+    }
+    
+    this.exitIntentHandler = (e) => {
+      // Check if dismissed before processing exit intent.
+      if (this.isDismissed() || this._dismissed) {
+        document.removeEventListener('mouseleave', this.exitIntentHandler);
+        this.exitIntentHandler = null;
+        return;
+      }
+      
       if (e.clientY <= 0) {
         this.rulesMet.exit_intent = true;
         this.evaluateAllRules();
-        document.removeEventListener('mouseleave', handler);
+        document.removeEventListener('mouseleave', this.exitIntentHandler);
+        this.exitIntentHandler = null;
       }
     };
     
-    document.addEventListener('mouseleave', handler);
+    document.addEventListener('mouseleave', this.exitIntentHandler);
   };
 
   Drupal.modalSystem.ModalManager.prototype.evaluateAllRules = function () {
     // Don't evaluate rules if modal is dismissed (unless forced open).
     if (this.isDismissed() && !this.isForcedOpen()) {
+      // Stop checking if dismissed.
+      if (this.checkInterval) {
+        clearInterval(this.checkInterval);
+        this.checkInterval = null;
+      }
+      return;
+    }
+    
+    // Don't evaluate rules if marked as dismissed (internal flag).
+    if (this._dismissed && !this.isForcedOpen()) {
       // Stop checking if dismissed.
       if (this.checkInterval) {
         clearInterval(this.checkInterval);
@@ -625,9 +734,13 @@
                            rules.exit_intent_enabled;
     
     // If no rules are enabled, add to queue immediately (for testing).
+    // But only if not dismissed.
     if (!hasEnabledRules) {
       clearInterval(this.checkInterval);
-      Drupal.modalSystem.QueueManager.enqueue(this);
+      // Double-check dismissal before queuing.
+      if (!this.isDismissed() && !this._dismissed) {
+        Drupal.modalSystem.QueueManager.enqueue(this);
+      }
       return;
     }
     
@@ -651,9 +764,13 @@
     }
 
     // If all enabled rules are met, add to queue.
+    // But only if not dismissed.
     if (allMet && Object.keys(this.rulesMet).length > 0) {
       clearInterval(this.checkInterval);
-      Drupal.modalSystem.QueueManager.enqueue(this);
+      // Double-check dismissal before queuing.
+      if (!this.isDismissed() && !this._dismissed) {
+        Drupal.modalSystem.QueueManager.enqueue(this);
+      }
     }
   };
 
@@ -1032,14 +1149,23 @@
     }
 
     // Apply max-width if set.
-    if (this.modal.styling.max_width) {
+    const maxWidth = this.modal.styling.max_width ? String(this.modal.styling.max_width).trim() : '';
+    if (maxWidth) {
       // Apply to wrapper if it exists (for stacked or side-by-side layouts).
       if (widthContainer) {
-        widthContainer.style.maxWidth = this.modal.styling.max_width;
+        widthContainer.style.maxWidth = maxWidth;
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied max-width to wrapper:', maxWidth);
+        }
       } else {
         // No wrapper, apply directly to modal.
-        modalElement.style.maxWidth = this.modal.styling.max_width;
+        modalElement.style.maxWidth = maxWidth;
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied max-width to modal:', maxWidth);
+        }
       }
+    } else if (typeof console !== 'undefined' && console.log) {
+      console.log('Modal System: No max-width set. max_width value:', this.modal.styling.max_width);
     }
 
     // Apply headline typography styling.
@@ -1064,8 +1190,19 @@
       if (headlineStyle.margin_top) {
         headlineElement.style.marginTop = headlineStyle.margin_top;
       }
-      if (headlineStyle.text_align) {
-        headlineElement.style.textAlign = headlineStyle.text_align;
+      // Apply text alignment - always use !important to override parent's center.
+      const textAlign = headlineStyle.text_align ? String(headlineStyle.text_align).trim() : '';
+      if (textAlign && textAlign !== 'default') {
+        headlineElement.style.setProperty('text-align', textAlign, 'important');
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied headline text-align:', textAlign);
+        }
+      } else {
+        // Default or empty - set to left to override parent's center alignment.
+        headlineElement.style.setProperty('text-align', 'left', 'important');
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied headline text-align: left (default)');
+        }
       }
     }
 
@@ -1088,8 +1225,39 @@
       if (subheadlineStyle.line_height) {
         subheadlineElement.style.lineHeight = subheadlineStyle.line_height;
       }
-      if (subheadlineStyle.text_align) {
-        subheadlineElement.style.textAlign = subheadlineStyle.text_align;
+      // Apply text alignment - always use !important to override parent's center.
+      const subheadlineTextAlign = subheadlineStyle.text_align ? String(subheadlineStyle.text_align).trim() : '';
+      if (subheadlineTextAlign && subheadlineTextAlign !== 'default') {
+        subheadlineElement.style.setProperty('text-align', subheadlineTextAlign, 'important');
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied subheadline text-align:', subheadlineTextAlign);
+        }
+      } else {
+        // Default or empty - set to left to override parent's center alignment.
+        subheadlineElement.style.setProperty('text-align', 'left', 'important');
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied subheadline text-align: left (default)');
+        }
+      }
+    }
+
+    // Apply body text alignment styling.
+    const bodyElement = modalElement.querySelector('.modal-system--body');
+    if (bodyElement && this.modal.styling.body) {
+      const bodyStyle = this.modal.styling.body;
+      // Apply text alignment - always use !important to override parent's center.
+      const bodyTextAlign = bodyStyle.text_align ? String(bodyStyle.text_align).trim() : '';
+      if (bodyTextAlign && bodyTextAlign !== 'default') {
+        bodyElement.style.setProperty('text-align', bodyTextAlign, 'important');
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied body text-align:', bodyTextAlign);
+        }
+      } else {
+        // Default or empty - set to left to override parent's center alignment.
+        bodyElement.style.setProperty('text-align', 'left', 'important');
+        if (typeof console !== 'undefined' && console.log) {
+          console.log('Modal System: Applied body text-align: left (default)');
+        }
       }
     }
 
@@ -1294,14 +1462,46 @@
       this.checkInterval = null;
     }
 
+    // Clear time on page timeout.
+    if (this.timeOnPageTimeout) {
+      clearTimeout(this.timeOnPageTimeout);
+      this.timeOnPageTimeout = null;
+    }
+
     // Remove scroll event listener if it exists.
     if (this.scrollHandler) {
       window.removeEventListener('scroll', this.scrollHandler);
       this.scrollHandler = null;
     }
+    
+    // Remove exit intent handler if it exists.
+    if (this.exitIntentHandler) {
+      document.removeEventListener('mouseleave', this.exitIntentHandler);
+      this.exitIntentHandler = null;
+    }
 
     // Clear rules met flags to prevent re-triggering.
     this.rulesMet = {};
+    
+    // Remove this modal from the queue if it's still there.
+    const queueIndex = Drupal.modalSystem.QueueManager.queue.indexOf(this);
+    if (queueIndex !== -1) {
+      Drupal.modalSystem.QueueManager.queue.splice(queueIndex, 1);
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Removed dismissed modal', this.modal.id, 'from queue');
+      }
+    }
+    
+    // Mark as dismissed to prevent re-queuing.
+    this._dismissed = true;
+    
+    // Remove from initialized modals map.
+    if (Drupal.modalSystem.QueueManager.initializedModals.has(this.modal.id)) {
+      Drupal.modalSystem.QueueManager.initializedModals.delete(this.modal.id);
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Removed dismissed modal', this.modal.id, 'from initialized modals');
+      }
+    }
   };
 
   Drupal.modalSystem.ModalManager.prototype.isDismissed = function () {
@@ -1330,6 +1530,11 @@
   Drupal.modalSystem.ModalManager.prototype.trackEvent = function (eventName, data) {
     data = data || {};
     
+    // Skip tracking in preview mode.
+    if (typeof drupalSettings !== 'undefined' && drupalSettings.modalSystem && drupalSettings.modalSystem.previewMode) {
+      return;
+    }
+
     // Always track to Drupal (for built-in analytics).
     this.trackToDrupal(eventName, data);
 
@@ -1355,7 +1560,7 @@
 
     // Determine which rule triggered (for shown events).
     let ruleTriggered = null;
-    if (eventName === 'shown') {
+    if (eventName === 'modal_shown' || eventName === 'shown') {
       // Check which rule was met.
       if (this.rulesMet.scroll) {
         ruleTriggered = 'scroll';
