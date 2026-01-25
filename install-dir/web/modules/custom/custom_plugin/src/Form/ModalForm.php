@@ -265,15 +265,29 @@ class ModalForm extends EntityForm {
     ];
 
     // Simple Carousel Settings (only for multiple images).
+    // Only enable if we have 2+ images.
+    $image_count = 0;
+    if (!empty($image_data['fids']) && is_array($image_data['fids'])) {
+      $image_count = count(array_filter($image_data['fids']));
+    } elseif (!empty($image_data['fid'])) {
+      $image_count = 1;
+    }
+    
     $form['content']['image']['carousel_enabled'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Image Carousel'),
       '#description' => $this->t('When enabled with multiple images, images will automatically fade between each other. Requires 2 or more images.'),
-      '#default_value' => !empty($image_data['carousel_enabled']),
+      '#default_value' => !empty($image_data['carousel_enabled']) && $image_count > 1,
+      // Don't set #disabled here - let JavaScript handle it dynamically based on actual image count.
       '#states' => [
         'visible' => [
           ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
         ],
+        // Don't use #states for disabled - let JavaScript handle it dynamically.
+      ],
+      '#attributes' => [
+        'class' => ['carousel-enabled-checkbox'],
+        'data-initial-count' => $image_count, // Pass initial count for reference.
       ],
     ];
 
@@ -292,6 +306,9 @@ class ModalForm extends EntityForm {
         ],
       ],
     ];
+    
+    // Add JavaScript to show/hide duration field based on checkbox state.
+    $form['content']['image']['carousel_duration']['#attached']['library'][] = 'custom_plugin/modal.form.persistence';
 
     // Mobile image upload field (optional - only shows when mobile_force_top is enabled).
     $mobile_fid = NULL;
@@ -737,6 +754,11 @@ class ModalForm extends EntityForm {
       '#type' => 'container',
       '#attributes' => ['id' => 'form-id-wrapper'],
       '#tree' => TRUE, // Preserve nested structure in form values.
+      '#states' => [
+        'visible' => [
+          ':input[name="content[form][type]"]' => ['!value' => ''],
+        ],
+      ],
     ];
 
     $selected_form_type = $form_state->getValue(['content', 'form', 'type']) ?? $form_data['type'] ?? '';
@@ -756,6 +778,11 @@ class ModalForm extends EntityForm {
           '#options' => $form_id_options,
           '#default_value' => $current_form_id,
           '#required' => TRUE,
+          '#states' => [
+            'required' => [
+              ':input[name="content[form][type]"]' => ['!value' => ''],
+            ],
+          ],
           // Don't use #validated => TRUE - let validation work normally.
           // We'll handle saved values not in options in validation.
         ];
@@ -767,6 +794,11 @@ class ModalForm extends EntityForm {
           '#description' => $this->t('Enter the form ID manually (e.g., contact_message_feedback_form).'),
           '#default_value' => $current_form_id,
           '#required' => TRUE,
+          '#states' => [
+            'required' => [
+              ':input[name="content[form][type]"]' => ['!value' => ''],
+            ],
+          ],
         ];
       }
     }
@@ -1135,6 +1167,28 @@ class ModalForm extends EntityForm {
       '#default_value' => $subheadline_styling['text_align'] ?? '',
     ];
 
+    // Body typography settings.
+    $form['styling']['typography_container']['body'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Body Typography'),
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['fieldset--body']],
+    ];
+
+    $body_styling = $styling['body'] ?? [];
+    $form['styling']['typography_container']['body']['text_align'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Text Alignment'),
+      '#description' => $this->t('Choose how to align the body text. This is independent of headline and subheadline alignment.'),
+      '#options' => [
+        '' => $this->t('Default (Left)'),
+        'left' => $this->t('Left'),
+        'center' => $this->t('Center'),
+        'right' => $this->t('Right'),
+      ],
+      '#default_value' => $body_styling['text_align'] ?? '',
+    ];
+
     // Spacing settings.
     $form['styling']['spacing'] = [
       '#type' => 'fieldset',
@@ -1216,6 +1270,29 @@ class ModalForm extends EntityForm {
     ];
 
     return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function actions(array $form, FormStateInterface $form_state) {
+    $actions = parent::actions($form, $form_state);
+    
+    // Add Preview button (only show if form has some content).
+    $actions['preview'] = [
+      '#type' => 'button',
+      '#value' => $this->t('Preview'),
+      '#ajax' => [
+        'callback' => '::previewModal',
+        'method' => 'append',
+      ],
+      '#attributes' => [
+        'class' => ['button', 'button--secondary'],
+      ],
+      '#weight' => 10, // Place before Save button.
+    ];
+    
+    return $actions;
   }
 
   /**
@@ -1479,6 +1556,10 @@ class ModalForm extends EntityForm {
     $image_fid = !empty($image_fids) ? reset($image_fids) : NULL;
     
         // Handle mobile image FID.
+        $old_mobile_fid = !empty($old_image_data['mobile_fid']) && is_numeric($old_image_data['mobile_fid']) 
+          ? (int) $old_image_data['mobile_fid'] 
+          : NULL;
+        
         $mobile_image_fid = NULL;
         if (isset($image_values['mobile_fid'][0]) && is_numeric($image_values['mobile_fid'][0])) {
           $mobile_image_fid = (int) $image_values['mobile_fid'][0];
@@ -1486,9 +1567,17 @@ class ModalForm extends EntityForm {
         elseif (isset($image_values['mobile_fid']['fids'][0]) && is_numeric($image_values['mobile_fid']['fids'][0])) {
           $mobile_image_fid = (int) $image_values['mobile_fid']['fids'][0];
         }
-        elseif (!empty($old_image_data['mobile_fid']) && is_numeric($old_image_data['mobile_fid'])) {
+        elseif ($old_mobile_fid) {
           // Keep existing mobile_fid if no new one uploaded.
-          $mobile_image_fid = (int) $old_image_data['mobile_fid'];
+          $mobile_image_fid = $old_mobile_fid;
+        }
+
+        // Clean up old mobile image if it was removed.
+        if ($old_mobile_fid && $old_mobile_fid !== $mobile_image_fid) {
+          $old_mobile_file = File::load($old_mobile_fid);
+          if ($old_mobile_file) {
+            \Drupal::service('file.usage')->delete($old_mobile_file, 'custom_plugin', 'modal', $modal->id());
+          }
         }
 
         // If we have a mobile image FID, ensure it's permanent and track usage.
@@ -1757,6 +1846,7 @@ class ModalForm extends EntityForm {
     $typography_container = $styling_values['typography_container'] ?? [];
     $headline_styling = $typography_container['headline'] ?? [];
     $subheadline_styling = $typography_container['subheadline'] ?? [];
+    $body_styling = $typography_container['body'] ?? [];
     $spacing_values = $styling_values['spacing'] ?? [];
     $styling = [
       'layout' => $layout_colors['layout'] ?? 'centered',
@@ -1779,6 +1869,9 @@ class ModalForm extends EntityForm {
         'letter_spacing' => trim($subheadline_styling['letter_spacing'] ?? ''),
         'line_height' => trim($subheadline_styling['line_height'] ?? ''),
         'text_align' => trim($subheadline_styling['text_align'] ?? ''),
+      ],
+      'body' => [
+        'text_align' => trim($body_styling['text_align'] ?? ''),
       ],
       'spacing' => [
         'cta_margin_bottom' => trim($spacing_values['cta_margin_bottom'] ?? ''),
@@ -1872,6 +1965,18 @@ class ModalForm extends EntityForm {
    */
   public function updateFormIdOptions(array &$form, FormStateInterface $form_state) {
     $form_type = $form_state->getValue(['content', 'form', 'type']);
+    
+    // If form type is empty (None selected), return empty container.
+    if (empty($form_type)) {
+      $form_id_element = [
+        '#type' => 'container',
+        '#attributes' => ['id' => 'form-id-wrapper'],
+      ];
+      $response = new AjaxResponse();
+      $response->addCommand(new ReplaceCommand('#form-id-wrapper', $form_id_element));
+      return $response;
+    }
+    
     $form_id_options = $this->getFormIdOptions($form_type);
     
     // Get current form_id value from form state - check both possible paths.
@@ -1904,6 +2009,11 @@ class ModalForm extends EntityForm {
         '#options' => $form_id_options,
         '#default_value' => $current_form_id,
         '#required' => TRUE,
+        '#states' => [
+          'required' => [
+            ':input[name="content[form][type]"]' => ['!value' => ''],
+          ],
+        ],
       ];
     }
     else {
@@ -1913,6 +2023,11 @@ class ModalForm extends EntityForm {
         '#description' => $this->t('Enter the form ID manually (e.g., contact_message_feedback_form).'),
         '#default_value' => $current_form_id,
         '#required' => TRUE,
+        '#states' => [
+          'required' => [
+            ':input[name="content[form][type]"]' => ['!value' => ''],
+          ],
+        ],
       ];
     }
 
@@ -1956,6 +2071,293 @@ class ModalForm extends EntityForm {
     }
 
     return $options;
+  }
+
+  /**
+   * AJAX callback to preview the modal with current form values.
+   */
+  public function previewModal(array &$form, FormStateInterface $form_state) {
+    // Collect current form values.
+    $form_values = $form_state->getValues();
+    
+    // Build temporary modal data structure from form values.
+    $preview_data = $this->buildPreviewData($form_values);
+    
+    // Create AJAX response.
+    $response = new AjaxResponse();
+    
+    // Attach JavaScript settings and libraries directly to the response.
+    // No DOM element needed - the modal will display as an overlay.
+    $attachments = [
+      'library' => [
+        'custom_plugin/modal.system',
+        $preview_data['styling']['layout'] === 'bottom_sheet' 
+          ? 'custom_plugin/modal.bottom_sheet' 
+          : 'custom_plugin/modal.centered',
+        'custom_plugin/modal.preview',
+      ],
+      'drupalSettings' => [
+        'modalSystem' => [
+          'modals' => [$preview_data],
+          'previewMode' => TRUE,
+        ],
+      ],
+    ];
+    
+    $response->setAttachments($attachments);
+    
+    return $response;
+  }
+
+  /**
+   * Builds modal data structure from form values for preview.
+   */
+  protected function buildPreviewData(array $form_values) {
+    $content = $form_values['content'] ?? [];
+    $styling = $form_values['styling'] ?? [];
+    $rules = $form_values['rules'] ?? [];
+    
+    // Process image(s).
+    $image_data = $this->buildImagePreviewData($content['image'] ?? []);
+    
+    // Process body content (handle text_format structure).
+    $body_content = $content['text_content']['body'] ?? [];
+    $body_value = is_array($body_content) && isset($body_content['value']) 
+      ? $body_content['value'] 
+      : (is_string($body_content) ? $body_content : '');
+    
+    // Process CTAs.
+    $cta1 = $this->buildCtaPreviewData($content['cta1'] ?? []);
+    $cta2 = $this->buildCtaPreviewData($content['cta2'] ?? []);
+    
+    // Build complete modal data structure.
+    $modal_data = [
+      'id' => $form_values['id'] ?? 'preview_modal',
+      'label' => $form_values['label'] ?? 'Preview Modal',
+      'priority' => (int) ($form_values['priority'] ?? 0),
+      'content' => [
+        'headline' => $content['text_content']['headline'] ?? '',
+        'subheadline' => $content['text_content']['subheadline'] ?? '',
+        'body' => $body_value,
+        // Only include image if we have URLs (matches ModalService structure).
+        'image' => !empty($image_data['url']) ? $image_data : NULL,
+        'cta1' => $cta1,
+        'cta2' => $cta2,
+        'form' => $this->buildFormPreviewData($content['form'] ?? []),
+      ],
+      'styling' => [
+        'layout' => $styling['layout_colors']['layout'] ?? 'centered',
+        'max_width' => trim($styling['layout_colors']['max_width'] ?? ''),
+        'background_color' => $styling['layout_colors']['background_color'] ?? '#ffffff',
+        'text_color' => $styling['layout_colors']['text_color'] ?? '#000000',
+        'headline' => [
+          'size' => $styling['typography_container']['headline']['size'] ?? '',
+          'color' => $styling['typography_container']['headline']['color'] ?? '',
+          'text_align' => $styling['typography_container']['headline']['text_align'] ?? 'default',
+        ],
+        'subheadline' => [
+          'size' => $styling['typography_container']['subheadline']['size'] ?? '',
+          'color' => $styling['typography_container']['subheadline']['color'] ?? '',
+          'text_align' => $styling['typography_container']['subheadline']['text_align'] ?? 'default',
+        ],
+        'body' => [
+          'text_align' => $styling['typography_container']['body']['text_align'] ?? 'default',
+        ],
+      ],
+      'rules' => $rules,
+      'dismissal' => $form_values['dismissal'] ?? [],
+      'analytics' => $form_values['analytics'] ?? [],
+      'visibility' => $form_values['visibility'] ?? [],
+    ];
+    
+    return $modal_data;
+  }
+
+  /**
+   * Builds image preview data from form values.
+   */
+  protected function buildImagePreviewData(array $image_form_data) {
+    $image_data = [];
+    $file_url_generator = \Drupal::service('file_url_generator');
+    
+    // Get FIDs from form - managed_file with multiple returns ['fid']['fids'] array.
+    // Also check for direct array format which can happen with multiple files.
+    $form_fids = [];
+    if (isset($image_form_data['fid']['fids']) && is_array($image_form_data['fid']['fids'])) {
+      // Multiple images format: ['fid']['fids'] = array of FIDs.
+      $form_fids = array_filter(array_map('intval', $image_form_data['fid']['fids']));
+    }
+    elseif (isset($image_form_data['fid']) && is_array($image_form_data['fid']) && !isset($image_form_data['fid']['fids'])) {
+      // Direct array format: ['fid'] = [fid1, fid2, ...] (can happen with multiple).
+      $form_fids = array_filter(array_map('intval', $image_form_data['fid']));
+    }
+    elseif (!empty($image_form_data['fid'])) {
+      // Single FID (numeric or in array format).
+      $fid = $this->getFileIdFromFormValue($image_form_data['fid']);
+      if ($fid) {
+        $form_fids = [$fid];
+      }
+    }
+    
+    // Process FIDs and build URLs.
+    if (!empty($form_fids)) {
+      $urls = [];
+      foreach ($form_fids as $fid) {
+        if ($fid > 0) {
+          $file = File::load($fid);
+          // For preview, load file even if temporary (files uploaded in form are temporary until saved).
+          if ($file) {
+            $urls[] = $file_url_generator->generateAbsoluteString($file->getFileUri());
+          }
+        }
+      }
+      
+      if (!empty($urls)) {
+        $image_data['url'] = $urls[0];
+        $image_data['urls'] = $urls;
+        
+        // Include carousel settings if enabled and multiple images.
+        if (count($urls) > 1 && !empty($image_form_data['carousel_enabled'])) {
+          $image_data['carousel_enabled'] = TRUE;
+          $image_data['carousel_duration'] = max(1, (int) ($image_form_data['carousel_duration'] ?? 5));
+        } else {
+          $image_data['carousel_enabled'] = FALSE;
+        }
+      }
+    }
+    
+    // Add image properties if we have URLs.
+    if (!empty($image_data['url'])) {
+      $image_data['placement'] = $image_form_data['placement'] ?? 'top';
+      $image_data['mobile_force_top'] = !empty($image_form_data['mobile_force_top']);
+      $image_data['mobile_breakpoint'] = $image_form_data['mobile_breakpoint'] ?? '';
+      $image_data['mobile_height'] = $image_form_data['mobile_height'] ?? '';
+      $image_data['height'] = $image_form_data['height'] ?? '';
+      $image_data['max_height_top_bottom'] = $image_form_data['max_height_top_bottom'] ?? '';
+      
+      // Process mobile image if configured.
+      if (!empty($image_form_data['mobile_fid'])) {
+        $mobile_fid = $this->getFileIdFromFormValue($image_form_data['mobile_fid']);
+        if ($mobile_fid) {
+          $mobile_file = File::load($mobile_fid);
+          // For preview, load file even if temporary.
+          if ($mobile_file) {
+            $image_data['mobile_url'] = $file_url_generator->generateAbsoluteString($mobile_file->getFileUri());
+          }
+        }
+      }
+      
+      // Process image effects.
+      if (!empty($image_form_data['effects_preview_container']['effects'])) {
+        $effects = $image_form_data['effects_preview_container']['effects'];
+        $image_data['effects'] = [
+          'background_color' => $effects['background_color'] ?? '',
+          'blend_mode' => $effects['blend_mode'] ?? 'normal',
+          'grayscale' => (int) ($effects['grayscale'] ?? 0),
+        ];
+      }
+    }
+    
+    return $image_data;
+  }
+
+  /**
+   * Builds CTA preview data from form values.
+   */
+  protected function buildCtaPreviewData(array $cta_form_data) {
+    return [
+      'text' => $cta_form_data['text'] ?? '',
+      'url' => $cta_form_data['url'] ?? '',
+      'new_tab' => !empty($cta_form_data['new_tab']),
+      'color' => $cta_form_data['color'] ?? '#0073aa',
+      'rounded_corners' => !empty($cta_form_data['rounded_corners']),
+      'reverse_style' => !empty($cta_form_data['reverse_style']),
+      'hover_animation' => $cta_form_data['hover_animation'] ?? '',
+      'enabled' => isset($cta_form_data['enabled']) ? (bool) $cta_form_data['enabled'] : TRUE,
+    ];
+  }
+
+  /**
+   * Build form preview data structure.
+   */
+  protected function buildFormPreviewData(array $form_data) {
+    if (empty($form_data['type']) || $form_data['type'] === 'none') {
+      return [];
+    }
+    
+    // Extract form_id from various possible locations.
+    $form_id = NULL;
+    if (!empty($form_data['form_id_wrapper']['form_id'])) {
+      $form_id = $form_data['form_id_wrapper']['form_id'];
+    } elseif (!empty($form_data['form_id'])) {
+      $form_id = $form_data['form_id'];
+    }
+    
+    if (empty($form_id)) {
+      return [];
+    }
+    
+    return [
+      'type' => $form_data['type'],
+      'form_id' => $form_id,
+    ];
+  }
+
+  /**
+   * Helper to extract file ID from form value (handles different formats).
+   */
+  protected function getFileIdFromFormValue($file_value) {
+    if (is_numeric($file_value)) {
+      return (int) $file_value;
+    }
+    if (is_array($file_value)) {
+      if (isset($file_value[0]) && is_numeric($file_value[0])) {
+        return (int) $file_value[0];
+      }
+      if (isset($file_value['fids'][0]) && is_numeric($file_value['fids'][0])) {
+        return (int) $file_value['fids'][0];
+      }
+      if (isset($file_value['target_id']) && is_numeric($file_value['target_id'])) {
+        return (int) $file_value['target_id'];
+      }
+    }
+    return NULL;
+  }
+
+  /**
+   * Renders preview HTML with modal data.
+   */
+  protected function renderPreview(array $modal_data) {
+    // Create minimal hidden container just to attach JavaScript settings.
+    // The modal will display as an overlay, so we don't need a visible container.
+    $preview_container = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'modal-preview-trigger',
+        'style' => 'display: none;',
+      ],
+    ];
+    
+    // Add JavaScript to initialize modal preview.
+    $preview_container['#attached']['drupalSettings']['modalSystem'] = [
+      'modals' => [$modal_data],
+      'previewMode' => TRUE, // Flag for preview mode.
+    ];
+    
+    $preview_container['#attached']['library'][] = 'custom_plugin/modal.system';
+    
+    // Add layout-specific library.
+    $layout = $modal_data['styling']['layout'] ?? 'centered';
+    if ($layout === 'bottom_sheet') {
+      $preview_container['#attached']['library'][] = 'custom_plugin/modal.bottom_sheet';
+    } else {
+      $preview_container['#attached']['library'][] = 'custom_plugin/modal.centered';
+    }
+    
+    // Add preview-specific JavaScript.
+    $preview_container['#attached']['library'][] = 'custom_plugin/modal.preview';
+    
+    return $preview_container;
   }
 
 }

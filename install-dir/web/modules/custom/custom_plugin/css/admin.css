@@ -650,3 +650,55 @@ tr.modal-archived {
     flex: 0 0 120px;
   }
 }
+
+/* Modal Preview Styles */
+.modal-preview-container {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.modal-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.modal-preview-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-preview-close {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-preview-close:hover {
+  background: #c82333;
+}
+
+.modal-preview-content {
+  position: relative;
+  min-height: 400px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
