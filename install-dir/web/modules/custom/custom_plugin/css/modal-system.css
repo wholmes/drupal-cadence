@@ -39,6 +39,23 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease;
   width: 100%;
+  /* Remove focus outline */
+  outline: none !important;
+}
+
+/* Remove focus outline on modal when focused */
+.modal-system--modal:focus {
+  outline: none !important;
+}
+
+/* Remove focus outline on overlay */
+.modal-system--overlay:focus {
+  outline: none !important;
+}
+
+/* Remove focus outline on overlay when it contains focused modal */
+.modal-system--overlay:focus-within .modal-system--modal {
+  outline: none !important;
 }
 
 /* When modal is inside wrapper (left/right), remove max-width constraint */

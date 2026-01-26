@@ -2440,17 +2440,19 @@ class ModalForm extends EntityForm {
     }
 
     if ($status === SAVED_NEW) {
-      $this->messenger()->addMessage($this->t('Created the %label modal.', [
+      $this->messenger()->addStatus($this->t('✓ Successfully created the %label modal.', [
         '%label' => $modal->label(),
       ]));
+      // Redirect to edit page for new modals.
+      $form_state->setRedirectUrl($modal->toUrl('edit-form'));
     }
     else {
-      $this->messenger()->addMessage($this->t('Updated the %label modal.', [
+      $this->messenger()->addStatus($this->t('✓ Successfully saved changes to %label.', [
         '%label' => $modal->label(),
       ]));
+      // Stay on edit page for existing modals.
+      $form_state->setRedirectUrl($modal->toUrl('edit-form'));
     }
-
-    $form_state->setRedirectUrl($modal->toUrl('collection'));
   }
 
   /**
