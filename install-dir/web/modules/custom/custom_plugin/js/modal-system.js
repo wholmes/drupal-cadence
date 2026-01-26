@@ -1237,40 +1237,78 @@
     }
     
     // Build structure: image container outside modal but inside overlay.
-    let widthContainer = null; // Reference to the element that should get max-width
+    // Create a max-width wrapper that will constrain the overall width.
+    let maxWidthWrapper = null;
+    let layoutWrapper = null; // Reference to the layout wrapper (content-wrapper or stacked-wrapper)
+    
+    // Create max-width wrapper if max-width is set, otherwise use overlay directly.
+    const maxWidth = this.modal.styling.max_width ? String(this.modal.styling.max_width).trim() : '';
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('Modal System: max-width value:', maxWidth, 'from styling:', this.modal.styling.max_width);
+    }
+    if (maxWidth) {
+      maxWidthWrapper = document.createElement('div');
+      maxWidthWrapper.className = 'modal-system--max-width-wrapper';
+      maxWidthWrapper.style.maxWidth = maxWidth;
+      // Set width to max-width value to give it a definite width that children can respect
+      // This prevents children with width: 100% from stretching beyond the constraint
+      maxWidthWrapper.style.width = maxWidth;
+      maxWidthWrapper.style.margin = '0 auto'; // Center it within the overlay
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Created max-width-wrapper with max-width and width:', maxWidth);
+      }
+    }
     
     if (imageContainer && (placement === 'left' || placement === 'right')) {
-      // Side-by-side: create wrapper, add image container and modal as siblings.
-      const wrapper = document.createElement('div');
-      wrapper.className = 'modal-system--content-wrapper modal-system--content-' + escapeAttr(placement);
-      widthContainer = wrapper; // Store reference for max-width
+      // Side-by-side: create layout wrapper, add image container and modal as siblings.
+      layoutWrapper = document.createElement('div');
+      layoutWrapper.className = 'modal-system--content-wrapper modal-system--content-' + escapeAttr(placement);
       
       if (placement === 'left') {
-        wrapper.appendChild(imageContainer);
-        wrapper.appendChild(modalElement);
+        layoutWrapper.appendChild(imageContainer);
+        layoutWrapper.appendChild(modalElement);
       } else {
-        wrapper.appendChild(modalElement);
-        wrapper.appendChild(imageContainer);
+        layoutWrapper.appendChild(modalElement);
+        layoutWrapper.appendChild(imageContainer);
       }
       
-      overlay.appendChild(wrapper);
-    } else {
+      // Add layout wrapper to max-width wrapper (if exists) or overlay directly.
+      if (maxWidthWrapper) {
+        maxWidthWrapper.appendChild(layoutWrapper);
+        overlay.appendChild(maxWidthWrapper);
+      } else {
+        overlay.appendChild(layoutWrapper);
+      }
+    } else if (imageContainer && (placement === 'top' || placement === 'bottom')) {
       // Stacked: wrap image and modal in container so they share same width.
-      const stackedWrapper = document.createElement('div');
-      stackedWrapper.className = 'modal-system--stacked-wrapper';
-      widthContainer = stackedWrapper; // Store reference for max-width
+      layoutWrapper = document.createElement('div');
+      layoutWrapper.className = 'modal-system--stacked-wrapper';
       
-      if (imageContainer && placement === 'top') {
-        stackedWrapper.appendChild(imageContainer);
+      if (placement === 'top') {
+        layoutWrapper.appendChild(imageContainer);
       }
       
-      stackedWrapper.appendChild(modalElement);
+      layoutWrapper.appendChild(modalElement);
       
-      if (imageContainer && placement === 'bottom') {
-        stackedWrapper.appendChild(imageContainer);
+      if (placement === 'bottom') {
+        layoutWrapper.appendChild(imageContainer);
       }
       
-      overlay.appendChild(stackedWrapper);
+      // Add layout wrapper to max-width wrapper (if exists) or overlay directly.
+      if (maxWidthWrapper) {
+        maxWidthWrapper.appendChild(layoutWrapper);
+        overlay.appendChild(maxWidthWrapper);
+      } else {
+        overlay.appendChild(layoutWrapper);
+      }
+    } else {
+      // No image container - add modal directly to max-width wrapper (if exists) or overlay.
+      if (maxWidthWrapper) {
+        maxWidthWrapper.appendChild(modalElement);
+        overlay.appendChild(maxWidthWrapper);
+      } else {
+    overlay.appendChild(modalElement);
+      }
     }
     
     document.body.appendChild(overlay);
@@ -1283,21 +1321,10 @@
       modalElement.style.color = this.modal.styling.text_color;
     }
 
-    // Apply max-width if set.
-    const maxWidth = this.modal.styling.max_width ? String(this.modal.styling.max_width).trim() : '';
+    // Log max-width application.
     if (maxWidth) {
-      // Apply to wrapper if it exists (for stacked or side-by-side layouts).
-      if (widthContainer) {
-        widthContainer.style.maxWidth = maxWidth;
-        if (typeof console !== 'undefined' && console.log) {
-          console.log('Modal System: Applied max-width to wrapper:', maxWidth);
-        }
-      } else {
-        // No wrapper, apply directly to modal.
-        modalElement.style.maxWidth = maxWidth;
-        if (typeof console !== 'undefined' && console.log) {
-          console.log('Modal System: Applied max-width to modal:', maxWidth);
-        }
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Applied max-width to max-width-wrapper:', maxWidth);
       }
     } else if (typeof console !== 'undefined' && console.log) {
       console.log('Modal System: No max-width set. max_width value:', this.modal.styling.max_width);
