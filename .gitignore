@@ -22,3 +22,12 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Portfolio Descriptions
+PORTFOLIO_DESCRIPTIONS.md
+
+# Modal Test Content
+MODAL_TEST_CONTENT.md
+
+# Modal Preview Implementation Guide
+MODAL_PREVIEW_IMPLEMENTATION.md
