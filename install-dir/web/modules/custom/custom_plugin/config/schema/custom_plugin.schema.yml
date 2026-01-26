@@ -102,6 +102,34 @@ custom_plugin.modal.*:
                 grayscale:
                   type: integer
                   label: 'Grayscale'
+                opacity:
+                  type: integer
+                  label: 'Opacity'
+                brightness:
+                  type: integer
+                  label: 'Brightness'
+                saturation:
+                  type: integer
+                  label: 'Saturation'
+                overlay_gradient:
+                  type: mapping
+                  label: 'Overlay Gradient'
+                  mapping:
+                    enabled:
+                      type: boolean
+                      label: 'Enabled'
+                    color_start:
+                      type: string
+                      label: 'Start Color'
+                    color_end:
+                      type: string
+                      label: 'End Color'
+                    direction:
+                      type: string
+                      label: 'Direction'
+                    opacity:
+                      type: integer
+                      label: 'Opacity'
             slideshow:
               type: mapping
               label: 'Slideshow settings'
@@ -240,15 +268,16 @@ custom_plugin.modal.*:
             font_family:
               type: string
               label: 'Font family'
+            google_font:
+              type: string
+              label: 'Google Font'
+              nullable: true
             letter_spacing:
               type: string
               label: 'Letter spacing'
             line_height:
               type: string
               label: 'Line height'
-            margin_top:
-              type: string
-              label: 'Margin top'
             text_align:
               type: string
               label: 'Text alignment'
@@ -257,6 +286,10 @@ custom_plugin.modal.*:
           type: mapping
           label: 'Spacing'
           mapping:
+            top_spacer_height:
+              type: string
+              label: 'Top spacer height'
+              nullable: true
             cta_margin_bottom:
               type: string
               label: 'CTA margin bottom'
@@ -274,6 +307,10 @@ custom_plugin.modal.*:
             font_family:
               type: string
               label: 'Font family'
+            google_font:
+              type: string
+              label: 'Google Font'
+              nullable: true
             letter_spacing:
               type: string
               label: 'Letter spacing'

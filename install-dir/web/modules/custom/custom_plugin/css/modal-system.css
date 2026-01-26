@@ -98,6 +98,12 @@
   color: #000;
 }
 
+/* Top spacer - adds space before content */
+.modal-system--top-spacer {
+  width: 100%;
+  flex-shrink: 0;
+}
+
 /* Content */
 .modal-system--headline {
   margin: 0 0 1rem 0;

@@ -702,3 +702,21 @@ tr.modal-archived {
   border-radius: 4px;
   overflow: hidden;
 }
+
+/* Overlay Gradient - Enable Checkbox Full Width */
+.js-form-item-content-image-effects-overlay-gradient-enabled {
+  width: 90% !important;
+  max-width: 90% !important;
+}
+
+/* Overlay Gradient Settings - Column Layout */
+.overlay-gradient-settings .form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.overlay-gradient-settings .form-row > .form-item {
+  flex: 1;
+  margin-bottom: 0;
+}
