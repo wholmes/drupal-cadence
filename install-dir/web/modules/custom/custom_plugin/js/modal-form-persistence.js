@@ -129,7 +129,9 @@
       }
 
       // Handle carousel checkbox based on number of images.
-      const carouselCheckbox = modalForm.querySelector('input[name*="[carousel_enabled]"][type="checkbox"]');
+      // Find carousel checkbox - handle both new nested structure and old structure.
+      const carouselCheckbox = modalForm.querySelector('input[name*="[carousel][enabled]"][type="checkbox"]') 
+        || modalForm.querySelector('input[name*="[carousel_enabled]"][type="checkbox"]');
       
       if (carouselCheckbox) {
         // Find file widget container (needed for both updateCarouselCheckbox and MutationObserver).
@@ -164,10 +166,6 @@
                   fids.forEach(function(fid) {
                     uniqueFids.add(fid.trim());
                   });
-                  // Debug: Log when we parse space-separated FIDs.
-                  if (typeof console !== 'undefined' && console.log) {
-                    console.log('Modal Form: Parsed space-separated FIDs from', name, ':', Array.from(uniqueFids));
-                  }
                 }
                 // Handle single FID or array index format (single number like "33").
                 else if (/^\d+$/.test(value)) {
@@ -177,14 +175,6 @@
             }
           });
           
-          // Debug: Log all hidden inputs to see what we're working with (only if no FIDs found).
-          if (typeof console !== 'undefined' && console.log && uniqueFids.size === 0) {
-            const allHidden = modalForm.querySelectorAll('input[type="hidden"][name*="fid"]');
-            console.log('Modal Form: Found', allHidden.length, 'hidden inputs with "fid" in name:');
-            allHidden.forEach(function(input) {
-              console.log('  - Name:', input.name, 'Value:', input.value);
-            });
-          }
           
           // Method 2: Count file items in the managed_file widget.
           const fileWidget = modalForm.querySelector('.js-form-managed-file, .file-widget-multiple, [data-drupal-selector*="fid"]');
@@ -227,10 +217,6 @@
             imageCount = Math.max(imageCount, uniqueFids.size);
           }
           
-          // Debug logging - always log to help troubleshoot.
-          if (typeof console !== 'undefined' && console.log) {
-            console.log('Modal Form: Image count:', imageCount, 'Unique FIDs:', Array.from(uniqueFids), 'File widget items:', fileWidget ? fileWidget.querySelectorAll('.file-widget-multiple__item, .js-form-managed-file__item').length : 0);
-          }
           
           // Update carousel checkbox based on image count.
           // Simple approach: always enable the checkbox, let user control checked state.
@@ -243,8 +229,9 @@
             carouselCheckbox.style.pointerEvents = 'none';
             carouselCheckbox.style.opacity = '0.6';
             
-            // Also hide the carousel duration field.
-            const durationField = modalForm.querySelector('input[name*="[carousel_duration]"]');
+            // Also hide the carousel duration field (handle both new and old structure).
+            const durationField = modalForm.querySelector('input[name*="[carousel][duration]"]') 
+              || modalForm.querySelector('input[name*="[carousel_duration]"]');
             if (durationField) {
               const durationWrapper = durationField.closest('.form-item, .js-form-item, .form-wrapper');
               if (durationWrapper) {

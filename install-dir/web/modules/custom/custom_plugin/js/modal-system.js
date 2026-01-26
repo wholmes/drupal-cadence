@@ -17,6 +17,9 @@
       // Run localStorage cleanup before initializing modals.
       Drupal.modalSystem.StorageCleanup.cleanup(modals);
 
+      // Load Google Fonts for all modals before initializing.
+      Drupal.modalSystem.loadGoogleFonts(modals);
+
       modals.forEach((modal) => {
         // Check if this modal is already initialized.
         if (Drupal.modalSystem.QueueManager.initializedModals.has(modal.id)) {
@@ -78,6 +81,64 @@
    * Storage Cleanup utility for managing localStorage.
    */
   Drupal.modalSystem = Drupal.modalSystem || {};
+
+  /**
+   * Load Google Fonts from CDN.
+   * Collects all Google Fonts used in modals and loads them.
+   */
+  Drupal.modalSystem.loadGoogleFonts = function(modals) {
+    const googleFonts = new Set();
+    
+    // Collect all Google Fonts from modals.
+    modals.forEach(function(modal) {
+      if (modal.styling && modal.styling.headline) {
+        // Check both google_font and font_family (in case font_family contains a Google Font name).
+        if (modal.styling.headline.google_font) {
+          googleFonts.add(modal.styling.headline.google_font);
+        } else if (modal.styling.headline.font_family) {
+          // Extract font name from font_family (remove quotes and extra spaces).
+          const fontName = modal.styling.headline.font_family.replace(/^["']|["']$/g, '').trim();
+          // Only add if it looks like a Google Font (not a system font like Arial, sans-serif, etc.).
+          if (fontName && !fontName.match(/^(sans-serif|serif|monospace|Arial|Times|Courier|Georgia|Verdana|Helvetica)$/i)) {
+            googleFonts.add(fontName);
+          }
+        }
+      }
+      if (modal.styling && modal.styling.subheadline) {
+        // Check both google_font and font_family (in case font_family contains a Google Font name).
+        if (modal.styling.subheadline.google_font) {
+          googleFonts.add(modal.styling.subheadline.google_font);
+        } else if (modal.styling.subheadline.font_family) {
+          // Extract font name from font_family (remove quotes and extra spaces).
+          const fontName = modal.styling.subheadline.font_family.replace(/^["']|["']$/g, '').trim();
+          // Only add if it looks like a Google Font (not a system font like Arial, sans-serif, etc.).
+          if (fontName && !fontName.match(/^(sans-serif|serif|monospace|Arial|Times|Courier|Georgia|Verdana|Helvetica)$/i)) {
+            googleFonts.add(fontName);
+          }
+        }
+      }
+    });
+    
+    if (googleFonts.size === 0) {
+      return; // No Google Fonts to load.
+    }
+    
+    // Check if fonts are already loaded.
+    const fontFamilyString = Array.from(googleFonts).join('|').replace(/\s+/g, '+');
+    const linkId = 'modal-system-google-fonts';
+    
+    // Check if link already exists.
+    if (document.getElementById(linkId)) {
+      return; // Already loaded.
+    }
+    
+    // Create and append link to Google Fonts.
+    const link = document.createElement('link');
+    link.id = linkId;
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + fontFamilyString + '&display=swap';
+    document.head.appendChild(link);
+  };
 
   /**
    * Global Modal Queue Manager - handles showing modals one at a time.
@@ -935,6 +996,15 @@
           if (effects.grayscale && effects.grayscale > 0) {
             filters.push('grayscale(' + effects.grayscale + '%)');
           }
+          if (effects.opacity && effects.opacity < 100) {
+            filters.push('opacity(' + (effects.opacity / 100) + ')');
+          }
+          if (effects.brightness && effects.brightness !== 100) {
+            filters.push('brightness(' + (effects.brightness / 100) + ')');
+          }
+          if (effects.saturation && effects.saturation !== 100) {
+            filters.push('saturate(' + (effects.saturation / 100) + ')');
+          }
           if (filters.length > 0) {
             imageContainer.style.filter = filters.join(' ');
           }
@@ -943,12 +1013,61 @@
           if (effects.blend_mode && effects.blend_mode !== 'normal') {
             imageContainer.style.mixBlendMode = effects.blend_mode;
           }
+          
+          // Add overlay gradient if enabled.
+          if (effects.overlay_gradient && effects.overlay_gradient.enabled) {
+            const gradient = effects.overlay_gradient;
+            const opacity = (gradient.opacity || 50) / 100;
+            const colorStart = gradient.color_start || '#000000';
+            const colorEnd = gradient.color_end || '#000000';
+            const direction = gradient.direction || 'to bottom';
+            
+            // Create gradient overlay element.
+            let gradientOverlay = imageContainer.querySelector('.gradient-overlay');
+            if (!gradientOverlay) {
+              gradientOverlay = document.createElement('div');
+              gradientOverlay.className = 'gradient-overlay';
+              gradientOverlay.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;';
+              imageContainer.style.position = 'relative';
+              imageContainer.appendChild(gradientOverlay);
+            }
+            
+            // Convert hex to rgba for opacity support.
+            const hexToRgb = function(hex) {
+              hex = hex.replace('#', '');
+              if (hex.length === 3) {
+                hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+              }
+              const r = parseInt(hex.substr(0, 2), 16);
+              const g = parseInt(hex.substr(2, 2), 16);
+              const b = parseInt(hex.substr(4, 2), 16);
+              return r + ', ' + g + ', ' + b;
+            };
+            
+            const startRgb = hexToRgb(colorStart);
+            const endRgb = hexToRgb(colorEnd);
+            gradientOverlay.style.background = 'linear-gradient(' + direction + ', rgba(' + startRgb + ', ' + opacity + '), rgba(' + endRgb + ', ' + opacity + '))';
+          }
+          else {
+            // Remove gradient overlay if disabled.
+            const gradientOverlay = imageContainer.querySelector('.gradient-overlay');
+            if (gradientOverlay) {
+              gradientOverlay.remove();
+            }
+          }
         }
       }
     }
     
     // Build text content wrapper.
     let textContent = '';
+    
+    // Add top spacer if configured (from spacing section).
+    const spacing = this.modal.styling.spacing || {};
+    if (spacing.top_spacer_height) {
+      textContent += '<div class="modal-system--top-spacer" style="height: ' + escapeAttr(spacing.top_spacer_height) + ';"></div>';
+    }
+    
     if (this.modal.content.headline) {
       textContent += '<h2 id="modal-headline-' + escapeAttr(this.modal.id) + '" class="modal-system--headline">' + 
         escapeHtml(this.modal.content.headline) + '</h2>';
@@ -1178,8 +1297,12 @@
       if (headlineStyle.color) {
         headlineElement.style.color = headlineStyle.color;
       }
+      // Apply font family - prefer font_family, but use google_font if font_family is empty.
       if (headlineStyle.font_family) {
         headlineElement.style.fontFamily = headlineStyle.font_family;
+      } else if (headlineStyle.google_font) {
+        // If no font_family but google_font is set, use the Google Font.
+        headlineElement.style.fontFamily = '"' + headlineStyle.google_font + '"';
       }
       if (headlineStyle.letter_spacing) {
         headlineElement.style.letterSpacing = headlineStyle.letter_spacing;
@@ -1187,9 +1310,7 @@
       if (headlineStyle.line_height) {
         headlineElement.style.lineHeight = headlineStyle.line_height;
       }
-      if (headlineStyle.margin_top) {
-        headlineElement.style.marginTop = headlineStyle.margin_top;
-      }
+      // Top spacer is now handled in the HTML building above, so we don't need margin-top anymore.
       // Apply text alignment - always use !important to override parent's center.
       const textAlign = headlineStyle.text_align ? String(headlineStyle.text_align).trim() : '';
       if (textAlign && textAlign !== 'default') {
@@ -1216,8 +1337,12 @@
       if (subheadlineStyle.color) {
         subheadlineElement.style.color = subheadlineStyle.color;
       }
+      // Apply font family - prefer font_family, but use google_font if font_family is empty.
       if (subheadlineStyle.font_family) {
         subheadlineElement.style.fontFamily = subheadlineStyle.font_family;
+      } else if (subheadlineStyle.google_font) {
+        // If no font_family but google_font is set, use the Google Font.
+        subheadlineElement.style.fontFamily = '"' + subheadlineStyle.google_font + '"';
       }
       if (subheadlineStyle.letter_spacing) {
         subheadlineElement.style.letterSpacing = subheadlineStyle.letter_spacing;
@@ -1696,6 +1821,15 @@
     if (effects.grayscale && effects.grayscale > 0) {
       filters.push('grayscale(' + effects.grayscale + '%)');
     }
+    if (effects.opacity && effects.opacity < 100) {
+      filters.push('opacity(' + (effects.opacity / 100) + ')');
+    }
+    if (effects.brightness && effects.brightness !== 100) {
+      filters.push('brightness(' + (effects.brightness / 100) + ')');
+    }
+    if (effects.saturation && effects.saturation !== 100) {
+      filters.push('saturate(' + (effects.saturation / 100) + ')');
+    }
     if (filters.length > 0) {
       container.style.filter = filters.join(' ');
     }
@@ -1703,6 +1837,48 @@
     // Apply blend mode.
     if (effects.blend_mode && effects.blend_mode !== 'normal') {
       container.style.mixBlendMode = effects.blend_mode;
+    }
+    
+    // Add overlay gradient if enabled.
+    if (effects.overlay_gradient && effects.overlay_gradient.enabled) {
+      const gradient = effects.overlay_gradient;
+      const opacity = (gradient.opacity || 50) / 100;
+      const colorStart = gradient.color_start || '#000000';
+      const colorEnd = gradient.color_end || '#000000';
+      const direction = gradient.direction || 'to bottom';
+      
+      // Create gradient overlay element.
+      let gradientOverlay = container.querySelector('.gradient-overlay');
+      if (!gradientOverlay) {
+        gradientOverlay = document.createElement('div');
+        gradientOverlay.className = 'gradient-overlay';
+        gradientOverlay.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;';
+        container.style.position = 'relative';
+        container.appendChild(gradientOverlay);
+      }
+      
+      // Convert hex to rgba for opacity support.
+      const hexToRgb = function(hex) {
+        hex = hex.replace('#', '');
+        if (hex.length === 3) {
+          hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+        }
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        return r + ', ' + g + ', ' + b;
+      };
+      
+      const startRgb = hexToRgb(colorStart);
+      const endRgb = hexToRgb(colorEnd);
+      gradientOverlay.style.background = 'linear-gradient(' + direction + ', rgba(' + startRgb + ', ' + opacity + '), rgba(' + endRgb + ', ' + opacity + '))';
+    }
+    else {
+      // Remove gradient overlay if disabled.
+      const gradientOverlay = container.querySelector('.gradient-overlay');
+      if (gradientOverlay) {
+        gradientOverlay.remove();
+      }
     }
 
     // Set mobile image if configured.
@@ -1752,13 +1928,71 @@
         container.carouselLayers.layer1.style.backgroundColor = effects.background_color;
         container.carouselLayers.layer2.style.backgroundColor = effects.background_color;
       }
+      
+      // Build filter string for carousel layers.
+      const carouselFilters = [];
       if (effects.grayscale && effects.grayscale > 0) {
-        container.carouselLayers.layer1.style.filter = 'grayscale(' + effects.grayscale + '%)';
-        container.carouselLayers.layer2.style.filter = 'grayscale(' + effects.grayscale + '%)';
+        carouselFilters.push('grayscale(' + effects.grayscale + '%)');
       }
+      if (effects.opacity && effects.opacity < 100) {
+        carouselFilters.push('opacity(' + (effects.opacity / 100) + ')');
+      }
+      if (effects.brightness && effects.brightness !== 100) {
+        carouselFilters.push('brightness(' + (effects.brightness / 100) + ')');
+      }
+      if (effects.saturation && effects.saturation !== 100) {
+        carouselFilters.push('saturate(' + (effects.saturation / 100) + ')');
+      }
+      if (carouselFilters.length > 0) {
+        container.carouselLayers.layer1.style.filter = carouselFilters.join(' ');
+        container.carouselLayers.layer2.style.filter = carouselFilters.join(' ');
+      }
+      
       if (effects.blend_mode && effects.blend_mode !== 'normal') {
         container.carouselLayers.layer1.style.mixBlendMode = effects.blend_mode;
         container.carouselLayers.layer2.style.mixBlendMode = effects.blend_mode;
+      }
+      
+      // Add overlay gradient to carousel container (applies to entire carousel).
+      if (effects.overlay_gradient && effects.overlay_gradient.enabled) {
+        const gradient = effects.overlay_gradient;
+        const opacity = (gradient.opacity || 50) / 100;
+        const colorStart = gradient.color_start || '#000000';
+        const colorEnd = gradient.color_end || '#000000';
+        const direction = gradient.direction || 'to bottom';
+        
+        // Create gradient overlay element on container (not individual layers).
+        let gradientOverlay = container.querySelector('.gradient-overlay');
+        if (!gradientOverlay) {
+          gradientOverlay = document.createElement('div');
+          gradientOverlay.className = 'gradient-overlay';
+          gradientOverlay.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;';
+          container.style.position = 'relative';
+          container.appendChild(gradientOverlay);
+        }
+        
+        // Convert hex to rgba for opacity support.
+        const hexToRgb = function(hex) {
+          hex = hex.replace('#', '');
+          if (hex.length === 3) {
+            hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+          }
+          const r = parseInt(hex.substr(0, 2), 16);
+          const g = parseInt(hex.substr(2, 2), 16);
+          const b = parseInt(hex.substr(4, 2), 16);
+          return r + ', ' + g + ', ' + b;
+        };
+        
+        const startRgb = hexToRgb(colorStart);
+        const endRgb = hexToRgb(colorEnd);
+        gradientOverlay.style.background = 'linear-gradient(' + direction + ', rgba(' + startRgb + ', ' + opacity + '), rgba(' + endRgb + ', ' + opacity + '))';
+      }
+      else {
+        // Remove gradient overlay if disabled.
+        const gradientOverlay = container.querySelector('.gradient-overlay');
+        if (gradientOverlay) {
+          gradientOverlay.remove();
+        }
       }
     }
     
@@ -1796,8 +2030,22 @@
         if (effects.background_color) {
           nextLayer.style.backgroundColor = effects.background_color;
         }
+        // Build filter string for next layer.
+        const nextLayerFilters = [];
         if (effects.grayscale && effects.grayscale > 0) {
-          nextLayer.style.filter = 'grayscale(' + effects.grayscale + '%)';
+          nextLayerFilters.push('grayscale(' + effects.grayscale + '%)');
+        }
+        if (effects.opacity && effects.opacity < 100) {
+          nextLayerFilters.push('opacity(' + (effects.opacity / 100) + ')');
+        }
+        if (effects.brightness && effects.brightness !== 100) {
+          nextLayerFilters.push('brightness(' + (effects.brightness / 100) + ')');
+        }
+        if (effects.saturation && effects.saturation !== 100) {
+          nextLayerFilters.push('saturate(' + (effects.saturation / 100) + ')');
+        }
+        if (nextLayerFilters.length > 0) {
+          nextLayer.style.filter = nextLayerFilters.join(' ');
         }
         if (effects.blend_mode && effects.blend_mode !== 'normal') {
           nextLayer.style.mixBlendMode = effects.blend_mode;

@@ -85,7 +85,6 @@ class ModalForm extends EntityForm {
     $cta1 = $content['cta1'] ?? [];
     $cta2 = $content['cta2'] ?? [];
     
-    
     // Text content fieldset - groups headline, subheadline, and body.
     $form['content']['text_content'] = [
       '#type' => 'fieldset',
@@ -180,6 +179,7 @@ class ModalForm extends EntityForm {
       }
     }
 
+    // Image Upload (always visible, not collapsible).
     $form['content']['image']['fid'] = [
       '#type' => 'managed_file',
       '#title' => $this->t('Image(s)'),
@@ -198,7 +198,20 @@ class ModalForm extends EntityForm {
       '#progress_indicator' => 'throbber',
     ];
     
-    $form['content']['image']['placement'] = [
+    // Layout & Sizing (collapsible fieldset).
+    $form['content']['image']['layout'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Layout & Sizing'),
+      '#open' => FALSE,
+      '#tree' => TRUE,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
+    ];
+    
+    $form['content']['image']['layout']['placement'] = [
       '#type' => 'select',
       '#title' => $this->t('Image Placement'),
       '#description' => $this->t('Choose where to display the image(s) in the modal'),
@@ -209,6 +222,35 @@ class ModalForm extends EntityForm {
         'right' => $this->t('Right'),
       ],
       '#default_value' => $image_data['placement'] ?? 'top',
+    ];
+
+    $form['content']['image']['layout']['height'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Image Height'),
+      '#description' => $this->t('Set the height of the image container (e.g., 300px, 50vh, 20rem). Leave empty for auto height. With background-size: cover, the image will fill this height and crop width as needed.'),
+      '#default_value' => $image_data['height'] ?? '',
+      '#size' => 20,
+    ];
+
+    $form['content']['image']['layout']['max_height_top_bottom'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Max Height (Top/Bottom Placement)'),
+      '#description' => $this->t('Set maximum height when image is placed at top or bottom (e.g., 400px, 50vh). Leave empty for no limit.'),
+      '#default_value' => $image_data['max_height_top_bottom'] ?? '',
+      '#size' => 20,
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][layout][placement]"]' => ['value' => ['top', 'bottom']],
+        ],
+      ],
+    ];
+    
+    // Mobile Display (collapsible fieldset).
+    $form['content']['image']['mobile'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Mobile Display'),
+      '#open' => FALSE,
+      '#tree' => TRUE,
       '#states' => [
         'visible' => [
           ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
@@ -216,19 +258,14 @@ class ModalForm extends EntityForm {
       ],
     ];
 
-    $form['content']['image']['mobile_force_top'] = [
+    $form['content']['image']['mobile']['force_top'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Force image to top on mobile'),
       '#description' => $this->t('When enabled, the image will always appear at the top on mobile devices, even if placement is set to bottom or side.'),
       '#default_value' => $image_data['mobile_force_top'] ?? FALSE,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-        ],
-      ],
     ];
 
-    $form['content']['image']['mobile_breakpoint'] = [
+    $form['content']['image']['mobile']['breakpoint'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Mobile Breakpoint'),
       '#description' => $this->t('Screen width at which the image moves to the top (e.g., 1200px, 1400px). Leave empty for default (1400px).'),
@@ -236,13 +273,12 @@ class ModalForm extends EntityForm {
       '#size' => 20,
       '#states' => [
         'visible' => [
-          ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+          ':input[name="content[image][mobile][force_top]"]' => ['checked' => TRUE],
         ],
       ],
     ];
 
-    $form['content']['image']['mobile_height'] = [
+    $form['content']['image']['mobile']['height'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Mobile Height (when forced to top)'),
       '#description' => $this->t('Set a specific height for the image when it moves to the top on mobile (e.g., 200px, 30vh, 15rem). Leave empty to use the regular height setting.'),
@@ -250,57 +286,10 @@ class ModalForm extends EntityForm {
       '#size' => 20,
       '#states' => [
         'visible' => [
-          ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+          ':input[name="content[image][mobile][force_top]"]' => ['checked' => TRUE],
         ],
       ],
     ];
-
-    // Simple Carousel Settings (only for multiple images).
-    // Only enable if we have 2+ images.
-    $image_count = 0;
-    if (!empty($image_data['fids']) && is_array($image_data['fids'])) {
-      $image_count = count(array_filter($image_data['fids']));
-    } elseif (!empty($image_data['fid'])) {
-      $image_count = 1;
-    }
-    
-    $form['content']['image']['carousel_enabled'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable Image Carousel'),
-      '#description' => $this->t('When enabled with multiple images, images will automatically fade between each other. Requires 2 or more images.'),
-      '#default_value' => !empty($image_data['carousel_enabled']) && $image_count > 1,
-      // Don't set #disabled here - let JavaScript handle it dynamically based on actual image count.
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-        ],
-        // Don't use #states for disabled - let JavaScript handle it dynamically.
-      ],
-      '#attributes' => [
-        'class' => ['carousel-enabled-checkbox'],
-        'data-initial-count' => $image_count, // Pass initial count for reference.
-      ],
-    ];
-
-    $form['content']['image']['carousel_duration'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Image Duration (seconds)'),
-      '#description' => $this->t('How long each image displays before fading to the next. Minimum 1 second.'),
-      '#default_value' => $image_data['carousel_duration'] ?? 5,
-      '#min' => 1,
-      '#max' => 60,
-      '#size' => 5,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][carousel_enabled]"]' => ['checked' => TRUE],
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-        ],
-      ],
-    ];
-    
-    // Add JavaScript to show/hide duration field based on checkbox state.
-    $form['content']['image']['carousel_duration']['#attached']['library'][] = 'custom_plugin/modal.form.persistence';
 
     // Mobile image upload field (optional - only shows when mobile_force_top is enabled).
     $mobile_fid = NULL;
@@ -318,7 +307,7 @@ class ModalForm extends EntityForm {
       }
     }
 
-    $form['content']['image']['mobile_fid'] = [
+    $form['content']['image']['mobile']['fid'] = [
       '#type' => 'managed_file',
       '#title' => $this->t('Mobile Image (Optional)'),
       '#description' => $this->t('Upload a different image to display on mobile devices. If not provided, the regular image will be used. Allowed formats: jpg, jpeg, png, gif, webp'),
@@ -335,69 +324,86 @@ class ModalForm extends EntityForm {
       '#progress_indicator' => 'throbber',
       '#states' => [
         'visible' => [
-          ':input[name="content[image][mobile_force_top]"]' => ['checked' => TRUE],
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+          ':input[name="content[image][mobile][force_top]"]' => ['checked' => TRUE],
         ],
       ],
     ];
-
-
-    $form['content']['image']['height'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Image Height'),
-      '#description' => $this->t('Set the height of the image container (e.g., 300px, 50vh, 20rem). Leave empty for auto height. With background-size: cover, the image will fill this height and crop width as needed.'),
-      '#default_value' => $image_data['height'] ?? '',
-      '#size' => 20,
+    
+    // Carousel Settings (collapsible fieldset, only shows when 2+ images).
+    // Only enable if we have 2+ images.
+    $image_count = 0;
+    if (!empty($image_data['fids']) && is_array($image_data['fids'])) {
+      $image_count = count(array_filter($image_data['fids']));
+    } elseif (!empty($image_data['fid'])) {
+      $image_count = 1;
+    }
+    
+    $form['content']['image']['carousel'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Carousel'),
+      '#open' => FALSE,
+      '#tree' => TRUE,
       '#states' => [
         'visible' => [
           ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
         ],
       ],
     ];
-
-    $form['content']['image']['max_height_top_bottom'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Max Height (Top/Bottom Placement)'),
-      '#description' => $this->t('Set maximum height when image is placed at top or bottom (e.g., 400px, 50vh). Leave empty for no limit.'),
-      '#default_value' => $image_data['max_height_top_bottom'] ?? '',
-      '#size' => 20,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-          ':input[name="content[image][placement]"]' => ['value' => ['top', 'bottom']],
-        ],
+    
+    $form['content']['image']['carousel']['enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Image Carousel'),
+      '#description' => $this->t('When enabled with multiple images, images will automatically fade between each other. Requires 2 or more images.'),
+      '#default_value' => !empty($image_data['carousel_enabled']) && $image_count > 1,
+      // Don't set #disabled here - let JavaScript handle it dynamically based on actual image count.
+      '#attributes' => [
+        'class' => ['carousel-enabled-checkbox'],
+        'data-initial-count' => $image_count, // Pass initial count for reference.
       ],
     ];
 
-    // Image effects and preview container - wraps both side by side.
-    $form['content']['image']['effects_preview_container'] = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['modal-effects-preview-container']],
+    $form['content']['image']['carousel']['duration'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Image Duration (seconds)'),
+      '#description' => $this->t('How long each image displays before fading to the next. Minimum 1 second.'),
+      '#default_value' => $image_data['carousel_duration'] ?? 5,
+      '#min' => 1,
+      '#max' => 60,
+      '#size' => 5,
       '#states' => [
         'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+          ':input[name="content[image][carousel][enabled]"]' => ['checked' => TRUE],
         ],
       ],
     ];
+    
+    // Add JavaScript to show/hide duration field based on checkbox state.
+    $form['content']['image']['carousel']['duration']['#attached']['library'][] = 'custom_plugin/modal.form.persistence';
 
-    // Image Effects section.
-    $form['content']['image']['effects_preview_container']['effects'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Image Effects'),
+    // Visual Effects (collapsible fieldset).
+    $form['content']['image']['effects'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Visual Effects'),
+      '#open' => FALSE,
       '#tree' => TRUE,
       '#attributes' => ['class' => ['modal-image-effects']],
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
+        ],
+      ],
     ];
 
     $effects = $image_data['effects'] ?? [];
     
-    $form['content']['image']['effects_preview_container']['effects']['background_color'] = [
+    $form['content']['image']['effects']['background_color'] = [
       '#type' => 'color',
       '#title' => $this->t('Background Color'),
       '#description' => $this->t('Solid color that appears behind/under the image. Use transparent (leave default) for no background.'),
       '#default_value' => $effects['background_color'] ?? '',
     ];
 
-    $form['content']['image']['effects_preview_container']['effects']['blend_mode'] = [
+    $form['content']['image']['effects']['blend_mode'] = [
       '#type' => 'select',
       '#title' => $this->t('Blend Mode'),
       '#description' => $this->t('How the image blends with the background color. Creates interesting overlay effects.'),
@@ -418,7 +424,7 @@ class ModalForm extends EntityForm {
       '#default_value' => $effects['blend_mode'] ?? 'normal',
     ];
 
-    $form['content']['image']['effects_preview_container']['effects']['grayscale'] = [
+    $form['content']['image']['effects']['grayscale'] = [
       '#type' => 'number',
       '#title' => $this->t('Grayscale'),
       '#description' => $this->t('Convert image to grayscale. 0% = full color, 100% = completely grayscale.'),
@@ -429,14 +435,130 @@ class ModalForm extends EntityForm {
       '#size' => 5,
     ];
 
-    // Preview section.
-    $form['content']['image']['effects_preview_container']['preview'] = [
+    $form['content']['image']['effects']['opacity'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Opacity'),
+      '#description' => $this->t('Control image transparency. 0% = fully transparent, 100% = fully opaque. Useful for overlaying text.'),
+      '#default_value' => $effects['opacity'] ?? 100,
+      '#min' => 0,
+      '#max' => 100,
+      '#field_suffix' => '%',
+      '#size' => 5,
+    ];
+
+    $form['content']['image']['effects']['brightness'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Brightness'),
+      '#description' => $this->t('Adjust image brightness. 0% = completely black, 100% = normal, 200% = twice as bright.'),
+      '#default_value' => $effects['brightness'] ?? 100,
+      '#min' => 0,
+      '#max' => 200,
+      '#field_suffix' => '%',
+      '#size' => 5,
+    ];
+
+    $form['content']['image']['effects']['saturation'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Saturation'),
+      '#description' => $this->t('Control color intensity. 0% = completely desaturated (grayscale), 100% = normal, 200% = twice as saturated.'),
+      '#default_value' => $effects['saturation'] ?? 100,
+      '#min' => 0,
+      '#max' => 200,
+      '#field_suffix' => '%',
+      '#size' => 5,
+    ];
+
+    // Overlay Gradient section.
+    $form['content']['image']['effects']['overlay_gradient'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Overlay Gradient'),
+      '#description' => $this->t('Add a gradient overlay on top of the image/carousel. Useful for improving text readability.'),
+      '#tree' => TRUE,
+    ];
+
+    $overlay_gradient = (isset($effects['overlay_gradient']) && is_array($effects['overlay_gradient'])) ? $effects['overlay_gradient'] : [];
+    
+    // Enable checkbox on its own full-width row.
+    $form['content']['image']['effects']['overlay_gradient']['enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Overlay Gradient'),
+      '#description' => $this->t('When enabled, a gradient overlay will be applied on top of the image.'),
+      '#default_value' => !empty($overlay_gradient['enabled']),
+    ];
+
+    // Container for columns below the checkbox.
+    $form['content']['image']['effects']['overlay_gradient']['settings'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['overlay-gradient-settings']],
+      '#states' => [
+        'visible' => [
+          ':input[name="content[image][effects][overlay_gradient][enabled]"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    // First row of columns: Start Color and End Color.
+    $form['content']['image']['effects']['overlay_gradient']['settings']['row1'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['form-row']],
+    ];
+
+    $form['content']['image']['effects']['overlay_gradient']['settings']['row1']['color_start'] = [
+      '#type' => 'color',
+      '#title' => $this->t('Start Color'),
+      '#description' => $this->t('The starting color of the gradient.'),
+      '#default_value' => $overlay_gradient['color_start'] ?? '#000000',
+    ];
+
+    $form['content']['image']['effects']['overlay_gradient']['settings']['row1']['color_end'] = [
+      '#type' => 'color',
+      '#title' => $this->t('End Color'),
+      '#description' => $this->t('The ending color of the gradient.'),
+      '#default_value' => $overlay_gradient['color_end'] ?? '#000000',
+    ];
+
+    // Second row of columns: Direction and Opacity.
+    $form['content']['image']['effects']['overlay_gradient']['settings']['row2'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['form-row']],
+    ];
+
+    $form['content']['image']['effects']['overlay_gradient']['settings']['row2']['direction'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Gradient Direction'),
+      '#description' => $this->t('The direction of the gradient.'),
+      '#options' => [
+        'to bottom' => $this->t('Top to Bottom'),
+        'to top' => $this->t('Bottom to Top'),
+        'to right' => $this->t('Left to Right'),
+        'to left' => $this->t('Right to Left'),
+        'to bottom right' => $this->t('Top Left to Bottom Right'),
+        'to bottom left' => $this->t('Top Right to Bottom Left'),
+        'to top right' => $this->t('Bottom Left to Top Right'),
+        'to top left' => $this->t('Bottom Right to Top Left'),
+      ],
+      '#default_value' => $overlay_gradient['direction'] ?? 'to bottom',
+    ];
+
+    $form['content']['image']['effects']['overlay_gradient']['settings']['row2']['opacity'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Gradient Opacity'),
+      '#description' => $this->t('Control how opaque the gradient overlay is. 0% = transparent, 100% = fully opaque.'),
+      '#default_value' => $overlay_gradient['opacity'] ?? 50,
+      '#min' => 0,
+      '#max' => 100,
+      '#field_suffix' => '%',
+      '#size' => 5,
+    ];
+
+    // Preview section (nested inside effects).
+    $form['content']['image']['effects']['preview'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Preview'),
       '#attributes' => ['class' => ['modal-image-preview']],
     ];
 
-    $form['content']['image']['effects_preview_container']['preview']['preview_button'] = [
+    $form['content']['image']['effects']['preview']['preview_button'] = [
       '#type' => 'button',
       '#value' => $this->t('Update Preview'),
       '#ajax' => [
@@ -447,16 +569,7 @@ class ModalForm extends EntityForm {
       ],
     ];
 
-    $preview_url = '';
-    if ($default_fid) {
-      $file = File::load($default_fid);
-      if ($file) {
-        $file_url_generator = \Drupal::service('file_url_generator');
-        $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
-      }
-    }
-
-    $form['content']['image']['effects_preview_container']['preview']['preview_container'] = [
+    $form['content']['image']['effects']['preview']['preview_container'] = [
       '#type' => 'container',
       '#attributes' => [
         'id' => 'image-effects-preview',
@@ -464,38 +577,132 @@ class ModalForm extends EntityForm {
       ],
     ];
 
-    if ($preview_url) {
-      $preview_effects = $effects;
-      $preview_styles = [];
+    // Show preview image by default if we have an uploaded image.
+    try {
+      // Get preview URL from uploaded image(s).
+      $preview_url = '';
+      $preview_fid = NULL;
       
-      if (!empty($preview_effects['background_color'])) {
-        $preview_styles[] = 'background-color: ' . $preview_effects['background_color'];
+      // Prioritize fids array (for carousel/multiple images).
+      if (isset($default_fids) && !empty($default_fids) && is_array($default_fids)) {
+        $preview_fid = reset($default_fids);
+      }
+      // Fallback to single fid.
+      elseif (isset($default_fid) && !empty($default_fid)) {
+        $preview_fid = $default_fid;
       }
       
-      $filters = [];
-      if (!empty($preview_effects['grayscale'])) {
-        $filters[] = 'grayscale(' . (int) $preview_effects['grayscale'] . '%)';
-      }
-      if (!empty($filters)) {
-        $preview_styles[] = 'filter: ' . implode(' ', $filters);
-      }
-      
-      if (!empty($preview_effects['blend_mode']) && $preview_effects['blend_mode'] !== 'normal') {
-        $preview_styles[] = 'mix-blend-mode: ' . $preview_effects['blend_mode'];
+      if ($preview_fid) {
+        try {
+          $file = File::load($preview_fid);
+          if ($file) {
+            // For preview, allow temporary files (files uploaded in form are temporary until saved).
+            $file_url_generator = \Drupal::service('file_url_generator');
+            $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
+          }
+        }
+        catch (\Exception $e) {
+          // If file loading fails, skip preview.
+        }
       }
 
-      $form['content']['image']['effects_preview_container']['preview']['preview_container']['preview_image'] = [
-        '#type' => 'html_tag',
-        '#tag' => 'div',
-        '#attributes' => [
-          'class' => ['image-preview'],
-          'style' => implode('; ', $preview_styles) . '; background-image: url(' . $preview_url . '); width: 300px; height: 200px; background-size: cover; background-position: center; border: 1px solid #ccc;',
-        ],
-      ];
+      if (!empty($preview_url) && is_string($preview_url)) {
+        $preview_effects = (isset($effects) && is_array($effects)) ? $effects : [];
+        $preview_styles = [];
+        
+        if (!empty($preview_effects['background_color'])) {
+          $preview_styles[] = 'background-color: ' . htmlspecialchars($preview_effects['background_color'], ENT_QUOTES, 'UTF-8');
+        }
+        
+        // Build CSS filters.
+        $filters = [];
+        if (isset($preview_effects['grayscale']) && $preview_effects['grayscale'] > 0) {
+          $filters[] = 'grayscale(' . (int) $preview_effects['grayscale'] . '%)';
+        }
+        if (isset($preview_effects['opacity']) && $preview_effects['opacity'] < 100) {
+          $filters[] = 'opacity(' . ((int) $preview_effects['opacity'] / 100) . ')';
+        }
+        if (isset($preview_effects['brightness']) && $preview_effects['brightness'] != 100) {
+          $filters[] = 'brightness(' . ((int) $preview_effects['brightness'] / 100) . ')';
+        }
+        if (isset($preview_effects['saturation']) && $preview_effects['saturation'] != 100) {
+          $filters[] = 'saturate(' . ((int) $preview_effects['saturation'] / 100) . ')';
+        }
+        if (!empty($filters)) {
+          $preview_styles[] = 'filter: ' . implode(' ', $filters);
+        }
+        
+        if (!empty($preview_effects['blend_mode']) && $preview_effects['blend_mode'] !== 'normal') {
+          $preview_styles[] = 'mix-blend-mode: ' . htmlspecialchars($preview_effects['blend_mode'], ENT_QUOTES, 'UTF-8');
+        }
+
+        // Escape URL for HTML attribute.
+        $preview_url_escaped = htmlspecialchars($preview_url, ENT_QUOTES, 'UTF-8');
+        
+        // Build style string - ensure we have at least the background-image.
+        $style_parts = [];
+        if (!empty($preview_styles)) {
+          $style_parts = array_merge($style_parts, $preview_styles);
+        }
+        $style_parts[] = 'background-image: url(\'' . $preview_url_escaped . '\')';
+        $style_parts[] = 'width: 100%';
+        $style_parts[] = 'height: 100%';
+        $style_parts[] = 'background-size: cover';
+        $style_parts[] = 'background-position: center';
+        
+        $preview_html = '<div class="image-preview-wrapper" style="position: relative; width: 300px; height: 200px; border: 1px solid #ccc; overflow: hidden;">';
+        $preview_html .= '<div class="image-preview" style="' . implode('; ', $style_parts) . ';"></div>';
+        
+        // Add overlay gradient if enabled.
+        $overlay_gradient = isset($preview_effects['overlay_gradient']) && is_array($preview_effects['overlay_gradient']) ? $preview_effects['overlay_gradient'] : [];
+        if (!empty($overlay_gradient['enabled'])) {
+          try {
+            // Handle new nested structure: settings/row1/ and settings/row2/
+            $settings = $overlay_gradient['settings'] ?? [];
+            $row1 = $settings['row1'] ?? [];
+            $row2 = $settings['row2'] ?? [];
+            
+            // Fallback to direct access for backward compatibility.
+            $color_start = $row1['color_start'] ?? $overlay_gradient['color_start'] ?? '#000000';
+            $color_end = $row1['color_end'] ?? $overlay_gradient['color_end'] ?? '#000000';
+            $direction = $row2['direction'] ?? $overlay_gradient['direction'] ?? 'to bottom';
+            $opacity = $row2['opacity'] ?? $overlay_gradient['opacity'] ?? 50;
+            
+            $gradient_opacity = isset($opacity) ? ((int) $opacity / 100) : 0.5;
+            
+            // Convert hex colors to rgba for opacity.
+            $color_start_rgb = $this->hexToRgb($color_start);
+            $color_end_rgb = $this->hexToRgb($color_end);
+            
+            $direction_escaped = htmlspecialchars($direction, ENT_QUOTES, 'UTF-8');
+            $gradient_style = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; ';
+            $gradient_style .= 'background: linear-gradient(' . $direction_escaped . ', rgba(' . $color_start_rgb . ', ' . $gradient_opacity . '), rgba(' . $color_end_rgb . ', ' . $gradient_opacity . '));';
+            $gradient_style .= 'pointer-events: none;';
+            
+            $preview_html .= '<div class="gradient-overlay" style="' . $gradient_style . '"></div>';
+          }
+          catch (\Exception $e) {
+            // If gradient generation fails, skip it.
+          }
+        }
+        
+        $preview_html .= '</div>';
+
+        $form['content']['image']['effects']['preview']['preview_container']['preview_image'] = [
+          '#type' => 'markup',
+          '#markup' => \Drupal\Core\Render\Markup::create($preview_html),
+        ];
+      }
+      else {
+        $form['content']['image']['effects']['preview']['preview_container']['preview_message'] = [
+          '#markup' => '<p>' . $this->t('Upload an image to see preview.') . '</p>',
+        ];
+      }
     }
-    else {
-      $form['content']['image']['effects_preview_container']['preview']['preview_container']['preview_message'] = [
-        '#markup' => '<p>' . $this->t('Upload an image to see preview.') . '</p>',
+    catch (\Exception $e) {
+      // If preview generation fails, show error message.
+      $form['content']['image']['effects']['preview']['preview_container']['preview_error'] = [
+        '#markup' => '<p>' . $this->t('Error generating preview.') . '</p>',
       ];
     }
 
@@ -1054,10 +1261,54 @@ class ModalForm extends EntityForm {
       '#default_value' => $headline_styling['color'] ?? '',
     ];
 
-    $form['styling']['typography_container']['headline']['font_family'] = [
+    // Google Fonts selector.
+    $google_fonts = [
+      '' => $this->t('- None -'),
+      'Roboto' => 'Roboto',
+      'Open Sans' => 'Open Sans',
+      'Lato' => 'Lato',
+      'Montserrat' => 'Montserrat',
+      'Oswald' => 'Oswald',
+      'Raleway' => 'Raleway',
+      'Poppins' => 'Poppins',
+      'Source Sans Pro' => 'Source Sans Pro',
+      'Playfair Display' => 'Playfair Display',
+      'Merriweather' => 'Merriweather',
+      'Ubuntu' => 'Ubuntu',
+      'Nunito' => 'Nunito',
+      'Dancing Script' => 'Dancing Script',
+      'Pacifico' => 'Pacifico',
+      'Bebas Neue' => 'Bebas Neue',
+      'Crimson Text' => 'Crimson Text',
+      'Lora' => 'Lora',
+      'PT Sans' => 'PT Sans',
+      'PT Serif' => 'PT Serif',
+      'Roboto Slab' => 'Roboto Slab',
+    ];
+    
+    $form['styling']['typography_container']['headline']['google_font'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Google Font'),
+      '#description' => $this->t('Select a Google Font to use. This will automatically populate the Font Family field and load the font.'),
+      '#options' => $google_fonts,
+      '#default_value' => $headline_styling['google_font'] ?? '',
+      '#empty_option' => $this->t('- None -'),
+      '#ajax' => [
+        'callback' => '::updateGoogleFont',
+        'wrapper' => 'headline-font-family-wrapper',
+        'event' => 'change',
+      ],
+    ];
+    
+    $form['styling']['typography_container']['headline']['font_family_wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'headline-font-family-wrapper'],
+    ];
+    
+    $form['styling']['typography_container']['headline']['font_family_wrapper']['font_family'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Family'),
-      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif)'),
+      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif) or select a Google Font above.'),
       '#default_value' => $headline_styling['font_family'] ?? '',
       '#size' => 30,
     ];
@@ -1075,14 +1326,6 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('Line Height'),
       '#description' => $this->t('Enter line height (e.g., 1.5, 24px, 1.2em, normal)'),
       '#default_value' => $headline_styling['line_height'] ?? '',
-      '#size' => 20,
-    ];
-
-    $form['styling']['typography_container']['headline']['margin_top'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Margin Top (space before headline)'),
-      '#description' => $this->t('Enter spacing with unit (e.g., 0px, 1rem, 2em). Leave empty for default.'),
-      '#default_value' => $headline_styling['margin_top'] ?? '',
       '#size' => 20,
     ];
 
@@ -1122,10 +1365,29 @@ class ModalForm extends EntityForm {
       '#default_value' => $subheadline_styling['color'] ?? '#666666',
     ];
 
-    $form['styling']['typography_container']['subheadline']['font_family'] = [
+    $form['styling']['typography_container']['subheadline']['google_font'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Google Font'),
+      '#description' => $this->t('Select a Google Font to use. This will automatically populate the Font Family field and load the font.'),
+      '#options' => $google_fonts,
+      '#default_value' => $subheadline_styling['google_font'] ?? '',
+      '#empty_option' => $this->t('- None -'),
+      '#ajax' => [
+        'callback' => '::updateGoogleFont',
+        'wrapper' => 'subheadline-font-family-wrapper',
+        'event' => 'change',
+      ],
+    ];
+    
+    $form['styling']['typography_container']['subheadline']['font_family_wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'subheadline-font-family-wrapper'],
+    ];
+    
+    $form['styling']['typography_container']['subheadline']['font_family_wrapper']['font_family'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Family'),
-      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif)'),
+      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif) or select a Google Font above.'),
       '#default_value' => $subheadline_styling['font_family'] ?? '',
       '#size' => 30,
     ];
@@ -1190,6 +1452,16 @@ class ModalForm extends EntityForm {
     ];
 
     $spacing = $styling['spacing'] ?? [];
+    $headline_styling = $styling['headline'] ?? [];
+    
+    $form['styling']['spacing']['top_spacer_height'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Top Spacer Height'),
+      '#description' => $this->t('Add a spacer div before the content. Enter height with unit (e.g., 0px, 100px, 2rem). Leave empty for no spacer.'),
+      '#default_value' => $spacing['top_spacer_height'] ?? ($headline_styling['top_spacer_height'] ?? ($headline_styling['margin_top'] ?? '')),
+      '#size' => 20,
+    ];
+    
     $form['styling']['spacing']['cta_margin_bottom'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Margin Bottom (space after buttons)'),
@@ -1291,37 +1563,237 @@ class ModalForm extends EntityForm {
    * AJAX callback for image effects preview.
    */
   public function updateImagePreview(array &$form, FormStateInterface $form_state) {
-    $image_values = $form_state->getValue(['content', 'image'], []);
-    $effects_preview_container = $image_values['effects_preview_container'] ?? [];
-    $effects = $effects_preview_container['effects'] ?? [];
+    // For AJAX callbacks, try getUserInput() first as form values might not be fully processed.
+    $user_input = $form_state->getUserInput();
     
-    // Get image URL - check multiple possible formats.
+    // Try to get image values from multiple sources.
+    $image_values = [];
+    if (!empty($user_input['content']['image'])) {
+      $image_values = $user_input['content']['image'];
+    }
+    elseif ($form_state->hasValue(['content', 'image'])) {
+      $image_values = $form_state->getValue(['content', 'image'], []);
+    }
+    elseif (!empty($form['content']['image']['fid']['#value'])) {
+      // Fallback to form element value.
+      $image_values = ['fid' => $form['content']['image']['fid']['#value']];
+    }
+    
+    // Handle new nested structure: content[image][effects]
+    $effects = $image_values['effects'] ?? [];
+    // Fallback to old structure for backward compatibility.
+    if (empty($effects)) {
+      $effects_preview_container = $image_values['effects_preview_container'] ?? [];
+      $effects = $effects_preview_container['effects'] ?? [];
+    }
+    
+    // Ensure effects is an array.
+    if (!is_array($effects)) {
+      $effects = [];
+    }
+    
+    // Get image URL - always use entity data first (most reliable for AJAX).
     $preview_url = '';
-    
-    // Try to get FID from form values.
     $fid = NULL;
-    if (isset($image_values['fid'][0]) && is_numeric($image_values['fid'][0])) {
-      $fid = (int) $image_values['fid'][0];
+    
+    // Always try to get from existing entity first (most reliable for AJAX).
+    $modal = $this->entity;
+    
+    // If entity is not loaded or is new, try to get it from form state.
+    if (!$modal || $modal->isNew()) {
+      if ($form_state->has('entity')) {
+        $modal = $form_state->get('entity');
+      }
+      elseif ($form_state->has('modal')) {
+        $modal = $form_state->get('modal');
+      }
     }
-    elseif (isset($image_values['fid']['fids']) && is_array($image_values['fid']['fids']) && !empty($image_values['fid']['fids'][0])) {
-      $fid = (int) $image_values['fid']['fids'][0];
-    }
-    // If no FID in form, try to get from existing entity.
-    if (!$fid) {
-      $modal = $this->entity;
-      if (!$modal->isNew()) {
-        $image_data = $modal->getContent()['image'] ?? [];
-        if (!empty($image_data['fid']) && is_numeric($image_data['fid'])) {
+    
+    if ($modal && !$modal->isNew()) {
+      try {
+        $content = $modal->getContent();
+        $image_data = $content['image'] ?? [];
+        
+        // Prioritize fids array for carousel.
+        if (!empty($image_data['fids']) && is_array($image_data['fids'])) {
+          $fids = array_filter($image_data['fids'], function($f) {
+            return !empty($f) && is_numeric($f);
+          });
+          if (!empty($fids)) {
+            $fid = (int) reset($fids);
+          }
+        }
+        elseif (!empty($image_data['fid']) && is_numeric($image_data['fid'])) {
           $fid = (int) $image_data['fid'];
+        }
+      }
+      catch (\Exception $e) {
+        // If entity access fails, continue to form values.
+      }
+    }
+    
+    // If no FID from entity, try to get from form values (multiple sources).
+    if (!$fid) {
+      // Method 1: Check form's current value (processed by Drupal).
+      if (isset($form['content']['image']['fid']['#value']['fids']) && is_array($form['content']['image']['fid']['#value']['fids'])) {
+        $fids = array_filter($form['content']['image']['fid']['#value']['fids'], function($f) {
+          return !empty($f) && is_numeric($f);
+        });
+        if (!empty($fids)) {
+          $fid = (int) reset($fids);
+        }
+      }
+      
+      // Method 2: Check form's default value (from initial form build).
+      if (!$fid && isset($form['content']['image']['fid']['#default_value'])) {
+        $default_fids = $form['content']['image']['fid']['#default_value'];
+        if (is_array($default_fids) && !empty($default_fids)) {
+          $fids = array_filter($default_fids, function($f) {
+            return !empty($f) && is_numeric($f);
+          });
+          if (!empty($fids)) {
+            $fid = (int) reset($fids);
+          }
+        }
+        elseif (is_numeric($default_fids)) {
+          $fid = (int) $default_fids;
+        }
+      }
+      
+      // Method 3: Check the managed_file widget's fids hidden input value.
+      // Drupal stores this in form['content']['image']['fid']['fids']['#value'].
+      if (!$fid && isset($form['content']['image']['fid']['fids']['#value'])) {
+        $fids_value = $form['content']['image']['fid']['fids']['#value'];
+        if (is_array($fids_value) && !empty($fids_value)) {
+          $fids = array_filter($fids_value, function($f) {
+            return !empty($f) && is_numeric($f);
+          });
+          if (!empty($fids)) {
+            $fid = (int) reset($fids);
+          }
+        }
+        elseif (is_string($fids_value)) {
+          // Space-separated string format.
+          $fids = array_filter(explode(' ', trim($fids_value)), function($f) {
+            return !empty($f) && is_numeric($f);
+          });
+          if (!empty($fids)) {
+            $fid = (int) reset($fids);
+          }
+        }
+      }
+      
+      // Method 4: Check form state storage (might have cached values).
+      if (!$fid && $form_state->has('entity')) {
+        $cached_entity = $form_state->get('entity');
+        if ($cached_entity && !$cached_entity->isNew()) {
+          $cached_content = $cached_entity->getContent();
+          $cached_image_data = $cached_content['image'] ?? [];
+          if (!empty($cached_image_data['fids']) && is_array($cached_image_data['fids'])) {
+            $fids = array_filter($cached_image_data['fids'], function($f) {
+              return !empty($f) && is_numeric($f);
+            });
+            if (!empty($fids)) {
+              $fid = (int) reset($fids);
+            }
+          }
+          elseif (!empty($cached_image_data['fid']) && is_numeric($cached_image_data['fid'])) {
+            $fid = (int) $cached_image_data['fid'];
+          }
         }
       }
     }
     
+    // If still no FID, try to get from form values (for newly uploaded files).
+    if (!$fid) {
+      // Check for fids array (multiple images) - handle space-separated string or array.
+      if (isset($image_values['fid']['fids'])) {
+        if (is_string($image_values['fid']['fids'])) {
+          // Space-separated string format (from hidden input).
+          $fids = array_filter(explode(' ', trim($image_values['fid']['fids'])), function($f) {
+            return !empty($f) && is_numeric($f);
+          });
+          if (!empty($fids)) {
+            $fid = (int) reset($fids);
+          }
+        }
+        elseif (is_array($image_values['fid']['fids'])) {
+          // Array format.
+          $fids = array_filter($image_values['fid']['fids'], function($f) {
+            return !empty($f) && is_numeric($f);
+          });
+          if (!empty($fids)) {
+            $fid = (int) reset($fids);
+          }
+        }
+      }
+      // Check for single fid value.
+      elseif (isset($image_values['fid']) && is_array($image_values['fid'])) {
+        if (isset($image_values['fid'][0]) && is_numeric($image_values['fid'][0])) {
+          $fid = (int) $image_values['fid'][0];
+        }
+      }
+    }
+    
+    // Load file and get URL.
     if ($fid) {
-      $file = File::load($fid);
-      if ($file) {
-        $file_url_generator = \Drupal::service('file_url_generator');
-        $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
+      try {
+        $file = File::load($fid);
+        if ($file) {
+          // Allow temporary files for preview (files uploaded in form are temporary until saved).
+          $file_url_generator = \Drupal::service('file_url_generator');
+          $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
+        }
+      }
+      catch (\Exception $e) {
+        // If file loading fails, continue without preview URL.
+      }
+    }
+    
+    // Final fallback: if we still don't have a preview URL, try to get it from the form's initial render.
+    // This handles cases where AJAX callbacks don't have access to entity/form values.
+    if (empty($preview_url) && isset($form['content']['image']['effects']['preview']['preview_container']['preview_image']['#markup'])) {
+      // Extract URL from existing preview markup if available.
+      $existing_markup = $form['content']['image']['effects']['preview']['preview_container']['preview_image']['#markup'];
+      // Handle both string and Markup objects.
+      $markup_string = is_string($existing_markup) ? $existing_markup : (string) $existing_markup;
+      if (preg_match('/background-image:\s*url\([\'"]?([^\'"]+)[\'"]?\)/', $markup_string, $matches)) {
+        $preview_url = $matches[1];
+      }
+    }
+    
+    // Ultimate fallback: reload entity by ID if we have it.
+    if (empty($preview_url) && $modal && !$modal->isNew()) {
+      try {
+        $entity_id = $modal->id();
+        $entity_storage = \Drupal::entityTypeManager()->getStorage('modal');
+        $reloaded_entity = $entity_storage->load($entity_id);
+        if ($reloaded_entity) {
+          $reloaded_content = $reloaded_entity->getContent();
+          $reloaded_image_data = $reloaded_content['image'] ?? [];
+          if (!empty($reloaded_image_data['fids']) && is_array($reloaded_image_data['fids'])) {
+            $fids = array_filter($reloaded_image_data['fids'], function($f) {
+              return !empty($f) && is_numeric($f);
+            });
+            if (!empty($fids)) {
+              $fid = (int) reset($fids);
+            }
+          }
+          elseif (!empty($reloaded_image_data['fid']) && is_numeric($reloaded_image_data['fid'])) {
+            $fid = (int) $reloaded_image_data['fid'];
+          }
+          
+          if ($fid) {
+            $file = File::load($fid);
+            if ($file) {
+              $file_url_generator = \Drupal::service('file_url_generator');
+              $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
+            }
+          }
+        }
+      }
+      catch (\Exception $e) {
+        // If reload fails, continue without preview URL.
       }
     }
     
@@ -1329,58 +1801,107 @@ class ModalForm extends EntityForm {
     $preview_styles = [];
     
     if (!empty($effects['background_color'])) {
-      $preview_styles[] = 'background-color: ' . $effects['background_color'];
+      $preview_styles[] = 'background-color: ' . htmlspecialchars($effects['background_color'], ENT_QUOTES, 'UTF-8');
     }
     
+    // Build CSS filters.
     $filters = [];
-    if (!empty($effects['grayscale'])) {
+    if (isset($effects['grayscale']) && $effects['grayscale'] > 0) {
       $filters[] = 'grayscale(' . (int) $effects['grayscale'] . '%)';
+    }
+    if (isset($effects['opacity']) && $effects['opacity'] < 100) {
+      $filters[] = 'opacity(' . ((int) $effects['opacity'] / 100) . ')';
+    }
+    if (isset($effects['brightness']) && $effects['brightness'] != 100) {
+      $filters[] = 'brightness(' . ((int) $effects['brightness'] / 100) . ')';
+    }
+    if (isset($effects['saturation']) && $effects['saturation'] != 100) {
+      $filters[] = 'saturate(' . ((int) $effects['saturation'] / 100) . ')';
     }
     if (!empty($filters)) {
       $preview_styles[] = 'filter: ' . implode(' ', $filters);
     }
     
     if (!empty($effects['blend_mode']) && $effects['blend_mode'] !== 'normal') {
-      $preview_styles[] = 'mix-blend-mode: ' . $effects['blend_mode'];
+      $preview_styles[] = 'mix-blend-mode: ' . htmlspecialchars($effects['blend_mode'], ENT_QUOTES, 'UTF-8');
     }
-    
-    if ($preview_url) {
-      $preview_styles[] = 'background-image: url(' . $preview_url . ')';
-    }
-    
-    $preview_styles[] = 'width: 300px';
-    $preview_styles[] = 'height: 200px';
-    $preview_styles[] = 'background-size: cover';
-    $preview_styles[] = 'background-position: center';
-    $preview_styles[] = 'border: 1px solid #ccc';
     
     $response = new AjaxResponse();
     
     if ($preview_url) {
-      $preview_element = [
-        '#type' => 'html_tag',
-        '#tag' => 'div',
-        '#attributes' => [
-          'id' => 'image-effects-preview',
-          'class' => ['image-preview'],
-          'style' => implode('; ', $preview_styles),
-        ],
-      ];
+      // Escape URL for HTML attribute.
+      $preview_url_escaped = htmlspecialchars($preview_url, ENT_QUOTES, 'UTF-8');
+      
+      $preview_html = '<div class="image-preview-wrapper" style="position: relative; width: 300px; height: 200px; border: 1px solid #ccc; overflow: hidden;">';
+      $preview_html .= '<div class="image-preview" style="' . implode('; ', $preview_styles) . '; background-image: url(\'' . $preview_url_escaped . '\'); width: 100%; height: 100%; background-size: cover; background-position: center;"></div>';
+      
+      // Add overlay gradient if enabled.
+      $overlay_gradient = $effects['overlay_gradient'] ?? [];
+      
+      // Check enabled flag - handle both direct and nested structures.
+      // Also check user input for AJAX callbacks.
+      $gradient_enabled = FALSE;
+      if (!empty($overlay_gradient['enabled'])) {
+        $gradient_enabled = TRUE;
+      }
+      elseif (isset($user_input['content']['image']['effects']['overlay_gradient']['enabled'])) {
+        $gradient_enabled = (bool) $user_input['content']['image']['effects']['overlay_gradient']['enabled'];
+      }
+      
+      if ($gradient_enabled) {
+        // Handle new nested structure: settings/row1/ and settings/row2/
+        $settings = $overlay_gradient['settings'] ?? [];
+        $row1 = $settings['row1'] ?? [];
+        $row2 = $settings['row2'] ?? [];
+        
+        // Also check user input for nested values (AJAX callbacks).
+        if (empty($row1) && isset($user_input['content']['image']['effects']['overlay_gradient']['settings']['row1'])) {
+          $row1 = $user_input['content']['image']['effects']['overlay_gradient']['settings']['row1'];
+        }
+        if (empty($row2) && isset($user_input['content']['image']['effects']['overlay_gradient']['settings']['row2'])) {
+          $row2 = $user_input['content']['image']['effects']['overlay_gradient']['settings']['row2'];
+        }
+        
+        // Fallback to direct access for backward compatibility (check both nested and direct).
+        $color_start = !empty($row1['color_start']) ? $row1['color_start'] : (!empty($overlay_gradient['color_start']) ? $overlay_gradient['color_start'] : '#000000');
+        $color_end = !empty($row1['color_end']) ? $row1['color_end'] : (!empty($overlay_gradient['color_end']) ? $overlay_gradient['color_end'] : '#000000');
+        $direction = !empty($row2['direction']) ? $row2['direction'] : (!empty($overlay_gradient['direction']) ? $overlay_gradient['direction'] : 'to bottom');
+        $opacity = isset($row2['opacity']) ? $row2['opacity'] : (isset($overlay_gradient['opacity']) ? $overlay_gradient['opacity'] : 50);
+        
+        $gradient_opacity = isset($opacity) ? ((int) $opacity / 100) : 0.5;
+        
+        // Convert hex colors to rgba for opacity.
+        try {
+          $color_start_rgb = $this->hexToRgb($color_start);
+          $color_end_rgb = $this->hexToRgb($color_end);
+          
+          $direction_escaped = htmlspecialchars($direction, ENT_QUOTES, 'UTF-8');
+          $gradient_style = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; ';
+          $gradient_style .= 'background: linear-gradient(' . $direction_escaped . ', rgba(' . $color_start_rgb . ', ' . $gradient_opacity . '), rgba(' . $color_end_rgb . ', ' . $gradient_opacity . '));';
+          $gradient_style .= 'pointer-events: none;';
+          
+          $preview_html .= '<div class="gradient-overlay" style="' . $gradient_style . '"></div>';
+        }
+        catch (\Exception $e) {
+          // If hex conversion fails, skip gradient overlay.
+        }
+      }
+      
+      $preview_html .= '</div>';
+      
+      // Wrap in the container div with the correct ID.
+      $rendered_html = '<div id="image-effects-preview">' . $preview_html . '</div>';
     }
     else {
-      $preview_element = [
-        '#type' => 'html_tag',
-        '#tag' => 'div',
-        '#attributes' => [
-          'id' => 'image-effects-preview',
-        ],
-        '#markup' => '<p>' . $this->t('Upload an image to see preview.') . '</p>',
-      ];
+      $rendered_html = '<div id="image-effects-preview"><p>' . $this->t('Upload an image to see preview.') . '</p></div>';
     }
+    
+    // Use Markup to prevent XSS filtering.
+    $rendered_html = \Drupal\Core\Render\Markup::create($rendered_html);
     
     $response->addCommand(new ReplaceCommand(
       '#image-effects-preview',
-      $preview_element
+      $rendered_html
     ));
     
     return $response;
@@ -1542,8 +2063,21 @@ class ModalForm extends EntityForm {
           ? (int) $old_image_data['mobile_fid'] 
           : NULL;
         
+        // Handle mobile_fid from new nested structure: content[image][mobile][fid]
         $mobile_image_fid = NULL;
-        if (isset($image_values['mobile_fid'][0]) && is_numeric($image_values['mobile_fid'][0])) {
+        $mobile_fid_values = $image_values['mobile']['fid'] ?? [];
+        if (!empty($mobile_fid_values) && is_array($mobile_fid_values)) {
+          // Check for fids array format.
+          if (isset($mobile_fid_values['fids']) && is_array($mobile_fid_values['fids'])) {
+            $mobile_image_fid = !empty($mobile_fid_values['fids'][0]) ? (int) $mobile_fid_values['fids'][0] : NULL;
+          }
+          // Check for direct array format.
+          elseif (isset($mobile_fid_values[0]) && is_numeric($mobile_fid_values[0])) {
+            $mobile_image_fid = (int) $mobile_fid_values[0];
+          }
+        }
+        // Fallback to old structure for backward compatibility.
+        elseif (isset($image_values['mobile_fid'][0]) && is_numeric($image_values['mobile_fid'][0])) {
           $mobile_image_fid = (int) $image_values['mobile_fid'][0];
         }
         elseif (isset($image_values['mobile_fid']['fids'][0]) && is_numeric($image_values['mobile_fid']['fids'][0])) {
@@ -1576,13 +2110,19 @@ class ModalForm extends EntityForm {
         }
 
         // Build image array - include fids array and single fid for backward compatibility.
+        // Handle new nested structure: layout, mobile, carousel, effects.
+        $layout_values = $image_values['layout'] ?? [];
+        $mobile_values = $image_values['mobile'] ?? [];
+        $carousel_values = $image_values['carousel'] ?? [];
+        $effects_values = $image_values['effects'] ?? [];
+        
         $image_array = [
-          'placement' => $image_values['placement'] ?? ($old_image_data['placement'] ?? 'top'),
-          'mobile_force_top' => !empty($image_values['mobile_force_top']) ? TRUE : (!empty($old_image_data['mobile_force_top']) ? TRUE : FALSE),
-          'mobile_breakpoint' => trim($image_values['mobile_breakpoint'] ?? ($old_image_data['mobile_breakpoint'] ?? '')),
-          'mobile_height' => trim($image_values['mobile_height'] ?? ($old_image_data['mobile_height'] ?? '')),
-          'height' => trim($image_values['height'] ?? ($old_image_data['height'] ?? '')),
-          'max_height_top_bottom' => trim($image_values['max_height_top_bottom'] ?? ($old_image_data['max_height_top_bottom'] ?? '')),
+          'placement' => $layout_values['placement'] ?? ($old_image_data['placement'] ?? 'top'),
+          'mobile_force_top' => !empty($mobile_values['force_top']) ? TRUE : (!empty($old_image_data['mobile_force_top']) ? TRUE : FALSE),
+          'mobile_breakpoint' => trim($mobile_values['breakpoint'] ?? ($old_image_data['mobile_breakpoint'] ?? '')),
+          'mobile_height' => trim($mobile_values['height'] ?? ($old_image_data['mobile_height'] ?? '')),
+          'height' => trim($layout_values['height'] ?? ($old_image_data['height'] ?? '')),
+          'max_height_top_bottom' => trim($layout_values['max_height_top_bottom'] ?? ($old_image_data['max_height_top_bottom'] ?? '')),
         ];
 
         // Add fids array if we have multiple images.
@@ -1597,30 +2137,64 @@ class ModalForm extends EntityForm {
         }
 
         // Add carousel settings.
-        $carousel_enabled = !empty($image_values['carousel_enabled']) && count($image_fids) > 1;
+        $carousel_enabled = !empty($carousel_values['enabled']) && count($image_fids) > 1;
         if ($carousel_enabled) {
           $image_array['carousel_enabled'] = TRUE;
-          $image_array['carousel_duration'] = max(1, (int) ($image_values['carousel_duration'] ?? 5));
+          $image_array['carousel_duration'] = max(1, (int) ($carousel_values['duration'] ?? 5));
         }
         else {
           // Explicitly disable if not enabled or only 1 image.
           $image_array['carousel_enabled'] = FALSE;
         }
 
-        // Add mobile_fid if we have one.
-        if ($mobile_image_fid && $mobile_image_fid > 0) {
+        // Add mobile_fid if we have one (from mobile fieldset).
+        $mobile_fid_values = $mobile_values['fid'] ?? [];
+        $mobile_fid_from_form = !empty($mobile_fid_values) && is_array($mobile_fid_values) ? reset($mobile_fid_values) : NULL;
+        if ($mobile_fid_from_form && $mobile_fid_from_form > 0) {
+          $image_array['mobile_fid'] = (int) $mobile_fid_from_form;
+        }
+        elseif ($mobile_image_fid && $mobile_image_fid > 0) {
+          // Fallback to old structure if present.
           $image_array['mobile_fid'] = $mobile_image_fid;
         }
 
         // Save image effects.
-        $effects_preview_container = $image_values['effects_preview_container'] ?? [];
-        $effects_values = $effects_preview_container['effects'] ?? [];
         if (!empty($effects_values)) {
           $image_array['effects'] = [
             'background_color' => trim($effects_values['background_color'] ?? ''),
             'blend_mode' => $effects_values['blend_mode'] ?? 'normal',
             'grayscale' => (int) ($effects_values['grayscale'] ?? 0),
+            'opacity' => (int) ($effects_values['opacity'] ?? 100),
+            'brightness' => (int) ($effects_values['brightness'] ?? 100),
+            'saturation' => (int) ($effects_values['saturation'] ?? 100),
           ];
+          
+          // Save overlay gradient if enabled.
+          $overlay_gradient = $effects_values['overlay_gradient'] ?? [];
+          if (!empty($overlay_gradient['enabled'])) {
+            // Handle new nested structure: settings/row1/ and settings/row2/
+            $settings = $overlay_gradient['settings'] ?? [];
+            $row1 = $settings['row1'] ?? [];
+            $row2 = $settings['row2'] ?? [];
+            
+            // Fallback to direct access for backward compatibility.
+            $color_start = $row1['color_start'] ?? $overlay_gradient['color_start'] ?? '#000000';
+            $color_end = $row1['color_end'] ?? $overlay_gradient['color_end'] ?? '#000000';
+            $direction = $row2['direction'] ?? $overlay_gradient['direction'] ?? 'to bottom';
+            $opacity = $row2['opacity'] ?? $overlay_gradient['opacity'] ?? 50;
+            
+            $image_array['effects']['overlay_gradient'] = [
+              'enabled' => TRUE,
+              'color_start' => trim($color_start),
+              'color_end' => trim($color_end),
+              'direction' => $direction,
+              'opacity' => (int) $opacity,
+            ];
+          }
+          else {
+            // Explicitly disable if not enabled.
+            $image_array['effects']['overlay_gradient'] = ['enabled' => FALSE];
+          }
         }
         elseif (!empty($old_image_data['effects'])) {
           // Preserve existing effects if not provided.
@@ -1705,9 +2279,6 @@ class ModalForm extends EntityForm {
         'form_id' => $form_id,
       ];
     }
-    else {
-      $form_config = [];
-    }
 
     $content = [
       'headline' => $text_content['headline'] ?? '',
@@ -1779,16 +2350,17 @@ class ModalForm extends EntityForm {
       'headline' => [
         'size' => trim($headline_styling['size'] ?? ''),
         'color' => trim($headline_styling['color'] ?? ''),
-        'font_family' => trim($headline_styling['font_family'] ?? ''),
+        'font_family' => trim($headline_styling['font_family_wrapper']['font_family'] ?? ($headline_styling['font_family'] ?? '')),
+        'google_font' => trim($headline_styling['google_font'] ?? ''),
         'letter_spacing' => trim($headline_styling['letter_spacing'] ?? ''),
         'line_height' => trim($headline_styling['line_height'] ?? ''),
-        'margin_top' => trim($headline_styling['margin_top'] ?? ''),
         'text_align' => trim($headline_styling['text_align'] ?? ''),
       ],
       'subheadline' => [
         'size' => trim($subheadline_styling['size'] ?? ''),
         'color' => trim($subheadline_styling['color'] ?? ''),
-        'font_family' => trim($subheadline_styling['font_family'] ?? ''),
+        'font_family' => trim($subheadline_styling['font_family_wrapper']['font_family'] ?? ($subheadline_styling['font_family'] ?? '')),
+        'google_font' => trim($subheadline_styling['google_font'] ?? ''),
         'letter_spacing' => trim($subheadline_styling['letter_spacing'] ?? ''),
         'line_height' => trim($subheadline_styling['line_height'] ?? ''),
         'text_align' => trim($subheadline_styling['text_align'] ?? ''),
@@ -1797,6 +2369,7 @@ class ModalForm extends EntityForm {
         'text_align' => trim($body_styling['text_align'] ?? ''),
       ],
       'spacing' => [
+        'top_spacer_height' => trim($spacing_values['top_spacer_height'] ?? ''),
         'cta_margin_bottom' => trim($spacing_values['cta_margin_bottom'] ?? ''),
       ],
     ];
@@ -1881,6 +2454,47 @@ class ModalForm extends EntityForm {
       ->condition('id', $entity_id)
       ->execute();
     return (bool) $result;
+  }
+
+  /**
+   * AJAX callback to update font family when Google Font is selected.
+   */
+  public function updateGoogleFont(array &$form, FormStateInterface $form_state) {
+    $triggering_element = $form_state->getTriggeringElement();
+    $google_font = $form_state->getValue($triggering_element['#parents']);
+    
+    // Determine if this is headline or subheadline based on the triggering element.
+    $is_headline = strpos($triggering_element['#name'], '[headline]') !== FALSE;
+    $wrapper_id = $is_headline ? 'headline-font-family-wrapper' : 'subheadline-font-family-wrapper';
+    
+    // Get the existing font_family value if any.
+    $existing_font_family = '';
+    if ($is_headline) {
+      $existing_font_family = $form_state->getValue(['styling', 'typography_container', 'headline', 'font_family_wrapper', 'font_family']) ?? '';
+    } else {
+      $existing_font_family = $form_state->getValue(['styling', 'typography_container', 'subheadline', 'font_family_wrapper', 'font_family']) ?? '';
+    }
+    
+    // If Google Font is selected, use it; otherwise keep existing value.
+    $font_family_value = $google_font ? '"' . $google_font . '"' : $existing_font_family;
+    
+    // Create the font family field.
+    $font_family_element = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Font Family'),
+      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif) or select a Google Font above.'),
+      '#default_value' => $font_family_value,
+      '#size' => 30,
+    ];
+    
+    $response = new AjaxResponse();
+    $response->addCommand(new ReplaceCommand('#' . $wrapper_id, [
+      '#type' => 'container',
+      '#attributes' => ['id' => $wrapper_id],
+      'font_family' => $font_family_element,
+    ]));
+    
+    return $response;
   }
 
   /**
@@ -2000,8 +2614,23 @@ class ModalForm extends EntityForm {
    * AJAX callback to preview the modal with current form values.
    */
   public function previewModal(array &$form, FormStateInterface $form_state) {
-    // Collect current form values.
+    // Collect current form values - check both getValues() and getUserInput() for AJAX updates.
     $form_values = $form_state->getValues();
+    $user_input = $form_state->getUserInput();
+    
+    // Merge user input for fields that might have been updated via AJAX (like Google Fonts).
+    if (!empty($user_input['styling']['typography_container']['headline']['font_family_wrapper']['font_family'])) {
+      $form_values['styling']['typography_container']['headline']['font_family_wrapper']['font_family'] = $user_input['styling']['typography_container']['headline']['font_family_wrapper']['font_family'];
+    }
+    if (!empty($user_input['styling']['typography_container']['headline']['google_font'])) {
+      $form_values['styling']['typography_container']['headline']['google_font'] = $user_input['styling']['typography_container']['headline']['google_font'];
+    }
+    if (!empty($user_input['styling']['typography_container']['subheadline']['font_family_wrapper']['font_family'])) {
+      $form_values['styling']['typography_container']['subheadline']['font_family_wrapper']['font_family'] = $user_input['styling']['typography_container']['subheadline']['font_family_wrapper']['font_family'];
+    }
+    if (!empty($user_input['styling']['typography_container']['subheadline']['google_font'])) {
+      $form_values['styling']['typography_container']['subheadline']['google_font'] = $user_input['styling']['typography_container']['subheadline']['google_font'];
+    }
     
     // Build temporary modal data structure from form values.
     $preview_data = $this->buildPreviewData($form_values);
@@ -2076,15 +2705,23 @@ class ModalForm extends EntityForm {
         'headline' => [
           'size' => $styling['typography_container']['headline']['size'] ?? '',
           'color' => $styling['typography_container']['headline']['color'] ?? '',
+          'font_family' => $styling['typography_container']['headline']['font_family_wrapper']['font_family'] ?? ($styling['typography_container']['headline']['font_family'] ?? ''),
+          'google_font' => trim($styling['typography_container']['headline']['google_font'] ?? ''),
           'text_align' => $styling['typography_container']['headline']['text_align'] ?? 'default',
         ],
         'subheadline' => [
           'size' => $styling['typography_container']['subheadline']['size'] ?? '',
           'color' => $styling['typography_container']['subheadline']['color'] ?? '',
+          'font_family' => $styling['typography_container']['subheadline']['font_family_wrapper']['font_family'] ?? ($styling['typography_container']['subheadline']['font_family'] ?? ''),
+          'google_font' => trim($styling['typography_container']['subheadline']['google_font'] ?? ''),
           'text_align' => $styling['typography_container']['subheadline']['text_align'] ?? 'default',
         ],
         'body' => [
           'text_align' => $styling['typography_container']['body']['text_align'] ?? 'default',
+        ],
+        'spacing' => [
+          'top_spacer_height' => $styling['spacing']['top_spacer_height'] ?? '',
+          'cta_margin_bottom' => $styling['spacing']['cta_margin_bottom'] ?? '',
         ],
       ],
       'rules' => $rules,
@@ -2140,9 +2777,11 @@ class ModalForm extends EntityForm {
         $image_data['urls'] = $urls;
         
         // Include carousel settings if enabled and multiple images.
-        if (count($urls) > 1 && !empty($image_form_data['carousel_enabled'])) {
+        // Handle new nested structure: content[image][carousel][enabled]
+        $carousel_enabled = !empty($image_form_data['carousel']['enabled']) || !empty($image_form_data['carousel_enabled']);
+        if (count($urls) > 1 && $carousel_enabled) {
           $image_data['carousel_enabled'] = TRUE;
-          $image_data['carousel_duration'] = max(1, (int) ($image_form_data['carousel_duration'] ?? 5));
+          $image_data['carousel_duration'] = max(1, (int) ($image_form_data['carousel']['duration'] ?? $image_form_data['carousel_duration'] ?? 5));
         } else {
           $image_data['carousel_enabled'] = FALSE;
         }
@@ -2150,17 +2789,22 @@ class ModalForm extends EntityForm {
     }
     
     // Add image properties if we have URLs.
+    // Handle new nested structure: layout, mobile, carousel, effects.
     if (!empty($image_data['url'])) {
-      $image_data['placement'] = $image_form_data['placement'] ?? 'top';
-      $image_data['mobile_force_top'] = !empty($image_form_data['mobile_force_top']);
-      $image_data['mobile_breakpoint'] = $image_form_data['mobile_breakpoint'] ?? '';
-      $image_data['mobile_height'] = $image_form_data['mobile_height'] ?? '';
-      $image_data['height'] = $image_form_data['height'] ?? '';
-      $image_data['max_height_top_bottom'] = $image_form_data['max_height_top_bottom'] ?? '';
+      $layout_data = $image_form_data['layout'] ?? [];
+      $mobile_data = $image_form_data['mobile'] ?? [];
       
-      // Process mobile image if configured.
-      if (!empty($image_form_data['mobile_fid'])) {
-        $mobile_fid = $this->getFileIdFromFormValue($image_form_data['mobile_fid']);
+      $image_data['placement'] = $layout_data['placement'] ?? $image_form_data['placement'] ?? 'top';
+      $image_data['mobile_force_top'] = !empty($mobile_data['force_top']) || !empty($image_form_data['mobile_force_top']);
+      $image_data['mobile_breakpoint'] = trim($mobile_data['breakpoint'] ?? $image_form_data['mobile_breakpoint'] ?? '');
+      $image_data['mobile_height'] = trim($mobile_data['height'] ?? $image_form_data['mobile_height'] ?? '');
+      $image_data['height'] = trim($layout_data['height'] ?? $image_form_data['height'] ?? '');
+      $image_data['max_height_top_bottom'] = trim($layout_data['max_height_top_bottom'] ?? $image_form_data['max_height_top_bottom'] ?? '');
+      
+      // Process mobile image if configured (from new nested structure).
+      $mobile_fid_data = $mobile_data['fid'] ?? $image_form_data['mobile_fid'] ?? NULL;
+      if (!empty($mobile_fid_data)) {
+        $mobile_fid = $this->getFileIdFromFormValue($mobile_fid_data);
         if ($mobile_fid) {
           $mobile_file = File::load($mobile_fid);
           // For preview, load file even if temporary.
@@ -2170,14 +2814,70 @@ class ModalForm extends EntityForm {
         }
       }
       
-      // Process image effects.
-      if (!empty($image_form_data['effects_preview_container']['effects'])) {
-        $effects = $image_form_data['effects_preview_container']['effects'];
-        $image_data['effects'] = [
-          'background_color' => $effects['background_color'] ?? '',
-          'blend_mode' => $effects['blend_mode'] ?? 'normal',
-          'grayscale' => (int) ($effects['grayscale'] ?? 0),
-        ];
+      // Process image effects (including overlay gradient).
+      $effects_data = $image_form_data['effects'] ?? [];
+      if (!empty($effects_data)) {
+        $effects = [];
+        
+        // Background color.
+        if (!empty($effects_data['background_color'])) {
+          $effects['background_color'] = $effects_data['background_color'];
+        }
+        
+        // Blend mode.
+        if (!empty($effects_data['blend_mode']) && $effects_data['blend_mode'] !== 'normal') {
+          $effects['blend_mode'] = $effects_data['blend_mode'];
+        }
+        
+        // Grayscale.
+        if (isset($effects_data['grayscale']) && $effects_data['grayscale'] > 0) {
+          $effects['grayscale'] = (int) $effects_data['grayscale'];
+        }
+        
+        // Opacity.
+        if (isset($effects_data['opacity']) && $effects_data['opacity'] < 100) {
+          $effects['opacity'] = (int) $effects_data['opacity'];
+        }
+        
+        // Brightness.
+        if (isset($effects_data['brightness']) && $effects_data['brightness'] != 100) {
+          $effects['brightness'] = (int) $effects_data['brightness'];
+        }
+        
+        // Saturation.
+        if (isset($effects_data['saturation']) && $effects_data['saturation'] != 100) {
+          $effects['saturation'] = (int) $effects_data['saturation'];
+        }
+        
+        // Overlay gradient - handle new nested structure: settings/row1/ and settings/row2/
+        $overlay_gradient = $effects_data['overlay_gradient'] ?? [];
+        if (!empty($overlay_gradient['enabled'])) {
+          $settings = $overlay_gradient['settings'] ?? [];
+          $row1 = $settings['row1'] ?? [];
+          $row2 = $settings['row2'] ?? [];
+          
+          // Fallback to direct access for backward compatibility.
+          $color_start = !empty($row1['color_start']) ? $row1['color_start'] : (!empty($overlay_gradient['color_start']) ? $overlay_gradient['color_start'] : '#000000');
+          $color_end = !empty($row1['color_end']) ? $row1['color_end'] : (!empty($overlay_gradient['color_end']) ? $overlay_gradient['color_end'] : '#000000');
+          $direction = !empty($row2['direction']) ? $row2['direction'] : (!empty($overlay_gradient['direction']) ? $overlay_gradient['direction'] : 'to bottom');
+          $opacity = isset($row2['opacity']) ? $row2['opacity'] : (isset($overlay_gradient['opacity']) ? $overlay_gradient['opacity'] : 50);
+          
+          $effects['overlay_gradient'] = [
+            'enabled' => TRUE,
+            'color_start' => trim($color_start),
+            'color_end' => trim($color_end),
+            'direction' => trim($direction),
+            'opacity' => (int) $opacity,
+          ];
+        }
+        else {
+          $effects['overlay_gradient'] = ['enabled' => FALSE];
+        }
+        
+        // Only include effects if we have at least one effect configured.
+        if (!empty($effects)) {
+          $image_data['effects'] = $effects;
+        }
       }
     }
     
@@ -2281,6 +2981,32 @@ class ModalForm extends EntityForm {
     $preview_container['#attached']['library'][] = 'custom_plugin/modal.preview';
     
     return $preview_container;
+  }
+
+  /**
+   * Convert hex color to RGB values.
+   *
+   * @param string $hex
+   *   Hex color code (e.g., #FF0000 or FF0000).
+   *
+   * @return string
+   *   RGB values as "r, g, b".
+   */
+  protected function hexToRgb($hex) {
+    if (empty($hex)) {
+      return '0, 0, 0'; // Default to black if empty.
+    }
+    $hex = ltrim($hex, '#');
+    if (strlen($hex) == 3) {
+      $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+    if (strlen($hex) != 6) {
+      return '0, 0, 0'; // Default to black if invalid length.
+    }
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    return $r . ', ' . $g . ', ' . $b;
   }
 
 }
