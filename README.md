@@ -39,6 +39,19 @@ The Drupal Modal System is a powerful marketing tool that allows you to create a
   - Automatic form loading via AJAX
   - Form submission tracking in analytics
 
+### 📊 Analytics & Tracking
+- **Event Tracking**: 
+  - Modal impressions (shown events)
+  - CTA clicks (with button identification)
+  - Form submissions (with form type/ID)
+- **Analytics Dashboard**:
+  - Real-time metrics
+  - 30-day and all-time statistics
+  - Visual charts and graphs
+  - CSV export functionality
+- **IP Exclusion**: Filter out internal/admin traffic from analytics
+- **Integration**: Google Analytics, Adobe Analytics, and custom endpoints
+
 ### 🎨 Advanced Styling Options
 - **Layouts**: 
   - Centered modal (traditional popup)
@@ -52,19 +65,6 @@ The Drupal Modal System is a powerful marketing tool that allows you to create a
 - **Spacing**: Top spacer height, CTA margin controls
 - **Responsive Design**: Mobile breakpoints and force-top options
 - **Max Width**: Customizable modal width
-
-### 📊 Analytics & Tracking
-- **Event Tracking**: 
-  - Modal impressions (shown events)
-  - CTA clicks (with button identification)
-  - Form submissions (with form type/ID)
-- **Analytics Dashboard**:
-  - Real-time metrics
-  - 30-day and all-time statistics
-  - Visual charts and graphs
-  - CSV export functionality
-- **IP Exclusion**: Filter out internal/admin traffic from analytics
-- **Integration**: Google Analytics, Adobe Analytics, and custom endpoints
 
 ### 🔧 Management Features
 - **Modal Management**:
