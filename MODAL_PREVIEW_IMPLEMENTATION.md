@@ -491,11 +491,14 @@ modal.preview:
 - Check if file is temporary, make it permanent temporarily
 - Or use file URL generator with temporary files
 - Consider using `file_url_generator->generate()` which handles temporary files
+- **IMPORTANT**: In `buildImagePreviewData()`, remove `isPermanent()` checks when loading files for preview - allow temporary files to be displayed
+- **IMPORTANT**: In `buildImagePreviewData()`, remove `isPermanent()` checks when loading files for preview - allow temporary files to be displayed
 
 ### Pain Point 2: Form State vs Entity Data
 **Problem**: Need to use form values, not saved entity
 **Solution**:
-- Always use `$form_state->getValues()` in preview callback
+- Always use `$form_state->getValues()` AND `$form_state->getUserInput()` in preview callback
+- **CRITICAL**: Use `array_replace_recursive($form_values, $user_input)` to merge both - `getUserInput()` captures AJAX-updated fields (like Google Fonts) that may not be in `getValues()` yet
 - Build data structure matching what frontend expects
 - Don't rely on `$this->entity` for preview data
 
@@ -509,11 +512,37 @@ $body_value = is_array($body_content) && isset($body_content['value'])
   : (is_string($body_content) ? $body_content : '');
 ```
 
-### Pain Point 4: AJAX Library Attachments
-**Problem**: Libraries may not load properly in AJAX response
+### Pain Point 4: AJAX Library Attachments & Settings
+**Problem**: Libraries and drupalSettings may not load properly in AJAX response
 **Solution**:
-- Use `$response->addAttachments()` in AJAX callback
-- Ensure libraries are defined in `.libraries.yml`
+- **CRITICAL**: Attach libraries directly to `AjaxResponse` using `$response->setAttachments(['library' => [...]])`
+- **CRITICAL**: Use `SettingsCommand` to merge drupalSettings into global settings: `$response->addCommand(new SettingsCommand([...], TRUE))`
+- The `TRUE` parameter merges settings into global `drupalSettings` object (required for AJAX)
+- Do NOT attach settings to a render array and then use `AppendCommand` - attachments won't be processed
+- Append a hidden trigger element to ensure behaviors run after libraries load
+
+### Pain Point 5: Preview Mode & Dismissal Checks
+**Problem**: Preview modal may be blocked if modal was previously dismissed
+**Solution**:
+- **CRITICAL**: In `modal-system.js`, check for `previewMode` in both initialization and `showModal()` methods
+- Skip dismissal checks entirely when `drupalSettings.modalSystem.previewMode === true`
+- Example:
+```javascript
+const isPreviewMode = typeof drupalSettings !== 'undefined' && 
+                      drupalSettings.modalSystem && 
+                      drupalSettings.modalSystem.previewMode;
+
+if (this.isDismissed() && !this.isForcedOpen() && !isPreviewMode) {
+  return; // Skip showing
+}
+```
+
+### Pain Point 6: Google Fonts in Preview
+**Problem**: Google Fonts selected via AJAX may not appear in preview
+**Solution**:
+- Merge `getUserInput()` with `getValues()` in preview callback to capture AJAX-updated font fields
+- Ensure `loadGoogleFonts()` is called before showing modal
+- Add delayed re-application of fonts (300ms) to ensure fonts load from CDN before applying styles
 - May need to use `#attached` in render array instead
 
 ### Pain Point 5: Modal Initialization Timing
@@ -523,12 +552,29 @@ $body_value = is_array($body_content) && isset($body_content['value'])
 - Ensure preview container exists before initializing
 - May need `setTimeout` or `requestAnimationFrame` for timing
 
-### Pain Point 6: Preview Mode vs Production Mode
-**Problem**: Preview should bypass rules and show immediately
+### Pain Point 6: Preview Mode vs Production Mode & Dismissal Checks
+**Problem**: Preview should bypass rules and show immediately, but may be blocked if modal was previously dismissed
 **Solution**:
 - Add `previewMode: true` flag in drupalSettings
-- Modify ModalManager to check preview mode
-- Or create separate PreviewModalManager class
+- **CRITICAL**: In `modal-system.js`, check for `previewMode` in both initialization and `showModal()` methods
+- Skip dismissal checks entirely when `drupalSettings.modalSystem.previewMode === true`
+- Example:
+```javascript
+const isPreviewMode = typeof drupalSettings !== 'undefined' && 
+                      drupalSettings.modalSystem && 
+                      drupalSettings.modalSystem.previewMode;
+
+if (this.isDismissed() && !this.isForcedOpen() && !isPreviewMode) {
+  return; // Skip showing
+}
+```
+
+### Pain Point 7: Google Fonts in Preview
+**Problem**: Google Fonts selected via AJAX may not appear in preview
+**Solution**:
+- Merge `getUserInput()` with `getValues()` in preview callback to capture AJAX-updated font fields
+- Ensure `loadGoogleFonts()` is called before showing modal
+- Add delayed re-application of fonts (300ms) to ensure fonts load from CDN before applying styles
 
 ---
 
@@ -635,5 +681,89 @@ class ModalPreviewController extends ControllerBase {
 
 ---
 
-**Last Updated**: 2026-01-XX
-**Status**: Planning Document - Ready for Implementation
+## Critical Implementation Tips (Lessons Learned)
+
+### 1. AJAX Response Structure
+**DO**:
+```php
+$response = new AjaxResponse();
+$response->setAttachments(['library' => [...]]);
+$response->addCommand(new SettingsCommand([...], TRUE)); // TRUE = merge
+$response->addCommand(new AppendCommand('body', $rendered_trigger));
+$response->addCommand(new InvokeCommand(NULL, 'trigger', ['drupal-attach-behaviors']));
+```
+
+**DON'T**:
+```php
+$element['#attached'] = [...];
+$response->addCommand(new AppendCommand('body', $rendered_element));
+// Attachments on render arrays won't be processed by AppendCommand
+```
+
+### 2. Form Value Collection
+**ALWAYS** merge both sources:
+```php
+$form_values = $form_state->getValues();
+$user_input = $form_state->getUserInput();
+$merged_values = array_replace_recursive($form_values, $user_input);
+// Use $merged_values for preview data
+```
+
+### 3. Preview Mode Detection
+**In JavaScript**, always check preview mode before dismissal checks:
+```javascript
+const isPreviewMode = typeof drupalSettings !== 'undefined' && 
+                      drupalSettings.modalSystem && 
+                      drupalSettings.modalSystem.previewMode;
+
+// Skip dismissal checks in preview mode
+if (this.isDismissed() && !this.isForcedOpen() && !isPreviewMode) {
+  return;
+}
+```
+
+### 4. Temporary Files
+**For preview**, allow temporary files:
+```php
+$file = File::load($fid);
+if ($file) {
+  // Don't check isPermanent() for preview - temporary files are OK
+  $preview_url = $file_url_generator->generateAbsoluteString($file->getFileUri());
+}
+```
+
+### 5. Behavior Attachment
+**After AJAX**, trigger behaviors:
+```php
+$response->addCommand(new InvokeCommand(NULL, 'trigger', ['drupal-attach-behaviors']));
+```
+
+### 6. SettingsCommand Merge Parameter
+**CRITICAL**: Always use `TRUE` for the merge parameter:
+```php
+$response->addCommand(new SettingsCommand([
+  'modalSystem' => [
+    'modals' => [$preview_data],
+    'previewMode' => TRUE,
+  ],
+], TRUE)); // TRUE merges into global drupalSettings
+```
+
+### 7. jQuery vs $ in Drupal
+**When using jQuery in behaviors**, use `jQuery` not `$`:
+```javascript
+// CORRECT
+jQuery(document).on('ajaxSuccess', function(event, xhr, settings) {
+  // ...
+});
+
+// WRONG - will cause "$ is not a function" error
+$(document).on('ajaxSuccess', function(event, xhr, settings) {
+  // ...
+});
+```
+
+---
+
+**Last Updated**: 2026-01-26
+**Status**: Implementation Complete - Document Updated with Lessons Learned

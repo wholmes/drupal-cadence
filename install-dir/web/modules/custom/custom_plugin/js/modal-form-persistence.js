@@ -38,6 +38,50 @@
         }
       });
 
+      // Show/hide image option sections based on whether files are uploaded.
+      updateImageOptionVisibility(modalForm);
+      
+      // Watch for file uploads and update visibility.
+      const fileWidget = modalForm.querySelector('.modal-image-upload-widget, [data-drupal-selector*="content[image][fid]"]');
+      if (fileWidget) {
+        // Use MutationObserver to watch for changes in the file widget.
+        // Only watch for childList changes, not attributes, to avoid infinite loop.
+        const observer = new MutationObserver(function() {
+          // Debounce to avoid too many calls
+          clearTimeout(observer.timeout);
+          observer.timeout = setTimeout(function() {
+            updateImageOptionVisibility(modalForm);
+          }, 200);
+        });
+        observer.observe(fileWidget, {
+          childList: true,
+          subtree: true
+          // Removed attributes: true to prevent infinite loop when we update data-has-files
+        });
+        
+        // Also listen for file upload events.
+        const fileInput = fileWidget.querySelector('input[type="file"]');
+        if (fileInput) {
+          fileInput.addEventListener('change', function() {
+            setTimeout(function() {
+              updateImageOptionVisibility(modalForm);
+            }, 300);
+          });
+        }
+      }
+      
+      // Listen for AJAX completion to update visibility after file uploads
+      if (typeof jQuery !== 'undefined') {
+        jQuery(document).on('ajaxSuccess', function(event, xhr, settings) {
+          // Check if this is a file upload AJAX request
+          if (settings.url && (settings.url.includes('content[image][fid]') || settings.url.includes('ajax_form=1'))) {
+            setTimeout(function() {
+              updateImageOptionVisibility(modalForm);
+            }, 500);
+          }
+        });
+      }
+
       // Listen for toggle events and save state.
       detailsElements.forEach(function(details) {
         const panelName = getPanelName(details);
@@ -391,5 +435,115 @@
       }
     }
   };
+
+  /**
+   * Update visibility of image option sections based on whether files are uploaded.
+   */
+  function updateImageOptionVisibility(modalForm) {
+    // Check if there are any uploaded files.
+    let hasFiles = false;
+    
+    // Method 1: Check data attribute on file widget.
+    const fileWidget = modalForm.querySelector('.modal-image-upload-widget, [data-drupal-selector*="content[image][fid]"]');
+    if (fileWidget && fileWidget.getAttribute('data-has-files') === '1') {
+      hasFiles = true;
+    }
+    
+    // Method 2: Check for hidden FID inputs (check multiple possible name patterns).
+    if (!hasFiles) {
+      const fidInputs = modalForm.querySelectorAll(
+        'input[type="hidden"][name*="content[image][fid]"][value], ' +
+        'input[type="hidden"][name*="[fid]"][value]'
+      );
+      fidInputs.forEach(function(input) {
+        const value = input.value ? input.value.trim() : '';
+        // Check for space-separated FIDs (multiple files) or single FID
+        if (value && value !== '0') {
+          // Check if it's a number or space-separated numbers
+          const parts = value.split(/\s+/);
+          const hasValidFid = parts.some(function(part) {
+            return /^\d+$/.test(part.trim()) && parseInt(part.trim(), 10) > 0;
+          });
+          if (hasValidFid) {
+            hasFiles = true;
+          }
+        }
+      });
+    }
+    
+    // Method 3: Check for file widget items (visual indicators of uploaded files).
+    if (!hasFiles) {
+      const fileItems = modalForm.querySelectorAll(
+        '.file-widget-multiple__item, ' +
+        '.js-form-managed-file__item, ' +
+        'table.file-widget-multiple tbody tr:not(.file-widget-multiple__empty-message):not(.file-widget-multiple__add-more), ' +
+        '.file-widget-single, ' +
+        '[data-file-id]'
+      );
+      if (fileItems.length > 0) {
+        hasFiles = true;
+      }
+    }
+    
+    // Method 4: Check for space-separated FIDs in hidden input (specific pattern for multiple files).
+    if (!hasFiles) {
+      const fidInput = modalForm.querySelector('input[type="hidden"][name*="content[image][fid][fids]"]');
+      if (fidInput && fidInput.value) {
+        const value = fidInput.value.trim();
+        if (value && value !== '0') {
+          hasFiles = true;
+        }
+      }
+    }
+    
+    // Show/hide image option sections.
+    const imageOptionSections = [];
+    
+    // Find sections by data-drupal-selector or by summary text.
+    const allDetails = modalForm.querySelectorAll('details');
+    allDetails.forEach(function(details) {
+      const selector = details.getAttribute('data-drupal-selector') || '';
+      const summary = details.querySelector('summary');
+      const summaryText = summary ? (summary.textContent || summary.innerText || '').trim() : '';
+      
+      if (selector.includes('content[image][layout]') || 
+          selector.includes('content[image][mobile]') ||
+          selector.includes('content[image][carousel]') ||
+          selector.includes('content[image][effects]') ||
+          selector.includes('content[image][preview]') ||
+          summaryText.includes('Layout & Sizing') ||
+          summaryText.includes('Mobile Display') ||
+          summaryText.includes('Carousel') ||
+          summaryText.includes('Visual Effects') ||
+          summaryText.includes('Preview')) {
+        imageOptionSections.push(details);
+      }
+    });
+    
+    imageOptionSections.forEach(function(section) {
+      if (hasFiles) {
+        // Show the section - remove all hiding styles and attributes
+        section.removeAttribute('hidden');
+        // Remove the inline style attribute completely to override PHP's display: none
+        section.removeAttribute('style');
+        // Ensure it's visible
+        section.style.display = '';
+        section.style.visibility = '';
+      } else {
+        section.style.display = 'none';
+        section.setAttribute('hidden', 'hidden');
+      }
+    });
+    
+    // Update data-has-files attribute on file widget for future checks.
+    // Only update if the value is actually changing to avoid unnecessary DOM mutations.
+    if (fileWidget) {
+      const currentValue = fileWidget.getAttribute('data-has-files');
+      const newValue = hasFiles ? '1' : '0';
+      if (currentValue !== newValue) {
+        fileWidget.setAttribute('data-has-files', newValue);
+      }
+    }
+  }
 
 })(Drupal);

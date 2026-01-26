@@ -9,6 +9,10 @@ use Drupal\file\Entity\File;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\Core\Ajax\InvokeCommand;
+use Drupal\Core\Ajax\AppendCommand;
+use Drupal\Core\Ajax\SettingsCommand;
+use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
 
 /**
  * Form handler for the modal add/edit forms.
@@ -184,10 +188,13 @@ class ModalForm extends EntityForm {
     }
 
     // Image Upload (always visible, not collapsible).
+    // Ensure default_fids is always an array (not null) for managed_file widget.
+    $default_fids = $default_fids ?? [];
+    
     $form['content']['image']['fid'] = [
       '#type' => 'managed_file',
       '#title' => $this->t('Image(s)'),
-      '#description' => $this->t('Upload one or more images to display in the modal. Hold Ctrl/Cmd to select multiple images. Allowed formats: jpg, jpeg, png, gif, webp'),
+      '#description' => $this->t('Upload one or more images to display in the modal. Hold Ctrl/Cmd to select multiple images. Allowed formats: jpg, jpeg, png, gif, webp. Maximum file size: 10 MB.'),
       '#default_value' => $default_fids,
       '#multiple' => TRUE,
       '#upload_location' => 'public://modal-images',
@@ -198,21 +205,25 @@ class ModalForm extends EntityForm {
         'FileImageDimensions' => [
           'maxDimensions' => '4096x4096',
         ],
+        'FileSizeLimit' => [
+          'fileLimit' => 10485760, // 10 MB in bytes
+        ],
       ],
       '#progress_indicator' => 'throbber',
+      '#attributes' => [
+        'class' => ['modal-image-upload-widget'],
+        'data-has-files' => (!empty($default_fids) && count($default_fids) > 0) ? '1' : '0',
+      ],
     ];
     
     // Layout & Sizing (collapsible fieldset).
+    // Visibility controlled by JavaScript - see modal-form-persistence.js
     $form['content']['image']['layout'] = [
       '#type' => 'details',
       '#title' => $this->t('Layout & Sizing'),
       '#open' => FALSE,
       '#tree' => TRUE,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-        ],
-      ],
+      '#attributes' => ['style' => 'display: none;'], // Hidden by default, shown by JS when files are uploaded
     ];
     
     $form['content']['image']['layout']['placement'] = [
@@ -250,16 +261,13 @@ class ModalForm extends EntityForm {
     ];
     
     // Mobile Display (collapsible fieldset).
+    // Visibility controlled by JavaScript - see modal-form-persistence.js
     $form['content']['image']['mobile'] = [
       '#type' => 'details',
       '#title' => $this->t('Mobile Display'),
       '#open' => FALSE,
       '#tree' => TRUE,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-        ],
-      ],
+      '#attributes' => ['style' => 'display: none;'], // Hidden by default, shown by JS when files are uploaded
     ];
 
     $form['content']['image']['mobile']['force_top'] = [
@@ -314,8 +322,8 @@ class ModalForm extends EntityForm {
     $form['content']['image']['mobile']['fid'] = [
       '#type' => 'managed_file',
       '#title' => $this->t('Mobile Image (Optional)'),
-      '#description' => $this->t('Upload a different image to display on mobile devices. If not provided, the regular image will be used. Allowed formats: jpg, jpeg, png, gif, webp'),
-      '#default_value' => $mobile_fid ? [$mobile_fid] : NULL,
+      '#description' => $this->t('Upload a different image to display on mobile devices. If not provided, the regular image will be used. Allowed formats: jpg, jpeg, png, gif, webp. Maximum file size: 10 MB.'),
+      '#default_value' => $mobile_fid ? [$mobile_fid] : [],
       '#upload_location' => 'public://modal-images',
       '#upload_validators' => [
         'FileExtension' => [
@@ -323,6 +331,9 @@ class ModalForm extends EntityForm {
         ],
         'FileImageDimensions' => [
           'maxDimensions' => '4096x4096',
+        ],
+        'FileSizeLimit' => [
+          'fileLimit' => 10485760, // 10 MB in bytes
         ],
       ],
       '#progress_indicator' => 'throbber',
@@ -347,11 +358,7 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('Carousel'),
       '#open' => FALSE,
       '#tree' => TRUE,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-        ],
-      ],
+      '#attributes' => ['style' => 'display: none;'], // Hidden by default, shown by JS when files are uploaded
     ];
     
     $form['content']['image']['carousel']['enabled'] = [
@@ -385,16 +392,15 @@ class ModalForm extends EntityForm {
     $form['content']['image']['carousel']['duration']['#attached']['library'][] = 'custom_plugin/modal.form.persistence';
 
     // Visual Effects (collapsible fieldset).
+    // Visibility controlled by JavaScript - see modal-form-persistence.js
     $form['content']['image']['effects'] = [
       '#type' => 'details',
       '#title' => $this->t('Visual Effects'),
       '#open' => FALSE,
       '#tree' => TRUE,
-      '#attributes' => ['class' => ['modal-image-effects']],
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][fid][fids]"]' => ['filled' => TRUE],
-        ],
+      '#attributes' => [
+        'class' => ['modal-image-effects'],
+        'style' => 'display: none;', // Hidden by default, shown by JS when files are uploaded
       ],
     ];
 
@@ -1997,7 +2003,6 @@ class ModalForm extends EntityForm {
       $form_fids = [(int) $image_values['fid'][0]];
     }
     
-    
     // Process all FIDs - make permanent and track usage.
     $image_fids = [];
     
@@ -2636,15 +2641,18 @@ class ModalForm extends EntityForm {
       $form_values['styling']['typography_container']['subheadline']['google_font'] = $user_input['styling']['typography_container']['subheadline']['google_font'];
     }
     
+    // Merge user input more comprehensively to capture all form values.
+    // This ensures unsaved changes are included in the preview.
+    $merged_values = array_replace_recursive($form_values, $user_input);
+    
     // Build temporary modal data structure from form values.
-    $preview_data = $this->buildPreviewData($form_values);
+    $preview_data = $this->buildPreviewData($merged_values);
     
     // Create AJAX response.
     $response = new AjaxResponse();
     
-    // Attach JavaScript settings and libraries directly to the response.
-    // No DOM element needed - the modal will display as an overlay.
-    $attachments = [
+    // Attach libraries and settings directly to the response.
+    $response->setAttachments([
       'library' => [
         'custom_plugin/modal.system',
         $preview_data['styling']['layout'] === 'bottom_sheet' 
@@ -2652,15 +2660,33 @@ class ModalForm extends EntityForm {
           : 'custom_plugin/modal.centered',
         'custom_plugin/modal.preview',
       ],
-      'drupalSettings' => [
-        'modalSystem' => [
-          'modals' => [$preview_data],
-          'previewMode' => TRUE,
-        ],
+    ]);
+    
+    // Add settings command to merge drupalSettings (this is the correct way for AJAX).
+    $response->addCommand(new SettingsCommand([
+      'modalSystem' => [
+        'modals' => [$preview_data],
+        'previewMode' => TRUE,
+      ],
+    ], TRUE)); // TRUE = merge into global drupalSettings
+    
+    // Create a hidden trigger element to ensure behaviors run.
+    $preview_trigger = [
+      '#type' => 'container',
+      '#attributes' => [
+        'id' => 'modal-preview-trigger',
+        'class' => ['modal-preview-trigger'],
+        'style' => 'display: none;',
       ],
     ];
     
-    $response->setAttachments($attachments);
+    // Render and append the trigger element.
+    $renderer = \Drupal::service('renderer');
+    $rendered_trigger = $renderer->renderRoot($preview_trigger);
+    $response->addCommand(new AppendCommand('body', $rendered_trigger));
+    
+    // Trigger Drupal behaviors to attach after libraries are loaded.
+    $response->addCommand(new InvokeCommand(NULL, 'trigger', ['drupal-attach-behaviors']));
     
     return $response;
   }

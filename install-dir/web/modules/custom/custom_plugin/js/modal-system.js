@@ -30,24 +30,32 @@
         }
         
         // Check if modal is dismissed before creating manager.
+        // In preview mode, skip dismissal checks.
+        const isPreviewMode = typeof drupalSettings !== 'undefined' && 
+                              drupalSettings.modalSystem && 
+                              drupalSettings.modalSystem.previewMode;
+        
         // Check sessionStorage/cookies directly to avoid creating unnecessary objects.
         const dismissal = modal.dismissal || {};
         const type = dismissal.type || 'session';
         let isDismissed = false;
         
-        if (type === 'session') {
-          isDismissed = sessionStorage.getItem('modal_dismissed_' + modal.id) === '1';
-        } else if (type === 'cookie') {
-          const name = 'modal_dismissed_' + modal.id + '=';
-          const cookies = document.cookie.split(';');
-          for (let i = 0; i < cookies.length; i++) {
-            let cookie = cookies[i];
-            while (cookie.charAt(0) === ' ') {
-              cookie = cookie.substring(1);
-            }
-            if (cookie.indexOf(name) === 0) {
-              isDismissed = true;
-              break;
+        // Only check dismissal if not in preview mode.
+        if (!isPreviewMode) {
+          if (type === 'session') {
+            isDismissed = sessionStorage.getItem('modal_dismissed_' + modal.id) === '1';
+          } else if (type === 'cookie') {
+            const name = 'modal_dismissed_' + modal.id + '=';
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+              let cookie = cookies[i];
+              while (cookie.charAt(0) === ' ') {
+                cookie = cookie.substring(1);
+              }
+              if (cookie.indexOf(name) === 0) {
+                isDismissed = true;
+                break;
+              }
             }
           }
         }
@@ -62,7 +70,7 @@
           return urlParams.get('modal') === forceOpenParam;
         })();
         
-        if (isDismissed && !isForcedOpen) {
+        if (isDismissed && !isForcedOpen && !isPreviewMode) {
           if (typeof console !== 'undefined' && console.log) {
             console.log('Modal System: Modal', modal.id, 'is dismissed, not initializing');
           }
@@ -836,8 +844,16 @@
   };
 
   Drupal.modalSystem.ModalManager.prototype.showModal = function () {
-    // Check if already dismissed (unless forced open).
-    if (this.isDismissed() && !this.isForcedOpen()) {
+    // In preview mode, always show regardless of dismissal status.
+    const isPreviewMode = typeof drupalSettings !== 'undefined' && 
+                          drupalSettings.modalSystem && 
+                          drupalSettings.modalSystem.previewMode;
+    
+    // Check if already dismissed (unless forced open or in preview mode).
+    if (this.isDismissed() && !this.isForcedOpen() && !isPreviewMode) {
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('Modal System: Modal', this.modal.id, 'is dismissed, not showing');
+      }
       // Notify queue that this modal can't be shown.
       if (Drupal.modalSystem.QueueManager.currentModal === this) {
         Drupal.modalSystem.QueueManager.currentModal = null;
