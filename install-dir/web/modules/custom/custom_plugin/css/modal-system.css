@@ -18,6 +18,38 @@
   animation: fadeIn 0.3s ease;
 }
 
+/* Max-width wrapper - constrains overall modal width */
+.modal-system--max-width-wrapper {
+  width: auto;
+  max-width: 100%; /* Fallback - will be overridden by inline style */
+  box-sizing: border-box;
+}
+
+/* Ensure content-wrapper respects max-width-wrapper constraint */
+.modal-system--max-width-wrapper .modal-system--content-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Ensure stacked-wrapper respects max-width-wrapper constraint */
+.modal-system--max-width-wrapper .modal-system--stacked-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Override media query rules when inside max-width-wrapper - ensure content doesn't exceed wrapper */
+.modal-system--max-width-wrapper .modal-system--content-wrapper {
+  max-width: 100% !important;
+}
+
+.modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+.modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -283,6 +315,7 @@
 .modal-system--stacked-wrapper {
   max-width: 90%;
   width: 100%;
+  box-sizing: border-box; /* Ensure padding/borders are included in width */
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -309,8 +342,19 @@
   max-width: 90%;
   max-height: 90vh;
   width: 100%;
+  box-sizing: border-box; /* Ensure padding/borders are included in width */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   overflow: hidden;
+}
+
+/* Ensure max-width is respected when set inline */
+.modal-system--content-wrapper[style*="max-width"] {
+  width: auto !important; /* Let max-width control the width */
+}
+
+/* Same for stacked wrapper */
+.modal-system--stacked-wrapper[style*="max-width"] {
+  width: auto !important; /* Let max-width control the width */
 }
 
 /* Wrapper layout and rounded corners */
@@ -355,6 +399,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -374,6 +426,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -393,6 +453,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -412,6 +480,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -431,6 +507,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -450,6 +534,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -469,6 +561,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -488,6 +588,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -507,6 +615,14 @@
     max-width: 100%;
     width: 100%;
   }
+  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Original rule for modals NOT inside max-width-wrapper */
   .modal-system--content-left .modal-system--modal,
   .modal-system--content-right .modal-system--modal {
     max-width: 100%;
@@ -519,9 +635,7 @@
 }
 
 /* Mobile height override - applies when image is forced to top at any breakpoint */
-.modal-system--image-container[data-mobile-height] {
-  /* Use mobile height when at mobile breakpoint, otherwise use regular height */
-}
+/* Height is set via CSS custom properties in media queries below */
 
 /* Mobile image switching - use mobile image at breakpoint if available */
 @media (max-width: 1600px) {
