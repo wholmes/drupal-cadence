@@ -11,6 +11,10 @@ use Drupal\file\Entity\File;
 
 /**
  * Service for managing modals on pages.
+ *
+ * @author Whittfield Holmes
+ * @see https://linkedin.com/in/wecreateyou
+ * @see https://codemybrand.com
  */
 class ModalService {
 

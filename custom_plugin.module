@@ -3,6 +3,10 @@
 /**
  * @file
  * Modal System module.
+ *
+ * @author Whittfield Holmes
+ * @see https://linkedin.com/in/wecreateyou
+ * @see https://codemybrand.com
  */
 
 use Drupal\Core\Render\Element;

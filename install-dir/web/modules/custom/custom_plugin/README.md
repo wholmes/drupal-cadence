@@ -2,6 +2,12 @@
 
 A flexible, rule-based modal system for Drupal that displays modals based on configurable triggers (scroll, visit count, time on page, referrer, exit intent).
 
+## Author
+
+**Whittfield Holmes**
+- LinkedIn: [https://linkedin.com/in/wecreateyou](https://linkedin.com/in/wecreateyou)
+- Portfolio: [https://codemybrand.com](https://codemybrand.com)
+
 ## Features
 
 - **Flexible Rules**: Scroll percentage, visit count, time on page, referrer URL, exit intent
@@ -65,4 +71,6 @@ drush watchdog:show --filter=type=custom_plugin
 
 ## License
 
-GPL-2.0+
+MIT License - see [LICENSE.txt](../../../../LICENSE.txt) for details.
+
+Copyright (c) 2026 Whittfield Holmes

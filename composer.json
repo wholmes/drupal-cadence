@@ -2,7 +2,14 @@
   "name": "drupal/custom-plugin",
   "type": "drupal-module",
   "description": "Rule-based modal system with analytics tracking",
-  "license": "GPL-2.0-or-later",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Whittfield Holmes",
+      "homepage": "https://codemybrand.com",
+      "role": "Developer"
+    }
+  ],
   "require": {
     "drupal/core": "^10.0 || ^11.0"
   },
