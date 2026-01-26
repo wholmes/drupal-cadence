@@ -8,6 +8,10 @@ use Drupal\custom_plugin\ModalInterface;
 /**
  * Defines the Modal entity.
  *
+ * @author Whittfield Holmes
+ * @see https://linkedin.com/in/wecreateyou
+ * @see https://codemybrand.com
+ *
  * @ConfigEntityType(
  *   id = "modal",
  *   label = @Translation("Modal"),

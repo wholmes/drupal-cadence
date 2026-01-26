@@ -3,3 +3,6 @@ type: module
 description: 'Rule-based modal system with analytics tracking and flexible content configuration'
 core_version_requirement: ^10 || ^11
 package: Custom
+version: 1.0.0
+project: custom_plugin
+datestamp: 1738000000

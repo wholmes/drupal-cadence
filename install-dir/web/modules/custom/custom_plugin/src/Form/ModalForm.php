@@ -12,6 +12,10 @@ use Drupal\Core\Ajax\ReplaceCommand;
 
 /**
  * Form handler for the modal add/edit forms.
+ *
+ * @author Whittfield Holmes
+ * @see https://linkedin.com/in/wecreateyou
+ * @see https://codemybrand.com
  */
 class ModalForm extends EntityForm {
 
