@@ -22,3 +22,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Portfolio documentation (not for repository)
+PORTFOLIO_DESCRIPTIONS.md
