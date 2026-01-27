@@ -195,8 +195,13 @@ class ModalService {
       // If pages are specified, check if current path matches.
       if (!empty($pages)) {
         // PathMatcher handles <front> automatically - it converts it to the actual front page path.
+        // Try path_alias and path; also try with leading slash so "/user/*" matches internal "user/1".
+        $path_with_slash = (strpos($path, '/') !== 0 && $path !== '') ? '/' . $path : $path;
+        $alias_with_slash = (strpos($path_alias, '/') !== 0 && $path_alias !== '') ? '/' . $path_alias : $path_alias;
         $matches = $this->pathMatcher->matchPath($path_alias, $pages) ||
-          (($path != $path_alias) && $this->pathMatcher->matchPath($path, $pages));
+          (($path != $path_alias) && $this->pathMatcher->matchPath($path, $pages)) ||
+          $this->pathMatcher->matchPath($path_with_slash, $pages) ||
+          $this->pathMatcher->matchPath($alias_with_slash, $pages);
 
 
         // If negate is true, show on all pages EXCEPT matching ones.

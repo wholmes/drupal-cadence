@@ -478,18 +478,25 @@ class ModalForm extends EntityForm {
       '#size' => 5,
     ];
 
-    // Overlay Gradient section.
-    $form['content']['image']['effects']['overlay_gradient'] = [
+    // Panels row: Overlay Gradient + Preview in their own flex context (50/50 above breakpoint, stacked below).
+    $form['content']['image']['effects']['effects_panels'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-image-effects-panels']],
+    ];
+
+    // Overlay Gradient section (panel: outside the 3-col layout, 50% width with Preview until breakpoint).
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Overlay Gradient'),
       '#description' => $this->t('Add a gradient overlay on top of the image/carousel. Useful for improving text readability.'),
       '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-image-effects-panel']],
     ];
 
     $overlay_gradient = (isset($effects['overlay_gradient']) && is_array($effects['overlay_gradient'])) ? $effects['overlay_gradient'] : [];
     
     // Enable checkbox on its own full-width row.
-    $form['content']['image']['effects']['overlay_gradient']['enabled'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['enabled'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Overlay Gradient'),
       '#description' => $this->t('When enabled, a gradient overlay will be applied on top of the image.'),
@@ -497,30 +504,30 @@ class ModalForm extends EntityForm {
     ];
 
     // Container for columns below the checkbox.
-    $form['content']['image']['effects']['overlay_gradient']['settings'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings'] = [
       '#type' => 'container',
       '#attributes' => ['class' => ['overlay-gradient-settings']],
       '#states' => [
         'visible' => [
-          ':input[name="content[image][effects][overlay_gradient][enabled]"]' => ['checked' => TRUE],
+          ':input[name="content[image][effects][effects_panels][overlay_gradient][enabled]"]' => ['checked' => TRUE],
         ],
       ],
     ];
 
     // First row of columns: Start Color and End Color.
-    $form['content']['image']['effects']['overlay_gradient']['settings']['row1'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1'] = [
       '#type' => 'container',
       '#attributes' => ['class' => ['form-row']],
     ];
 
-    $form['content']['image']['effects']['overlay_gradient']['settings']['row1']['color_start'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_start'] = [
       '#type' => 'color',
       '#title' => $this->t('Start Color'),
       '#description' => $this->t('The starting color of the gradient.'),
       '#default_value' => $overlay_gradient['color_start'] ?? '#000000',
     ];
 
-    $form['content']['image']['effects']['overlay_gradient']['settings']['row1']['color_end'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_end'] = [
       '#type' => 'color',
       '#title' => $this->t('End Color'),
       '#description' => $this->t('The ending color of the gradient.'),
@@ -528,12 +535,12 @@ class ModalForm extends EntityForm {
     ];
 
     // Second row of columns: Direction and Opacity.
-    $form['content']['image']['effects']['overlay_gradient']['settings']['row2'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2'] = [
       '#type' => 'container',
       '#attributes' => ['class' => ['form-row']],
     ];
 
-    $form['content']['image']['effects']['overlay_gradient']['settings']['row2']['direction'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['direction'] = [
       '#type' => 'select',
       '#title' => $this->t('Gradient Direction'),
       '#description' => $this->t('The direction of the gradient.'),
@@ -550,7 +557,7 @@ class ModalForm extends EntityForm {
       '#default_value' => $overlay_gradient['direction'] ?? 'to bottom',
     ];
 
-    $form['content']['image']['effects']['overlay_gradient']['settings']['row2']['opacity'] = [
+    $form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['opacity'] = [
       '#type' => 'number',
       '#title' => $this->t('Gradient Opacity'),
       '#description' => $this->t('Control how opaque the gradient overlay is. 0% = transparent, 100% = fully opaque.'),
@@ -562,13 +569,13 @@ class ModalForm extends EntityForm {
     ];
 
     // Preview section (nested inside effects).
-    $form['content']['image']['effects']['preview'] = [
+    $form['content']['image']['effects']['effects_panels']['preview'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Preview'),
       '#attributes' => ['class' => ['modal-image-preview']],
     ];
 
-    $form['content']['image']['effects']['preview']['preview_button'] = [
+    $form['content']['image']['effects']['effects_panels']['preview']['preview_button'] = [
       '#type' => 'button',
       '#value' => $this->t('Update Preview'),
       '#ajax' => [
@@ -579,7 +586,7 @@ class ModalForm extends EntityForm {
       ],
     ];
 
-    $form['content']['image']['effects']['preview']['preview_container'] = [
+    $form['content']['image']['effects']['effects_panels']['preview']['preview_container'] = [
       '#type' => 'container',
       '#attributes' => [
         'id' => 'image-effects-preview',
@@ -698,20 +705,20 @@ class ModalForm extends EntityForm {
         
         $preview_html .= '</div>';
 
-        $form['content']['image']['effects']['preview']['preview_container']['preview_image'] = [
+        $form['content']['image']['effects']['effects_panels']['preview']['preview_container']['preview_image'] = [
           '#type' => 'markup',
           '#markup' => \Drupal\Core\Render\Markup::create($preview_html),
         ];
       }
       else {
-        $form['content']['image']['effects']['preview']['preview_container']['preview_message'] = [
+        $form['content']['image']['effects']['effects_panels']['preview']['preview_container']['preview_message'] = [
           '#markup' => '<p>' . $this->t('Upload an image to see preview.') . '</p>',
         ];
       }
     }
     catch (\Exception $e) {
       // If preview generation fails, show error message.
-      $form['content']['image']['effects']['preview']['preview_container']['preview_error'] = [
+      $form['content']['image']['effects']['effects_panels']['preview']['preview_container']['preview_error'] = [
         '#markup' => '<p>' . $this->t('Error generating preview.') . '</p>',
       ];
     }
@@ -1254,7 +1261,18 @@ class ModalForm extends EntityForm {
       '#default_value' => $styling['decorative_effect'] ?? '',
     ];
 
-    $form['styling']['layout_colors']['confetti_size'] = [
+    // Confetti size: slider and value display in one group so they stay in one grid cell.
+    $form['styling']['layout_colors']['confetti_size_group'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-slider-with-display']],
+      '#states' => [
+        'visible' => [
+          ':input[name="styling[layout_colors][decorative_effect]"]' => ['value' => 'confetti'],
+        ],
+      ],
+    ];
+    $confetti_display = '<span id="confetti-size-display" class="modal-slider-value">' . number_format(($styling['confetti_size'] ?? 100) / 100, 1) . 'x</span>';
+    $form['styling']['layout_colors']['confetti_size_group']['confetti_size'] = [
       '#type' => 'range',
       '#title' => $this->t('Confetti Size'),
       '#description' => $this->t('Control the size of confetti particles. The default size is 1.0x.'),
@@ -1262,28 +1280,22 @@ class ModalForm extends EntityForm {
       '#min' => 50,
       '#max' => 200,
       '#step' => 5,
-      '#states' => [
-        'visible' => [
-          ':input[name="styling[layout_colors][decorative_effect]"]' => ['value' => 'confetti'],
-        ],
-      ],
+      '#prefix' => '<div class="modal-slider-row">',
+      '#suffix' => '</div>',
+      '#field_suffix' => $confetti_display,
       '#attributes' => [
         'class' => ['confetti-size-slider'],
         'data-display-target' => 'confetti-size-display',
       ],
     ];
 
-    $form['styling']['layout_colors']['confetti_size_display'] = [
-      '#type' => 'item',
-      '#markup' => '<span id="confetti-size-display" style="display: inline-block; margin-left: 10px; font-weight: bold;">' . number_format(($styling['confetti_size'] ?? 100) / 100, 1) . 'x</span>',
-      '#states' => [
-        'visible' => [
-          ':input[name="styling[layout_colors][decorative_effect]"]' => ['value' => 'confetti'],
-        ],
-      ],
+    // Overlay opacity: slider and value display in one group so they stay in one grid cell.
+    $form['styling']['layout_colors']['overlay_opacity_group'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-slider-with-display']],
     ];
-
-    $form['styling']['layout_colors']['overlay_opacity'] = [
+    $overlay_display = '<span id="overlay-opacity-display" class="modal-slider-value">' . ($styling['overlay_opacity'] ?? 50) . '%</span>';
+    $form['styling']['layout_colors']['overlay_opacity_group']['overlay_opacity'] = [
       '#type' => 'range',
       '#title' => $this->t('Overlay Opacity'),
       '#description' => $this->t('Control the transparency of the page overlay. Lower values make the overlay more transparent, allowing you to see decorative effects (like confetti) better.'),
@@ -1291,15 +1303,13 @@ class ModalForm extends EntityForm {
       '#min' => 0,
       '#max' => 100,
       '#step' => 1,
+      '#prefix' => '<div class="modal-slider-row">',
+      '#suffix' => '</div>',
+      '#field_suffix' => $overlay_display,
       '#attributes' => [
         'class' => ['overlay-opacity-slider'],
         'data-display-target' => 'overlay-opacity-display',
       ],
-    ];
-
-    $form['styling']['layout_colors']['overlay_opacity_display'] = [
-      '#type' => 'item',
-      '#markup' => '<span id="overlay-opacity-display" style="display: inline-block; margin-left: 10px; font-weight: bold;">' . ($styling['overlay_opacity'] ?? 50) . '%</span>',
     ];
 
     // Add JavaScript to update the display value when slider changes.
@@ -1327,7 +1337,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['headline']['size'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Size'),
-      '#description' => $this->t('Enter size with unit (e.g., 24px, 1.5rem, 2em)'),
+      '#description' => $this->t('(e.g., 24px, 1.5rem, 2em)'),
       '#default_value' => $headline_styling['size'] ?? '',
       '#size' => 20,
     ];
@@ -1366,7 +1376,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['headline']['google_font'] = [
       '#type' => 'select',
       '#title' => $this->t('Google Font'),
-      '#description' => $this->t('Select a Google Font to use. This will automatically populate the Font Family field and load the font.'),
+      '#description' => $this->t('Select a Google Font to use.'),
       '#options' => $google_fonts,
       '#default_value' => $headline_styling['google_font'] ?? '',
       '#empty_option' => $this->t('- None -'),
@@ -1385,7 +1395,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['headline']['font_family_wrapper']['font_family'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Family'),
-      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif) or select a Google Font above.'),
+      '#description' => $this->t('(e.g., Arial, "Times New Roman", sans-serif)'),
       '#default_value' => $headline_styling['font_family'] ?? '',
       '#size' => 30,
     ];
@@ -1393,7 +1403,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['headline']['letter_spacing'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Letter Spacing (Kerning)'),
-      '#description' => $this->t('Enter spacing with unit (e.g., 0.5px, 0.1em, normal)'),
+      '#description' => $this->t('(e.g., 0.5px, 0.1em, normal)'),
       '#default_value' => $headline_styling['letter_spacing'] ?? '',
       '#size' => 20,
     ];
@@ -1401,7 +1411,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['headline']['line_height'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Line Height'),
-      '#description' => $this->t('Enter line height (e.g., 1.5, 24px, 1.2em, normal)'),
+      '#description' => $this->t('(e.g., 1.5, 24px, 1.2em, normal)'),
       '#default_value' => $headline_styling['line_height'] ?? '',
       '#size' => 20,
     ];
@@ -1409,7 +1419,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['headline']['text_align'] = [
       '#type' => 'select',
       '#title' => $this->t('Text Alignment'),
-      '#description' => $this->t('Choose how to align the headline text.'),
+      '#description' => $this->t('Align the headline text.'),
       '#options' => [
         '' => $this->t('Default (Left)'),
         'left' => $this->t('Left'),
@@ -1431,7 +1441,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['subheadline']['size'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Size'),
-      '#description' => $this->t('Enter size with unit (e.g., 18px, 1.125rem, 1.5em)'),
+      '#description' => $this->t('(e.g., 18px, 1.125rem, 1.5em)'),
       '#default_value' => $subheadline_styling['size'] ?? '18px',
       '#size' => 20,
     ];
@@ -1445,7 +1455,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['subheadline']['google_font'] = [
       '#type' => 'select',
       '#title' => $this->t('Google Font'),
-      '#description' => $this->t('Select a Google Font to use. This will automatically populate the Font Family field and load the font.'),
+      '#description' => $this->t('Select a Google Font to use.'),
       '#options' => $google_fonts,
       '#default_value' => $subheadline_styling['google_font'] ?? '',
       '#empty_option' => $this->t('- None -'),
@@ -1464,7 +1474,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['subheadline']['font_family_wrapper']['font_family'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Family'),
-      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif) or select a Google Font above.'),
+      '#description' => $this->t('(e.g., Arial, "Times New Roman", sans-serif)'),
       '#default_value' => $subheadline_styling['font_family'] ?? '',
       '#size' => 30,
     ];
@@ -1472,7 +1482,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['subheadline']['letter_spacing'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Letter Spacing (Kerning)'),
-      '#description' => $this->t('Enter spacing with unit (e.g., 0.5px, 0.1em, normal)'),
+      '#description' => $this->t('(e.g., 0.5px, 0.1em, normal)'),
       '#default_value' => $subheadline_styling['letter_spacing'] ?? '',
       '#size' => 20,
     ];
@@ -1480,7 +1490,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['subheadline']['line_height'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Line Height'),
-      '#description' => $this->t('Enter line height (e.g., 1.5, 24px, 1.2em, normal)'),
+      '#description' => $this->t('(e.g., 1.5, 24px, 1.2em, normal)'),
       '#default_value' => $subheadline_styling['line_height'] ?? '1.4',
       '#size' => 20,
     ];
@@ -1488,7 +1498,7 @@ class ModalForm extends EntityForm {
     $form['styling']['typography_container']['subheadline']['text_align'] = [
       '#type' => 'select',
       '#title' => $this->t('Text Alignment'),
-      '#description' => $this->t('Choose how to align the subheadline text.'),
+      '#description' => $this->t('Align the subheadline text.'),
       '#options' => [
         '' => $this->t('Default (Left)'),
         'left' => $this->t('Left'),
@@ -1656,14 +1666,17 @@ class ModalForm extends EntityForm {
       $image_values = ['fid' => $form['content']['image']['fid']['#value']];
     }
     
-    // Handle new nested structure: content[image][effects]
+    // Handle new nested structure: content[image][effects] and content[image][effects][effects_panels]
     $effects = $image_values['effects'] ?? [];
     // Fallback to old structure for backward compatibility.
     if (empty($effects)) {
       $effects_preview_container = $image_values['effects_preview_container'] ?? [];
       $effects = $effects_preview_container['effects'] ?? [];
     }
-    
+    // Overlay gradient lives under effects_panels in the form; normalize for preview logic.
+    if (isset($effects['effects_panels']['overlay_gradient'])) {
+      $effects['overlay_gradient'] = $effects['effects_panels']['overlay_gradient'];
+    }
     // Ensure effects is an array.
     if (!is_array($effects)) {
       $effects = [];
@@ -1829,9 +1842,9 @@ class ModalForm extends EntityForm {
     
     // Final fallback: if we still don't have a preview URL, try to get it from the form's initial render.
     // This handles cases where AJAX callbacks don't have access to entity/form values.
-    if (empty($preview_url) && isset($form['content']['image']['effects']['preview']['preview_container']['preview_image']['#markup'])) {
+    if (empty($preview_url) && isset($form['content']['image']['effects']['effects_panels']['preview']['preview_container']['preview_image']['#markup'])) {
       // Extract URL from existing preview markup if available.
-      $existing_markup = $form['content']['image']['effects']['preview']['preview_container']['preview_image']['#markup'];
+      $existing_markup = $form['content']['image']['effects']['effects_panels']['preview']['preview_container']['preview_image']['#markup'];
       // Handle both string and Markup objects.
       $markup_string = is_string($existing_markup) ? $existing_markup : (string) $existing_markup;
       if (preg_match('/background-image:\s*url\([\'"]?([^\'"]+)[\'"]?\)/', $markup_string, $matches)) {
@@ -1921,8 +1934,8 @@ class ModalForm extends EntityForm {
       if (!empty($overlay_gradient['enabled'])) {
         $gradient_enabled = TRUE;
       }
-      elseif (isset($user_input['content']['image']['effects']['overlay_gradient']['enabled'])) {
-        $gradient_enabled = (bool) $user_input['content']['image']['effects']['overlay_gradient']['enabled'];
+      elseif (isset($user_input['content']['image']['effects']['effects_panels']['overlay_gradient']['enabled'])) {
+        $gradient_enabled = (bool) $user_input['content']['image']['effects']['effects_panels']['overlay_gradient']['enabled'];
       }
       
       if ($gradient_enabled) {
@@ -1932,11 +1945,11 @@ class ModalForm extends EntityForm {
         $row2 = $settings['row2'] ?? [];
         
         // Also check user input for nested values (AJAX callbacks).
-        if (empty($row1) && isset($user_input['content']['image']['effects']['overlay_gradient']['settings']['row1'])) {
-          $row1 = $user_input['content']['image']['effects']['overlay_gradient']['settings']['row1'];
+        if (empty($row1) && isset($user_input['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1'])) {
+          $row1 = $user_input['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1'];
         }
-        if (empty($row2) && isset($user_input['content']['image']['effects']['overlay_gradient']['settings']['row2'])) {
-          $row2 = $user_input['content']['image']['effects']['overlay_gradient']['settings']['row2'];
+        if (empty($row2) && isset($user_input['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2'])) {
+          $row2 = $user_input['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2'];
         }
         
         // Fallback to direct access for backward compatibility (check both nested and direct).
@@ -2245,8 +2258,8 @@ class ModalForm extends EntityForm {
             'saturation' => (int) ($effects_values['saturation'] ?? 100),
           ];
           
-          // Save overlay gradient if enabled.
-          $overlay_gradient = $effects_values['overlay_gradient'] ?? [];
+          // Save overlay gradient if enabled (stored under effects_panels in form).
+          $overlay_gradient = $effects_values['effects_panels']['overlay_gradient'] ?? $effects_values['overlay_gradient'] ?? [];
           if (!empty($overlay_gradient['enabled'])) {
             // Handle new nested structure: settings/row1/ and settings/row2/
             $settings = $overlay_gradient['settings'] ?? [];
@@ -2424,8 +2437,8 @@ class ModalForm extends EntityForm {
       'background_color' => $layout_colors['background_color'] ?? '#ffffff',
       'text_color' => $layout_colors['text_color'] ?? '#000000',
       'decorative_effect' => !empty($layout_colors['decorative_effect']) ? trim($layout_colors['decorative_effect']) : NULL,
-      'confetti_size' => isset($layout_colors['confetti_size']) ? (int) $layout_colors['confetti_size'] : 100,
-      'overlay_opacity' => isset($layout_colors['overlay_opacity']) ? (int) $layout_colors['overlay_opacity'] : 50,
+      'confetti_size' => isset($layout_colors['confetti_size_group']['confetti_size']) ? (int) $layout_colors['confetti_size_group']['confetti_size'] : 100,
+      'overlay_opacity' => isset($layout_colors['overlay_opacity_group']['overlay_opacity']) ? (int) $layout_colors['overlay_opacity_group']['overlay_opacity'] : 50,
       'headline' => [
         'size' => trim($headline_styling['size'] ?? ''),
         'color' => trim($headline_styling['color'] ?? ''),
@@ -2566,7 +2579,7 @@ class ModalForm extends EntityForm {
     $font_family_element = [
       '#type' => 'textfield',
       '#title' => $this->t('Font Family'),
-      '#description' => $this->t('Enter font family (e.g., Arial, "Times New Roman", sans-serif) or select a Google Font above.'),
+      '#description' => $this->t('(e.g., Arial, "Times New Roman", sans-serif)'),
       '#default_value' => $font_family_value,
       '#size' => 30,
     ];
@@ -2833,8 +2846,8 @@ class ModalForm extends EntityForm {
         'background_color' => $styling['layout_colors']['background_color'] ?? '#ffffff',
         'text_color' => $styling['layout_colors']['text_color'] ?? '#000000',
         'decorative_effect' => !empty($styling['layout_colors']['decorative_effect']) ? trim($styling['layout_colors']['decorative_effect']) : NULL,
-        'confetti_size' => isset($styling['layout_colors']['confetti_size']) ? (int) $styling['layout_colors']['confetti_size'] : 100,
-        'overlay_opacity' => isset($styling['layout_colors']['overlay_opacity']) ? (int) $styling['layout_colors']['overlay_opacity'] : 50,
+        'confetti_size' => isset($styling['layout_colors']['confetti_size_group']['confetti_size']) ? (int) $styling['layout_colors']['confetti_size_group']['confetti_size'] : 100,
+        'overlay_opacity' => isset($styling['layout_colors']['overlay_opacity_group']['overlay_opacity']) ? (int) $styling['layout_colors']['overlay_opacity_group']['overlay_opacity'] : 50,
         'headline' => [
           'size' => $styling['typography_container']['headline']['size'] ?? '',
           'color' => $styling['typography_container']['headline']['color'] ?? '',
@@ -2987,8 +3000,8 @@ class ModalForm extends EntityForm {
           $effects['saturation'] = (int) $effects_data['saturation'];
         }
         
-        // Overlay gradient - handle new nested structure: settings/row1/ and settings/row2/
-        $overlay_gradient = $effects_data['overlay_gradient'] ?? [];
+        // Overlay gradient - from effects_panels in form; handle nested settings/row1/ and settings/row2/
+        $overlay_gradient = $effects_data['effects_panels']['overlay_gradient'] ?? $effects_data['overlay_gradient'] ?? [];
         if (!empty($overlay_gradient['enabled'])) {
           $settings = $overlay_gradient['settings'] ?? [];
           $row1 = $settings['row1'] ?? [];
