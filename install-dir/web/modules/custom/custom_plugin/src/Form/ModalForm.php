@@ -1242,6 +1242,73 @@ class ModalForm extends EntityForm {
       '#default_value' => $styling['text_color'] ?? '#000000',
     ];
 
+    $form['styling']['layout_colors']['decorative_effect'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Decorative Effect'),
+      '#description' => $this->t('Add decorative elements around the modal overlay (e.g., stars, sparkles, streamers).'),
+      '#options' => [
+        '' => $this->t('None'),
+        'confetti' => $this->t('Confetti'),
+        'streamers' => $this->t('Streamers'),
+      ],
+      '#default_value' => $styling['decorative_effect'] ?? '',
+    ];
+
+    $form['styling']['layout_colors']['confetti_size'] = [
+      '#type' => 'range',
+      '#title' => $this->t('Confetti Size'),
+      '#description' => $this->t('Control the size of confetti particles. The default size is 1.0x.'),
+      '#default_value' => $styling['confetti_size'] ?? 100,
+      '#min' => 50,
+      '#max' => 200,
+      '#step' => 5,
+      '#states' => [
+        'visible' => [
+          ':input[name="styling[layout_colors][decorative_effect]"]' => ['value' => 'confetti'],
+        ],
+      ],
+      '#attributes' => [
+        'class' => ['confetti-size-slider'],
+        'data-display-target' => 'confetti-size-display',
+      ],
+    ];
+
+    $form['styling']['layout_colors']['confetti_size_display'] = [
+      '#type' => 'item',
+      '#markup' => '<span id="confetti-size-display" style="display: inline-block; margin-left: 10px; font-weight: bold;">' . number_format(($styling['confetti_size'] ?? 100) / 100, 1) . 'x</span>',
+      '#states' => [
+        'visible' => [
+          ':input[name="styling[layout_colors][decorative_effect]"]' => ['value' => 'confetti'],
+        ],
+      ],
+    ];
+
+    $form['styling']['layout_colors']['overlay_opacity'] = [
+      '#type' => 'range',
+      '#title' => $this->t('Overlay Opacity'),
+      '#description' => $this->t('Control the transparency of the page overlay. Lower values make the overlay more transparent, allowing you to see decorative effects (like confetti) better.'),
+      '#default_value' => $styling['overlay_opacity'] ?? 50,
+      '#min' => 0,
+      '#max' => 100,
+      '#step' => 1,
+      '#attributes' => [
+        'class' => ['overlay-opacity-slider'],
+        'data-display-target' => 'overlay-opacity-display',
+      ],
+    ];
+
+    $form['styling']['layout_colors']['overlay_opacity_display'] = [
+      '#type' => 'item',
+      '#markup' => '<span id="overlay-opacity-display" style="display: inline-block; margin-left: 10px; font-weight: bold;">' . ($styling['overlay_opacity'] ?? 50) . '%</span>',
+    ];
+
+    // Add JavaScript to update the display value when slider changes.
+    $form['#attached']['library'][] = 'core/drupal';
+    $form['#attached']['drupalSettings']['overlayOpacity'] = [
+      'initialValue' => $styling['overlay_opacity'] ?? 50,
+    ];
+    
+
     // Typography container - wraps headline and subheadline side by side.
     $form['styling']['typography_container'] = [
       '#type' => 'container',
@@ -2146,13 +2213,13 @@ class ModalForm extends EntityForm {
         }
 
         // Add carousel settings.
-        $carousel_enabled = !empty($carousel_values['enabled']) && count($image_fids) > 1;
+        $carousel_enabled = !empty($carousel_values['enabled']);
         if ($carousel_enabled) {
           $image_array['carousel_enabled'] = TRUE;
           $image_array['carousel_duration'] = max(1, (int) ($carousel_values['duration'] ?? 5));
         }
         else {
-          // Explicitly disable if not enabled or only 1 image.
+          // Explicitly disable if not enabled.
           $image_array['carousel_enabled'] = FALSE;
         }
 
@@ -2356,6 +2423,9 @@ class ModalForm extends EntityForm {
       'max_width' => trim($layout_colors['max_width'] ?? ''),
       'background_color' => $layout_colors['background_color'] ?? '#ffffff',
       'text_color' => $layout_colors['text_color'] ?? '#000000',
+      'decorative_effect' => !empty($layout_colors['decorative_effect']) ? trim($layout_colors['decorative_effect']) : NULL,
+      'confetti_size' => isset($layout_colors['confetti_size']) ? (int) $layout_colors['confetti_size'] : 100,
+      'overlay_opacity' => isset($layout_colors['overlay_opacity']) ? (int) $layout_colors['overlay_opacity'] : 50,
       'headline' => [
         'size' => trim($headline_styling['size'] ?? ''),
         'color' => trim($headline_styling['color'] ?? ''),
@@ -2450,8 +2520,11 @@ class ModalForm extends EntityForm {
       $this->messenger()->addStatus($this->t('✓ Successfully saved changes to %label.', [
         '%label' => $modal->label(),
       ]));
-      // Stay on edit page for existing modals.
-      $form_state->setRedirectUrl($modal->toUrl('edit-form'));
+      // Stay on the current page (edit page) by using the current route.
+      // Get the current route name and parameters to stay on the same page.
+      $route_name = \Drupal::routeMatch()->getRouteName();
+      $route_parameters = \Drupal::routeMatch()->getRawParameters()->all();
+      $form_state->setRedirect($route_name, $route_parameters);
     }
   }
 
@@ -2647,21 +2720,46 @@ class ModalForm extends EntityForm {
     // This ensures unsaved changes are included in the preview.
     $merged_values = array_replace_recursive($form_values, $user_input);
     
+    // When previewing, also pull image FIDs from form elements if present (managed_file
+    // stores multiple FIDs in #value or fids child #value; getValues() may not reflect them yet).
+    if (isset($form['content']['image']['fid'])) {
+      $fid_el = &$form['content']['image']['fid'];
+      $form_fids = [];
+      if (!empty($fid_el['fids']['#value'])) {
+        $v = $fid_el['fids']['#value'];
+        $form_fids = is_array($v) ? array_filter(array_map('intval', $v)) : array_filter(array_map('intval', preg_split('/\s+/', trim((string) $v), -1, PREG_SPLIT_NO_EMPTY)));
+      } elseif (!empty($fid_el['#value']) && is_array($fid_el['#value']) && !empty($fid_el['#value']['fids'])) {
+        $v = $fid_el['#value']['fids'];
+        $form_fids = is_array($v) ? array_filter(array_map('intval', $v)) : array_filter(array_map('intval', preg_split('/\s+/', trim((string) $v), -1, PREG_SPLIT_NO_EMPTY)));
+      }
+      if (!empty($form_fids)) {
+        $merged_values['content']['image']['fid'] = array_replace_recursive($merged_values['content']['image']['fid'] ?? [], ['fids' => $form_fids]);
+      }
+    }
+    
     // Build temporary modal data structure from form values.
     $preview_data = $this->buildPreviewData($merged_values);
     
     // Create AJAX response.
     $response = new AjaxResponse();
     
+    // Build library list - conditionally include confetti if needed.
+    $libraries = [
+      'custom_plugin/modal.system',
+      $preview_data['styling']['layout'] === 'bottom_sheet' 
+        ? 'custom_plugin/modal.bottom_sheet' 
+        : 'custom_plugin/modal.centered',
+      'custom_plugin/modal.preview',
+    ];
+    
+    // Add confetti.js if the preview modal uses confetti effect.
+    if (isset($preview_data['styling']['decorative_effect']) && $preview_data['styling']['decorative_effect'] === 'confetti') {
+      $libraries[] = 'custom_plugin/modal.confetti';
+    }
+    
     // Attach libraries and settings directly to the response.
     $response->setAttachments([
-      'library' => [
-        'custom_plugin/modal.system',
-        $preview_data['styling']['layout'] === 'bottom_sheet' 
-          ? 'custom_plugin/modal.bottom_sheet' 
-          : 'custom_plugin/modal.centered',
-        'custom_plugin/modal.preview',
-      ],
+      'library' => $libraries,
     ]);
     
     // Add settings command to merge drupalSettings (this is the correct way for AJAX).
@@ -2734,6 +2832,9 @@ class ModalForm extends EntityForm {
         'max_width' => trim($styling['layout_colors']['max_width'] ?? ''),
         'background_color' => $styling['layout_colors']['background_color'] ?? '#ffffff',
         'text_color' => $styling['layout_colors']['text_color'] ?? '#000000',
+        'decorative_effect' => !empty($styling['layout_colors']['decorative_effect']) ? trim($styling['layout_colors']['decorative_effect']) : NULL,
+        'confetti_size' => isset($styling['layout_colors']['confetti_size']) ? (int) $styling['layout_colors']['confetti_size'] : 100,
+        'overlay_opacity' => isset($styling['layout_colors']['overlay_opacity']) ? (int) $styling['layout_colors']['overlay_opacity'] : 50,
         'headline' => [
           'size' => $styling['typography_container']['headline']['size'] ?? '',
           'color' => $styling['typography_container']['headline']['color'] ?? '',
@@ -2773,17 +2874,22 @@ class ModalForm extends EntityForm {
     $file_url_generator = \Drupal::service('file_url_generator');
     
     // Get FIDs from form - managed_file with multiple returns ['fid']['fids'] array.
-    // Also check for direct array format which can happen with multiple files.
+    // Also check for direct array format, space-separated string, and single FID.
     $form_fids = [];
-    if (isset($image_form_data['fid']['fids']) && is_array($image_form_data['fid']['fids'])) {
-      // Multiple images format: ['fid']['fids'] = array of FIDs.
-      $form_fids = array_filter(array_map('intval', $image_form_data['fid']['fids']));
+    if (isset($image_form_data['fid']['fids'])) {
+      $fids_val = $image_form_data['fid']['fids'];
+      if (is_array($fids_val)) {
+        $form_fids = array_filter(array_map('intval', $fids_val));
+      } elseif (is_string($fids_val) && trim($fids_val) !== '') {
+        // Space-separated string (e.g. "33 34" from hidden input).
+        $form_fids = array_filter(array_map('intval', preg_split('/\s+/', trim($fids_val), -1, PREG_SPLIT_NO_EMPTY)));
+      }
     }
-    elseif (isset($image_form_data['fid']) && is_array($image_form_data['fid']) && !isset($image_form_data['fid']['fids'])) {
+    if (empty($form_fids) && isset($image_form_data['fid']) && is_array($image_form_data['fid']) && !isset($image_form_data['fid']['fids'])) {
       // Direct array format: ['fid'] = [fid1, fid2, ...] (can happen with multiple).
       $form_fids = array_filter(array_map('intval', $image_form_data['fid']));
     }
-    elseif (!empty($image_form_data['fid'])) {
+    if (empty($form_fids) && !empty($image_form_data['fid'])) {
       // Single FID (numeric or in array format).
       $fid = $this->getFileIdFromFormValue($image_form_data['fid']);
       if ($fid) {
@@ -2808,10 +2914,10 @@ class ModalForm extends EntityForm {
         $image_data['url'] = $urls[0];
         $image_data['urls'] = $urls;
         
-        // Include carousel settings if enabled and multiple images.
+        // Include carousel settings if enabled.
         // Handle new nested structure: content[image][carousel][enabled]
         $carousel_enabled = !empty($image_form_data['carousel']['enabled']) || !empty($image_form_data['carousel_enabled']);
-        if (count($urls) > 1 && $carousel_enabled) {
+        if ($carousel_enabled) {
           $image_data['carousel_enabled'] = TRUE;
           $image_data['carousel_duration'] = max(1, (int) ($image_form_data['carousel']['duration'] ?? $image_form_data['carousel_duration'] ?? 5));
         } else {
@@ -3007,6 +3113,11 @@ class ModalForm extends EntityForm {
       $preview_container['#attached']['library'][] = 'custom_plugin/modal.bottom_sheet';
     } else {
       $preview_container['#attached']['library'][] = 'custom_plugin/modal.centered';
+    }
+    
+    // Add confetti.js if the preview modal uses confetti effect.
+    if (isset($modal_data['styling']['decorative_effect']) && $modal_data['styling']['decorative_effect'] === 'confetti') {
+      $preview_container['#attached']['library'][] = 'custom_plugin/modal.confetti';
     }
     
     // Add preview-specific JavaScript.

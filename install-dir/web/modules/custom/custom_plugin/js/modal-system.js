@@ -878,6 +878,64 @@
     // Create modal element with data-attributes.
     const overlay = document.createElement('div');
     overlay.className = 'modal-system--overlay';
+    
+    // Apply overlay opacity if specified (default is 50% = 0.5).
+    const overlayOpacity = this.modal.styling && this.modal.styling.overlay_opacity !== undefined 
+      ? (parseInt(this.modal.styling.overlay_opacity) / 100) 
+      : 0.5;
+    overlay.style.backgroundColor = `rgba(0, 0, 0, ${overlayOpacity})`;
+    
+    // Add decorative effect class if specified (except confetti, which uses JS).
+    if (this.modal.styling && this.modal.styling.decorative_effect) {
+      const effect = String(this.modal.styling.decorative_effect);
+      
+      // Confetti uses confetti.js library, not CSS.
+      if (effect === 'confetti' && typeof confetti !== 'undefined') {
+        // Get confetti size (stored as 50-200, representing 0.5x to 2.0x).
+        // Default is 100 (1.0x).
+        const confettiSize = this.modal.styling.confetti_size || 100;
+        const scalar = confettiSize / 100;
+        
+        // Trigger confetti animation when modal shows.
+        const duration = 3000; // 3 seconds
+        const end = Date.now() + duration;
+        
+        const confettiInterval = setInterval(function() {
+          if (Date.now() > end) {
+            clearInterval(confettiInterval);
+            return;
+          }
+          
+          confetti({
+            particleCount: 2,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            scalar: scalar,
+            colors: ['#ff0000', '#0066ff', '#ffcc00', '#00cc00', '#9900ff', '#ff6600', '#ff66cc', '#00ffff', '#ccff00', '#ff00ff', '#00cccc', '#ffd700']
+          });
+          
+          confetti({
+            particleCount: 2,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            scalar: scalar,
+            colors: ['#ff0000', '#0066ff', '#ffcc00', '#00cc00', '#9900ff', '#ff6600', '#ff66cc', '#00ffff', '#ccff00', '#ff00ff', '#00cccc', '#ffd700']
+          });
+        }, 250);
+      } else if (effect !== 'confetti') {
+        // Other effects use CSS classes.
+        const effectClass = effect
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+        overlay.classList.add('modal-system--decorative-' + effectClass);
+      }
+    }
+    
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-labelledby', 'modal-headline-' + this.modal.id);
     overlay.setAttribute('aria-modal', 'true');

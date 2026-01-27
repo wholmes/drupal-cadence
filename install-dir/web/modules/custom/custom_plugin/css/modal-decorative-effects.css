@@ -1,0 +1,61 @@
+/**
+ * @file
+ * Decorative effects for modal overlays - CSS-only animations.
+ * Note: Confetti effect uses confetti.js library (handled in JavaScript).
+ */
+
+/* Streamers Effect */
+.modal-system--decorative-streamers::before,
+.modal-system--decorative-streamers::after {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.1) 30%,
+    rgba(255, 255, 255, 0.1) 35%,
+    transparent 35%,
+    transparent 65%,
+    rgba(255, 255, 255, 0.1) 65%,
+    rgba(255, 255, 255, 0.1) 70%,
+    transparent 70%
+  );
+  animation: streamersMove 8s linear infinite;
+}
+
+.modal-system--decorative-streamers::after {
+  background: linear-gradient(
+    -45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.1) 30%,
+    rgba(255, 255, 255, 0.1) 35%,
+    transparent 35%,
+    transparent 65%,
+    rgba(255, 255, 255, 0.1) 65%,
+    rgba(255, 255, 255, 0.1) 70%,
+    transparent 70%
+  );
+  animation: streamersMove 10s linear infinite reverse;
+  animation-delay: 1s;
+}
+
+@keyframes streamersMove {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(50px, 50px) rotate(360deg);
+  }
+}
+
+/* Ensure modal content stays above decorative effects */
+.modal-system--overlay > * {
+  position: relative;
+  z-index: 2;
+}

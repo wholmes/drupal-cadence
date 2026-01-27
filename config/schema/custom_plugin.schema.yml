@@ -106,6 +106,13 @@ custom_plugin.modal.*:
         text_color:
           type: string
           label: 'Text color'
+        decorative_effect:
+          type: string
+          label: 'Decorative Effect'
+          nullable: true
+        overlay_opacity:
+          type: integer
+          label: 'Overlay Opacity'
     dismissal:
       type: mapping
       label: 'Dismissal settings'

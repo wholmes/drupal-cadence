@@ -3,11 +3,19 @@ modal.system:
   css:
     theme:
       css/modal-system.css: {}
+      css/modal-decorative-effects.css: {}
   js:
     js/modal-system.js: {}
   dependencies:
     - core/drupal
     - core/jquery
+
+modal.confetti:
+  version: 1.x
+  js:
+    https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js: { type: external, minified: true }
+  dependencies:
+    - core/drupal
 
 modal.centered:
   css:

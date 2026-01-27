@@ -281,8 +281,8 @@ class ModalService {
                 'mobile_force_top' => !empty($image_data['mobile_force_top']),
               ];
 
-              // Include carousel settings if configured and 2+ images.
-              if (count($urls) > 1 && !empty($image_data['carousel_enabled'])) {
+              // Include carousel settings if configured (animation only runs when 2+ URLs).
+              if (!empty($image_data['carousel_enabled'])) {
                 $content['image']['carousel_enabled'] = TRUE;
                 $content['image']['carousel_duration'] = max(1, (int) ($image_data['carousel_duration'] ?? 5));
               }
