@@ -1,0 +1,76 @@
+<?php
+
+/**
+ * @file
+ * Modal System module.
+ *
+ * @author Whittfield Holmes
+ * @see https://linkedin.com/in/wecreateyou
+ * @see https://codemybrand.com
+ */
+
+use Drupal\Core\Render\Element;
+
+/**
+ * Implements hook_page_attachments().
+ */
+function cadence_page_attachments(array &$attachments) {
+  // Skip during maintenance mode or install operations.
+  if (defined('MAINTENANCE_MODE')) {
+    return;
+  }
+
+  // Skip on admin pages that might be doing cache operations.
+  try {
+    $route_match = \Drupal::routeMatch();
+    $route_name = $route_match->getRouteName();
+    if ($route_name && (strpos($route_name, 'system.performance') !== FALSE || 
+        strpos($route_name, 'system.cache') !== FALSE)) {
+      return;
+    }
+  }
+  catch (\Exception $e) {
+    // If we can't check the route, continue anyway.
+  }
+
+  // Only attach if the service exists and entity type is available.
+  if (!\Drupal::hasService('cadence.modal_service')) {
+    return;
+  }
+
+  try {
+    // Check if entity type exists before trying to use it.
+    $entity_type_manager = \Drupal::entityTypeManager();
+    if (!$entity_type_manager->hasDefinition('modal')) {
+      return;
+    }
+
+    $modal_service = \Drupal::service('cadence.modal_service');
+    $modals = $modal_service->getEnabledModals();
+
+    if (!empty($modals)) {
+      $attachments['#attached']['drupalSettings']['modalSystem'] = [
+        'modals' => $modals,
+      ];
+      $attachments['#attached']['library'][] = 'cadence/modal.system';
+    }
+  }
+  catch (\Exception $e) {
+    // Service might not be available during uninstall or cache rebuild.
+    // Silently fail to avoid breaking cache clearing.
+  }
+  catch (\Throwable $e) {
+    // Catch any other errors to prevent breaking cache operations.
+  }
+  
+  // Attach admin CSS on admin pages.
+  try {
+    $route = \Drupal::routeMatch()->getRouteName();
+    if ($route && (strpos($route, 'entity.modal') === 0 || strpos($route, 'cadence') === 0)) {
+      $attachments['#attached']['library'][] = 'cadence/admin';
+    }
+  }
+  catch (\Exception $e) {
+    // Silently fail if route check fails.
+  }
+}

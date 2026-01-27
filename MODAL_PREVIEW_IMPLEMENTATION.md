@@ -17,7 +17,7 @@ This document provides a complete implementation plan for adding a modal preview
 
 ### Step 1: Add Preview Button to Form Actions
 
-**File**: `install-dir/web/modules/custom/custom_plugin/src/Form/ModalForm.php`
+**File**: `install-dir/web/modules/custom/cadence/src/Form/ModalForm.php`
 
 **Location**: Override `actions()` method or add to form array
 
@@ -57,7 +57,7 @@ public function actions(array $form, FormStateInterface $form_state) {
 
 ### Step 2: Create Preview Container in Form
 
-**File**: `install-dir/web/modules/custom/custom_plugin/src/Form/ModalForm.php`
+**File**: `install-dir/web/modules/custom/cadence/src/Form/ModalForm.php`
 
 **Location**: In `form()` method, add after all form fields
 
@@ -83,7 +83,7 @@ $form['preview_container'] = [
 
 ### Step 3: Implement Preview AJAX Callback
 
-**File**: `install-dir/web/modules/custom/custom_plugin/src/Form/ModalForm.php`
+**File**: `install-dir/web/modules/custom/cadence/src/Form/ModalForm.php`
 
 **New Method**:
 ```php
@@ -107,8 +107,8 @@ public function previewModal(array &$form, FormStateInterface $form_state) {
   // Also attach modal system libraries for preview
   $response->addAttachments([
     'library' => [
-      'custom_plugin/modal.system',
-      'custom_plugin/modal.centered', // or modal.bottom_sheet based on layout
+      'cadence/modal.system',
+      'cadence/modal.centered', // or modal.bottom_sheet based on layout
     ],
   ]);
   
@@ -126,7 +126,7 @@ public function previewModal(array &$form, FormStateInterface $form_state) {
 
 ### Step 4: Build Preview Data Structure
 
-**File**: `install-dir/web/modules/custom/custom_plugin/src/Form/ModalForm.php`
+**File**: `install-dir/web/modules/custom/cadence/src/Form/ModalForm.php`
 
 **New Method**:
 ```php
@@ -278,7 +278,7 @@ protected function buildFormPreviewData(array $form_data) {
 
 ### Step 5: Render Preview HTML
 
-**File**: `install-dir/web/modules/custom/custom_plugin/src/Form/ModalForm.php`
+**File**: `install-dir/web/modules/custom/cadence/src/Form/ModalForm.php`
 
 **New Method**:
 ```php
@@ -316,18 +316,18 @@ protected function renderPreview(array $modal_data) {
     'previewMode' => TRUE, // Flag for preview mode
   ];
   
-  $preview_container['#attached']['library'][] = 'custom_plugin/modal.system';
+  $preview_container['#attached']['library'][] = 'cadence/modal.system';
   
   // Add layout-specific library
   $layout = $modal_data['styling']['layout'] ?? 'centered';
   if ($layout === 'bottom_sheet') {
-    $preview_container['#attached']['library'][] = 'custom_plugin/modal.bottom_sheet';
+    $preview_container['#attached']['library'][] = 'cadence/modal.bottom_sheet';
   } else {
-    $preview_container['#attached']['library'][] = 'custom_plugin/modal.centered';
+    $preview_container['#attached']['library'][] = 'cadence/modal.centered';
   }
   
   // Add preview-specific JavaScript
-  $preview_container['#attached']['library'][] = 'custom_plugin/modal.preview';
+  $preview_container['#attached']['library'][] = 'cadence/modal.preview';
   
   return $preview_container;
 }
@@ -343,7 +343,7 @@ protected function renderPreview(array $modal_data) {
 
 ### Step 6: Create Preview JavaScript
 
-**File**: `install-dir/web/modules/custom/custom_plugin/js/modal-preview.js` (NEW FILE)
+**File**: `install-dir/web/modules/custom/cadence/js/modal-preview.js` (NEW FILE)
 
 **Content**:
 ```javascript
@@ -410,7 +410,7 @@ protected function renderPreview(array $modal_data) {
 
 ### Step 7: Add Preview Library
 
-**File**: `install-dir/web/modules/custom/custom_plugin/custom_plugin.libraries.yml`
+**File**: `install-dir/web/modules/custom/cadence/cadence.libraries.yml`
 
 **Add**:
 ```yaml
@@ -420,14 +420,14 @@ modal.preview:
     js/modal-preview.js: {}
   dependencies:
     - core/drupal
-    - custom_plugin/modal.system
+    - cadence/modal.system
 ```
 
 ---
 
 ### Step 8: Add Preview CSS
 
-**File**: `install-dir/web/modules/custom/custom_plugin/css/admin.css`
+**File**: `install-dir/web/modules/custom/cadence/css/admin.css`
 
 **Add**:
 ```css
@@ -583,12 +583,12 @@ if (this.isDismissed() && !this.isForcedOpen() && !isPreviewMode) {
 If AJAX approach is too complex, consider a separate preview route:
 
 ### Route Definition
-**File**: `custom_plugin.routing.yml`
+**File**: `cadence.routing.yml`
 ```yaml
 entity.modal.preview:
   path: '/admin/config/content/modal-system/{modal}/preview'
   defaults:
-    _controller: '\Drupal\custom_plugin\Controller\ModalPreviewController::preview'
+    _controller: '\Drupal\cadence\Controller\ModalPreviewController::preview'
     _title: 'Preview Modal'
   requirements:
     _permission: 'administer modal system'
@@ -602,10 +602,10 @@ entity.modal.preview:
 ```php
 <?php
 
-namespace Drupal\custom_plugin\Controller;
+namespace Drupal\cadence\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\custom_plugin\Entity\ModalInterface;
+use Drupal\cadence\Entity\ModalInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class ModalPreviewController extends ControllerBase {
@@ -620,8 +620,8 @@ class ModalPreviewController extends ControllerBase {
       '#modal' => $modal_data,
       '#attached' => [
         'library' => [
-          'custom_plugin/modal.system',
-          'custom_plugin/modal.centered',
+          'cadence/modal.system',
+          'cadence/modal.centered',
         ],
         'drupalSettings' => [
           'modalSystem' => [

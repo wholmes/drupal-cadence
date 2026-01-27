@@ -1,4 +1,0 @@
-services:
-  custom_plugin.modal_service:
-    class: Drupal\custom_plugin\ModalService
-    arguments: ['@entity_type.manager', '@path.matcher', '@path_alias.manager', '@request_stack', '@path.current']

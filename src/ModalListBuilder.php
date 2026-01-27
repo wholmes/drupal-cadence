@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\custom_plugin;
+namespace Drupal\cadence;
 
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityInterface;
@@ -25,7 +25,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
    * {@inheritdoc}
    */
   public function buildRow(EntityInterface $entity) {
-    /** @var \Drupal\custom_plugin\ModalInterface $entity */
+    /** @var \Drupal\cadence\ModalInterface $entity */
     $row['label'] = $entity->label();
     $row['id'] = $entity->id();
     $row['status'] = $entity->status() ? $this->t('Enabled') : $this->t('Disabled');
@@ -150,7 +150,7 @@ class ModalListBuilder extends ConfigEntityListBuilder {
     }
     catch (\Exception $e) {
       // Log the error and return a simple message.
-      \Drupal::logger('custom_plugin')->error('Error rendering modal list: @message', [
+      \Drupal::logger('cadence')->error('Error rendering modal list: @message', [
         '@message' => $e->getMessage(),
       ]);
       return [

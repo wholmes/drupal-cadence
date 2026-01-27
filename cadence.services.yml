@@ -1,0 +1,4 @@
+services:
+  cadence.modal_service:
+    class: Drupal\cadence\ModalService
+    arguments: ['@entity_type.manager']

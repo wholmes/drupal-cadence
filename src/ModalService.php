@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\custom_plugin;
+namespace Drupal\cadence;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 
@@ -36,7 +36,7 @@ class ModalService {
     $modals = [];
     $storage = $this->entityTypeManager->getStorage('modal');
 
-    /** @var \Drupal\custom_plugin\ModalInterface[] $entities */
+    /** @var \Drupal\cadence\ModalInterface[] $entities */
     $entities = $storage->loadByProperties(['status' => TRUE]);
 
     foreach ($entities as $modal) {

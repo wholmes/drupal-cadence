@@ -1,9 +1,9 @@
 <?php
 
-namespace Drupal\custom_plugin\Controller;
+namespace Drupal\cadence\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\custom_plugin\ModalListBuilder;
+use Drupal\cadence\ModalListBuilder;
 
 /**
  * Returns responses for Modal routes.

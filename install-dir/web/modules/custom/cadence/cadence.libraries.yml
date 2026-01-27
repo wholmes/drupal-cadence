@@ -1,0 +1,59 @@
+modal.system:
+  version: 1.x
+  css:
+    theme:
+      css/modal-system.css: {}
+      css/modal-decorative-effects.css: {}
+  js:
+    js/modal-system.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+
+modal.confetti:
+  version: 1.x
+  js:
+    https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js: { type: external, minified: true }
+  dependencies:
+    - core/drupal
+
+modal.centered:
+  css:
+    theme:
+      css/modal-centered.css: {}
+
+modal.bottom_sheet:
+  css:
+    theme:
+      css/modal-bottom-sheet.css: {}
+
+admin:
+  css:
+    theme:
+      css/admin.css: {}
+
+modal.analytics:
+  css:
+    theme:
+      css/modal-analytics.css: {}
+  js:
+    https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js: { type: external, minified: true }
+    js/modal-analytics.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+
+modal.form.persistence:
+  version: 1.x
+  js:
+    js/modal-form-persistence.js: {}
+  dependencies:
+    - core/drupal
+
+modal.preview:
+  version: 1.x
+  js:
+    js/modal-preview.js: {}
+  dependencies:
+    - core/drupal
+    - cadence/modal.system

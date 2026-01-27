@@ -24,8 +24,9 @@ The Drupal Modal System is a powerful marketing tool that allows you to create a
 - **Images**: 
   - Single or multiple background images
   - Image carousel with crossfade transitions and autoplay
-  - Visual effects: Grayscale, Opacity, Brightness, Saturation
-  - Overlay gradients with customizable colors, direction, and opacity
+  - **Visual effects**: Grayscale, Opacity, Brightness, Saturation, Background Color, Blend Mode
+  - **Overlay gradient**: Customizable colors, direction, and opacity; shown with live preview
+  - Overlay Gradient and Preview panels stack on narrow viewports; side-by-side on wide (1200px+)
   - Mobile-specific images with separate height controls
   - Flexible image placement (top, bottom, left, right)
 - **Call-to-Action Buttons**: 
@@ -56,12 +57,17 @@ The Drupal Modal System is a powerful marketing tool that allows you to create a
 - **Layouts**: 
   - Centered modal (traditional popup)
   - Bottom sheet (mobile-friendly slide-up)
+- **Layout & Colors**:
+  - Background and text color customization
+  - **Decorative effects**: Confetti or Streamers around the overlay
+  - **Confetti**: Particle size slider (0.5x–2.0x), uses confetti.js for celebration-style modals
+  - **Overlay opacity**: Slider to control page overlay transparency (helps decorative effects like confetti show through)
 - **Typography**:
   - Google Fonts integration (20+ popular fonts)
   - Custom font families
   - Font size, color, letter spacing, line height
   - Text alignment controls
-- **Colors**: Background and text color customization
+  - Headline and subheadline typography in side-by-side fieldsets (admin)
 - **Spacing**: Top spacer height, CTA margin controls
 - **Responsive Design**: Mobile breakpoints and force-top options
 - **Max Width**: Customizable modal width
@@ -85,6 +91,10 @@ The Drupal Modal System is a powerful marketing tool that allows you to create a
   - Collapsible form panels with localStorage persistence
   - Keyboard shortcuts (Cmd+S/Ctrl+S to save)
   - Auto-save form state
+- **Admin layout**:
+  - Responsive form: Visual Effects columns and Overlay Gradient/Preview panels collapse at 1200px
+  - Layout & Colors: 2-column grid (max-width 800px), slider + value display for Confetti Size and Overlay Opacity
+  - Typography: Headline and Subheadline fields in two-column layout on wider screens
 
 ### 🚫 Dismissal Options
 - **Session-Based**: Don't show again during the current browser session
@@ -103,15 +113,15 @@ The Drupal Modal System is a powerful marketing tool that allows you to create a
 1. **Place the module** in your Drupal installation:
    ```bash
    # If using Composer
-   composer require drupal/custom-plugin
+   composer require drupal/cadence
    
    # Or manually place in:
-   web/modules/custom/custom_plugin/
+   web/modules/custom/cadence/
    ```
 
 2. **Enable the module**:
    ```bash
-   drush en custom_plugin
+   drush en cadence
    ```
    Or via the admin UI: **Extend** > **Modal System** > **Install**
 
@@ -216,10 +226,10 @@ The module uses Drupal's Plugin API for extensibility:
 ### File Structure
 
 ```
-custom_plugin/
+cadence/
 ├── config/
 │   └── schema/
-│       └── custom_plugin.schema.yml    # Configuration schema
+│       └── cadence.schema.yml    # Configuration schema
 ├── css/
 │   ├── admin.css                       # Admin interface styles
 │   ├── modal-system.css                # Base modal styles
@@ -235,8 +245,8 @@ custom_plugin/
 │   ├── Form/                           # Admin forms
 │   ├── Plugin/                         # Plugin implementations
 │   └── ModalService.php               # Core service
-├── custom_plugin.info.yml             # Module definition
-├── custom_plugin.module               # Module hooks
+├── cadence.info.yml             # Module definition
+├── cadence.module               # Module hooks
 └── README.md                          # This file
 ```
 
@@ -247,10 +257,10 @@ custom_plugin/
 ```php
 <?php
 
-namespace Drupal\custom_plugin\Plugin\ModalRule;
+namespace Drupal\cadence\Plugin\ModalRule;
 
-use Drupal\custom_plugin\Plugin\ModalRule\Attribute\ModalRuleAttribute;
-use Drupal\custom_plugin\Plugin\ModalRule\ModalRuleBase;
+use Drupal\cadence\Plugin\ModalRule\Attribute\ModalRuleAttribute;
+use Drupal\cadence\Plugin\ModalRule\ModalRuleBase;
 
 #[ModalRuleAttribute(
   id: 'my_custom_rule',
@@ -276,10 +286,10 @@ class MyCustomRule extends ModalRuleBase {
 ```php
 <?php
 
-namespace Drupal\custom_plugin\Plugin\ModalStyling;
+namespace Drupal\cadence\Plugin\ModalStyling;
 
-use Drupal\custom_plugin\Plugin\ModalStyling\Attribute\ModalStylingAttribute;
-use Drupal\custom_plugin\Plugin\ModalStyling\ModalStylingBase;
+use Drupal\cadence\Plugin\ModalStyling\Attribute\ModalStylingAttribute;
+use Drupal\cadence\Plugin\ModalStyling\ModalStylingBase;
 
 #[ModalStylingAttribute(
   id: 'my_custom_layout',
@@ -327,13 +337,13 @@ class MyCustomLayout extends ModalStylingBase {
 drush cr
 
 # Check logs
-drush watchdog:show --filter=type=custom_plugin
+drush watchdog:show --filter=type=cadence
 
 # Enable module
-drush en custom_plugin
+drush en cadence
 
 # Disable module
-drush pmu custom_plugin
+drush pmu cadence
 ```
 
 ## Best Practices
@@ -348,7 +358,8 @@ drush pmu custom_plugin
 
 ## Support & Documentation
 
-- **Module Documentation**: See `install-dir/web/modules/custom/custom_plugin/README.md`
+- **Module Documentation**: See `install-dir/web/modules/custom/cadence/README.md`
+- **Prompt Learnings**: See `PROMPT_LEARNINGS.md` for implementation notes and context useful when refining layout, form structure, or responsive behavior (e.g. breakpoints, stacking, confetti, admin UI).
 - **Debugging Guide**: See `DEBUGGING.md` (if available)
 - **Drupal API**: [Drupal.org API Reference](https://api.drupal.org)
 

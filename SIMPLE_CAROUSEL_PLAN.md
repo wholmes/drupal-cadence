@@ -258,7 +258,7 @@ this.startCarousel(container);
 ### Phase 5: Config Schema
 
 #### 5.1 Update Schema
-**File**: `config/schema/custom_plugin.schema.yml`
+**File**: `config/schema/cadence.schema.yml`
 
 **Add to image mapping**:
 ```yaml
@@ -388,7 +388,7 @@ carousel_duration:
 2. `src/ModalService.php` - Pass carousel data to frontend
 3. `js/modal-system.js` - Carousel detection, build method, autoplay
 4. `css/modal-system.css` - Fade transition styles
-5. `config/schema/custom_plugin.schema.yml` - Schema updates
+5. `config/schema/cadence.schema.yml` - Schema updates
 
 ### New Methods:
 - `buildSimpleCarousel()` - Creates carousel container

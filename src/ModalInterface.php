@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\custom_plugin;
+namespace Drupal\cadence;
 
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
 

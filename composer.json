@@ -1,5 +1,5 @@
 {
-  "name": "drupal/custom-plugin",
+  "name": "drupal/cadence",
   "type": "drupal-module",
   "description": "Rule-based modal system with analytics tracking",
   "license": "MIT",
@@ -15,7 +15,7 @@
   },
   "autoload": {
     "psr-4": {
-      "Drupal\\custom_plugin\\": "src/"
+      "Drupal\\cadence\\": "src/"
     }
   }
 }

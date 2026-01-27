@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\custom_plugin\Form;
+namespace Drupal\cadence\Form;
 
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Entity\EntityInterface;

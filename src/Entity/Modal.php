@@ -1,9 +1,9 @@
 <?php
 
-namespace Drupal\custom_plugin\Entity;
+namespace Drupal\cadence\Entity;
 
 use Drupal\Core\Config\Entity\ConfigEntityBase;
-use Drupal\custom_plugin\ModalInterface;
+use Drupal\cadence\ModalInterface;
 
 /**
  * Defines the Modal entity.
@@ -19,11 +19,11 @@ use Drupal\custom_plugin\ModalInterface;
  *     plural = "@count modals"
  *   ),
  *   handlers = {
- *     "list_builder" = "Drupal\custom_plugin\ModalListBuilder",
+ *     "list_builder" = "Drupal\cadence\ModalListBuilder",
  *     "form" = {
- *       "add" = "Drupal\custom_plugin\Form\ModalForm",
- *       "edit" = "Drupal\custom_plugin\Form\ModalForm",
- *       "delete" = "Drupal\custom_plugin\Form\ModalDeleteForm"
+ *       "add" = "Drupal\cadence\Form\ModalForm",
+ *       "edit" = "Drupal\cadence\Form\ModalForm",
+ *       "delete" = "Drupal\cadence\Form\ModalDeleteForm"
  *     },
  *     "route_provider" = {
  *       "html" = "Drupal\Core\Entity\Routing\AdminHtmlRouteProvider",
