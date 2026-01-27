@@ -731,6 +731,11 @@
 .modal-system--carousel-layer {
   transition: opacity 1s ease-in-out;
   will-change: opacity;
+  z-index: 1;
+}
+
+.modal-system--carousel-layer-active {
+  z-index: 2;
 }
 
 /* CTAs */

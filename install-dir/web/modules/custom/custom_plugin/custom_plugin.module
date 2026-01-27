@@ -60,11 +60,27 @@ function custom_plugin_page_attachments(array &$attachments) {
 
     \Drupal::logger('custom_plugin')->debug('Modal System: Found @count enabled modal(s)', ['@count' => count($modals)]);
 
+    // Check if any modal needs confetti.js.
+    $needs_confetti = FALSE;
+    if (!empty($modals)) {
+      foreach ($modals as $modal) {
+        if (isset($modal['styling']['decorative_effect']) && $modal['styling']['decorative_effect'] === 'confetti') {
+          $needs_confetti = TRUE;
+          break;
+        }
+      }
+    }
+
     // Always attach library and settings, even if empty (for debugging).
     $attachments['#attached']['drupalSettings']['modalSystem'] = [
       'modals' => $modals,
     ];
     $attachments['#attached']['library'][] = 'custom_plugin/modal.system';
+    
+    // Only attach confetti.js if at least one modal uses it.
+    if ($needs_confetti) {
+      $attachments['#attached']['library'][] = 'custom_plugin/modal.confetti';
+    }
     
     if (!empty($modals)) {
       \Drupal::logger('custom_plugin')->debug('Modal System: Library attached successfully on route @route with @count modal(s)', [
