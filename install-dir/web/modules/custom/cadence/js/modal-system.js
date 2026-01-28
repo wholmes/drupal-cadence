@@ -978,7 +978,7 @@
     let placement = 'top'; // Default placement
     const imageData = this.modal.content.image;
     const imageHeight = imageData && imageData.height ? imageData.height.trim() : null;
-    
+
     if (imageData) {
       placement = imageData.placement || 'top';
       const mobileForceTop = imageData.mobile_force_top || false;

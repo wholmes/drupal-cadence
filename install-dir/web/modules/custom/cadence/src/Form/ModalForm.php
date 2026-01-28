@@ -2744,9 +2744,9 @@ class ModalForm extends EntityForm {
     
     // When previewing, also pull image FIDs from form elements if present (managed_file
     // stores multiple FIDs in #value or fids child #value; getValues() may not reflect them yet).
+    $form_fids = [];
     if (isset($form['content']['image']['fid'])) {
       $fid_el = &$form['content']['image']['fid'];
-      $form_fids = [];
       if (!empty($fid_el['fids']['#value'])) {
         $v = $fid_el['fids']['#value'];
         $form_fids = is_array($v) ? array_filter(array_map('intval', $v)) : array_filter(array_map('intval', preg_split('/\s+/', trim((string) $v), -1, PREG_SPLIT_NO_EMPTY)));
@@ -2754,9 +2754,36 @@ class ModalForm extends EntityForm {
         $v = $fid_el['#value']['fids'];
         $form_fids = is_array($v) ? array_filter(array_map('intval', $v)) : array_filter(array_map('intval', preg_split('/\s+/', trim((string) $v), -1, PREG_SPLIT_NO_EMPTY)));
       }
-      if (!empty($form_fids)) {
-        $merged_values['content']['image']['fid'] = array_replace_recursive($merged_values['content']['image']['fid'] ?? [], ['fids' => $form_fids]);
+    }
+    // Fallback: form element may be empty during AJAX; use form state or merged values.
+    if (empty($form_fids)) {
+      $val = $form_state->getValue(['content', 'image', 'fid']);
+      if (is_array($val) && !empty($val['fids'])) {
+        $form_fids = array_filter(array_map('intval', $val['fids']));
+      } elseif (is_array($val)) {
+        $list = array_filter(array_map('intval', $val));
+        if (!empty($list)) {
+          $form_fids = $list;
+        }
+      } elseif (is_numeric($val) && (int) $val > 0) {
+        $form_fids = [(int) $val];
       }
+    }
+    if (empty($form_fids) && !empty($merged_values['content']['image']['fid'])) {
+      $existing = $merged_values['content']['image']['fid'];
+      if (is_array($existing) && !empty($existing['fids'])) {
+        $form_fids = array_filter(array_map('intval', $existing['fids']));
+      } elseif (is_array($existing)) {
+        $list = array_filter(array_map('intval', $existing));
+        if (!empty($list)) {
+          $form_fids = $list;
+        }
+      } elseif (is_numeric($existing) && (int) $existing > 0) {
+        $form_fids = [(int) $existing];
+      }
+    }
+    if (!empty($form_fids)) {
+      $merged_values['content']['image']['fid'] = array_replace_recursive($merged_values['content']['image']['fid'] ?? [], ['fids' => $form_fids]);
     }
     
     // Build temporary modal data structure from form values.
