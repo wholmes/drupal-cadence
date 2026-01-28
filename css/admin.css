@@ -3,6 +3,73 @@
  * Admin CSS for Modal System.
  */
 
+/* Remove box shadow and border from vertical tabs - override CSS variable */
+:root {
+  --vertical-tabs-shadow: none;
+  --vertical-tabs-border: none;
+}
+
+/* Also directly target the element with high specificity */
+.vertical-tabs__items,
+.vertical-tabs__items.vertical-tabs__items,
+body .vertical-tabs__items {
+  box-shadow: none !important;
+  border: none !important;
+  --vertical-tabs-shadow: none !important;
+  --vertical-tabs-border: none !important;
+}
+
+/* Also target the wrapper if needed */
+.vertical-tabs,
+body .vertical-tabs {
+  box-shadow: none !important;
+}
+
+.vertical-tabs__panes,
+body .vertical-tabs__panes {
+  box-shadow: none !important;
+}
+
+/* All fieldset labels - add bottom border */
+.fieldset__label {
+  border-bottom: 1px solid #ccc;
+}
+
+/* Modal list date styling */
+.modal-date-expired {
+  color: #d32f2f !important;
+  font-weight: bold;
+}
+
+.modal-date-empty {
+  color: #999;
+  font-style: italic;
+}
+
+/* Modal list actions */
+.modal-list-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Archived modal styling */
+.modal-archived-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #666;
+  color: #fff;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+tr.modal-archived {
+  opacity: 0.7;
+  background-color: #f9f9f9;
+}
+
 /* Flexbox operations container */
 .modal-operations {
   display: flex;
@@ -11,14 +78,42 @@
 }
 
 .modal-operations a {
-  display: inline-block;
-  padding: 0.375rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   background-color: #0073aa;
   color: #ffffff;
   text-decoration: none;
   border-radius: 3px;
   font-size: 0.875rem;
   transition: background-color 0.2s;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  line-height: 1;
+}
+
+.modal-operations a .modal-operation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  line-height: 0;
+}
+
+.modal-operations a .modal-operation-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex-shrink: 0;
+  fill: currentColor;
+  color: inherit;
+}
+
+.modal-operations a.button--danger .modal-operation-icon svg {
+  fill: currentColor;
 }
 
 .modal-operations a:hover {
@@ -29,4 +124,827 @@
 .modal-operations a:focus {
   outline: 2px solid #005177;
   outline-offset: 2px;
+}
+
+/* Image effects preview */
+.image-effects-preview-container {
+  margin-top: 1rem;
+}
+
+.image-effects-preview-container .image-preview {
+  display: block;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+}
+
+/* Layout & Colors: Confetti size and Overlay opacity – value just below the slider */
+.modal-layout-colors-fieldset .modal-slider-row {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+.modal-layout-colors-fieldset .modal-slider-row .form-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+.modal-layout-colors-fieldset .modal-slider-row input[type="range"] {
+  width: 100%;
+  max-width: 100%;
+}
+.modal-layout-colors-fieldset .modal-slider-value {
+  display: block;
+  margin-top: 0.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Keep description below the slider row when it’s inside the same wrapper */
+.modal-layout-colors-fieldset .modal-slider-row .form-item__description,
+.modal-layout-colors-fieldset .modal-slider-row .description {
+  margin-top: 0.35rem;
+}
+
+/* Wide screen layout improvements */
+@media (min-width: 1024px) {
+  /* CTA fieldsets side by side */
+  .modal-cta-fieldset {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 1rem);
+    margin-right: 1rem;
+  }
+  
+  .modal-cta-fieldset.modal-cta-2 {
+    margin-right: 0;
+    margin-left: 1rem;
+  }
+  
+  /* Image effects and preview container - flexbox layout */
+  .modal-effects-preview-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  
+  /* Image effects and preview side by side */
+  .modal-effects-preview-container .modal-image-effects,
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1;
+    min-width: 0; /* Prevents flex items from overflowing */
+  }
+  
+  .modal-effects-preview-container .modal-image-effects {
+    flex: 1.5; /* Slightly larger for effects */
+  }
+  
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1; /* Smaller for preview */
+  }
+  
+  /* Image effects: content wrapper is flex so we can separate 3-col fields from panels */
+  .modal-image-effects .details-wrapper,
+  .modal-image-effects .claro-details__wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  /* Image effects - 2 columns until 1200px (collapse sooner); see 1200px block for 3-col */
+  .modal-image-effects .details-wrapper > .form-item,
+  .modal-image-effects .claro-details__wrapper > .form-item {
+    flex: 0 0 calc(50% - 0.5rem);
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 0.5rem);
+  }
+  
+  /* Panels row: full-width container, its own flex context for Overlay Gradient + Preview; 50% each when >1023px */
+  .modal-image-effects .details-wrapper > .modal-image-effects-panels,
+  .modal-image-effects .claro-details__wrapper > .modal-image-effects-panels {
+    flex: 0 0 100%;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-sizing: border-box;
+  }
+  
+  /* Overlay Gradient and Preview: 50% each inside the panels container (stacked below 1024px per max-width: 1023px) */
+  .modal-image-effects-panels > * {
+    flex: 0 0 calc(50% - 0.5rem);
+    width: calc(50% - 0.5rem);
+    box-sizing: border-box;
+    min-width: 0;
+  }
+  
+  .modal-image-effects .form-item:last-child {
+    margin-right: 0;
+  }
+  
+  /* Rules - checkbox and value side by side */
+  .modal-rules-fieldset .form-item--checkbox {
+    display: inline-block;
+    width: auto;
+    margin-right: 1rem;
+  }
+  
+  .modal-rules-fieldset .form-item:not(.form-item--checkbox) {
+    display: inline-block;
+    width: calc(50% - 0.5rem);
+    vertical-align: top;
+  }
+  
+  /* Styling - layout and colors side by side (exclude fieldsets) */
+  .modal-styling-fieldset > .form-item:not(fieldset) {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(33.333% - 0.75rem);
+    margin-right: 0.75rem;
+  }
+  
+  .modal-styling-fieldset > .form-item:not(fieldset):nth-child(3n) {
+    margin-right: 0;
+  }
+  
+  /* Layout & Colors fieldset - 2 columns max for clearer layout */
+  .modal-layout-colors-fieldset .fieldset__wrapper,
+  .modal-layout-colors-fieldset .fieldset-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem 1rem;
+    align-items: start;
+    max-width: 800px;
+  }
+  
+  .modal-layout-colors-fieldset .fieldset__wrapper > *,
+  .modal-layout-colors-fieldset .fieldset-wrapper > * {
+    min-width: 0;
+  }
+  
+  /* Typography container - flexbox layout for side by side fieldsets */
+  .modal-typography-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  /* Typography fieldsets - headline and subheadline side by side; min-width prevents bunching */
+  .modal-typography-container .fieldset--headline,
+  .modal-typography-container .fieldset--subheadline {
+    flex: 1 1 280px;
+    min-width: 280px;
+  }
+  
+  /* Body typography fieldset - full width below headline/subheadline when wrapped */
+  .modal-typography-container .fieldset--body,
+  .modal-typography-container [data-drupal-selector*="edit-body"] {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  
+  /* Typography fields: 2-column grid on the fieldset’s inner wrapper (form-items live there) */
+  .modal-typography-container .fieldset--headline .fieldset-wrapper,
+  .modal-typography-container .fieldset--headline .fieldset__wrapper,
+  .modal-typography-container .fieldset--headline > div,
+  .modal-typography-container .fieldset--subheadline .fieldset-wrapper,
+  .modal-typography-container .fieldset--subheadline .fieldset__wrapper,
+  .modal-typography-container .fieldset--subheadline > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1rem;
+    align-items: start;
+  }
+  
+  .modal-typography-container .fieldset--headline .fieldset-wrapper > *,
+  .modal-typography-container .fieldset--headline .fieldset__wrapper > *,
+  .modal-typography-container .fieldset--headline > div > *,
+  .modal-typography-container .fieldset--subheadline .fieldset-wrapper > *,
+  .modal-typography-container .fieldset--subheadline .fieldset__wrapper > *,
+  .modal-typography-container .fieldset--subheadline > div > * {
+    min-width: 0;
+  }
+  
+  /* Same when typography is under styling fieldset */
+  .modal-styling-fieldset .fieldset--headline .fieldset-wrapper,
+  .modal-styling-fieldset .fieldset--headline .fieldset__wrapper,
+  .modal-styling-fieldset .fieldset--headline > div,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset-wrapper,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset__wrapper,
+  .modal-styling-fieldset .fieldset--subheadline > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1rem;
+    align-items: start;
+  }
+  
+  .modal-styling-fieldset .fieldset--headline .fieldset-wrapper > *,
+  .modal-styling-fieldset .fieldset--headline .fieldset__wrapper > *,
+  .modal-styling-fieldset .fieldset--headline > div > *,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset-wrapper > *,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset__wrapper > *,
+  .modal-styling-fieldset .fieldset--subheadline > div > * {
+    min-width: 0;
+  }
+}
+
+/* Wide screens only: 3 columns for the six Visual Effects fields (collapse sooner: 3-col only from 1200px up) */
+@media (min-width: 1200px) {
+  .modal-image-effects .details-wrapper > .form-item,
+  .modal-image-effects .claro-details__wrapper > .form-item {
+    flex: 0 0 calc(33.333% - 0.67rem);
+    width: calc(33.333% - 0.67rem);
+  }
+}
+
+/* Medium screens - some improvements */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Layout & Colors fieldset - 2 columns on medium screens */
+  .modal-layout-colors-fieldset .fieldset__wrapper,
+  .modal-layout-colors-fieldset .fieldset-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem 0.75rem;
+    align-items: start;
+    max-width: 800px;
+  }
+  
+  .modal-layout-colors-fieldset .fieldset__wrapper > *,
+  .modal-layout-colors-fieldset .fieldset-wrapper > * {
+    min-width: 0;
+  }
+  
+  /* Typography container - flexbox layout for medium screens; wrap and min-width prevent bunching */
+  .modal-typography-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .modal-typography-container .fieldset--headline,
+  .modal-typography-container .fieldset--subheadline {
+    flex: 1 1 260px;
+    min-width: 260px;
+  }
+  
+  .modal-typography-container .fieldset--body {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  
+  /* Typography fields: same 2-column grid on the inner wrapper, medium screens */
+  .modal-typography-container .fieldset--headline .fieldset-wrapper,
+  .modal-typography-container .fieldset--headline .fieldset__wrapper,
+  .modal-typography-container .fieldset--headline > div,
+  .modal-typography-container .fieldset--subheadline .fieldset-wrapper,
+  .modal-typography-container .fieldset--subheadline .fieldset__wrapper,
+  .modal-typography-container .fieldset--subheadline > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem 0.75rem;
+    align-items: start;
+  }
+  
+  .modal-typography-container .fieldset--headline .fieldset-wrapper > *,
+  .modal-typography-container .fieldset--headline .fieldset__wrapper > *,
+  .modal-typography-container .fieldset--headline > div > *,
+  .modal-typography-container .fieldset--subheadline .fieldset-wrapper > *,
+  .modal-typography-container .fieldset--subheadline .fieldset__wrapper > *,
+  .modal-typography-container .fieldset--subheadline > div > * {
+    min-width: 0;
+  }
+  
+  .modal-styling-fieldset .fieldset--headline .fieldset-wrapper,
+  .modal-styling-fieldset .fieldset--headline .fieldset__wrapper,
+  .modal-styling-fieldset .fieldset--headline > div,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset-wrapper,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset__wrapper,
+  .modal-styling-fieldset .fieldset--subheadline > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem 0.75rem;
+    align-items: start;
+  }
+  
+  .modal-styling-fieldset .fieldset--headline .fieldset-wrapper > *,
+  .modal-styling-fieldset .fieldset--headline .fieldset__wrapper > *,
+  .modal-styling-fieldset .fieldset--headline > div > *,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset-wrapper > *,
+  .modal-styling-fieldset .fieldset--subheadline .fieldset__wrapper > *,
+  .modal-styling-fieldset .fieldset--subheadline > div > * {
+    min-width: 0;
+  }
+  
+  /* CTA fieldsets side by side on medium screens too */
+  .modal-cta-fieldset {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 1rem);
+    margin-right: 1rem;
+  }
+  
+  .modal-cta-fieldset.modal-cta-2 {
+    margin-right: 0;
+    margin-left: 1rem;
+  }
+  
+  /* Image effects and preview container - flexbox layout for medium screens */
+  .modal-effects-preview-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  
+  .modal-effects-preview-container .modal-image-effects,
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .modal-effects-preview-container .modal-image-effects {
+    flex: 1.5;
+  }
+  
+  .modal-effects-preview-container .modal-image-preview {
+    flex: 1;
+  }
+  
+  /* Image effects: same flex layout, 2 columns for small fields, 50% for panels */
+  .modal-image-effects .details-wrapper,
+  .modal-image-effects .claro-details__wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .modal-image-effects .details-wrapper > .form-item,
+  .modal-image-effects .claro-details__wrapper > .form-item {
+    flex: 0 0 calc(50% - 0.5rem);
+    width: calc(50% - 0.5rem);
+  }
+  
+  /* Panels row: same as 1024px – full width, flex, 50% each */
+  .modal-image-effects .details-wrapper > .modal-image-effects-panels,
+  .modal-image-effects .claro-details__wrapper > .modal-image-effects-panels {
+    flex: 0 0 100%;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-sizing: border-box;
+  }
+  
+  .modal-image-effects-panels > * {
+    flex: 0 0 calc(50% - 0.5rem);
+    width: calc(50% - 0.5rem);
+    box-sizing: border-box;
+    min-width: 0;
+  }
+  
+  .modal-image-effects .form-item:nth-child(even) {
+    margin-right: 0;
+  }
+}
+
+/* Below breakpoint: panels container stacks its two children full width (collapse sooner: stack below 1200px) */
+@media (max-width: 1199px) {
+  /* Force full-width flex column so stacking works even when 1024/768 blocks don't apply (e.g. viewport < 768) */
+  .modal-image-effects .details-wrapper > .modal-image-effects-panels,
+  .modal-image-effects .claro-details__wrapper > .modal-image-effects-panels {
+    flex: 0 0 100%;
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-sizing: border-box;
+  }
+  
+  .modal-image-effects-panels > * {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+}
+
+/* Analytics page */
+.modal-analytics-page {
+  padding: 1rem;
+}
+
+/* Analytics page tabs */
+.modal-analytics-page .tabs {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #ccc;
+  list-style: none;
+  padding: 0;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-end !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-bottom: 1px solid #ccc !important;
+  border-radius: 0 !important;
+}
+
+.modal-analytics-page .tabs li {
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+}
+
+.modal-analytics-page .tabs li .tabs__link {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  margin-right: 0.5rem;
+  text-decoration: none;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.modal-analytics-page .tabs li .tabs__link:hover {
+  color: #0073aa;
+  border-bottom-color: #0073aa;
+}
+
+.modal-analytics-page .tabs li .tabs__link.is-active {
+  color: #0073aa;
+  font-weight: 600;
+  border-bottom-color: #0073aa;
+}
+
+.modal-analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.modal-analytics-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.modal-analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2rem;
+  table-layout: fixed;
+}
+
+.modal-analytics-table th,
+.modal-analytics-table td {
+  padding: 0.75rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  vertical-align: top;
+}
+
+.modal-analytics-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.modal-analytics-table .analytics-number {
+  text-align: center;
+  font-weight: bold;
+}
+
+.modal-analytics-table .analytics-actions {
+  text-align: center;
+  width: 140px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.modal-analytics-table .analytics-actions .button {
+  margin: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+.modal-operations {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.modal-operations .button {
+  margin: 0 1px;
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.modal-analytics-archived {
+  background-color: #f9f9f9;
+  opacity: 0.7;
+}
+
+.modal-archived-badge {
+  background-color: #f39c12;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.modal-analytics-reset-details {
+  margin-top: 2rem;
+  border: 1px solid #e74c3c;
+  border-radius: 3px;
+  background-color: #fdf2f2;
+}
+
+.modal-analytics-reset-summary {
+  padding: 0.8rem 1rem;
+  color: #e74c3c;
+  font-weight: bold;
+  font-size: 0.95em;
+  cursor: pointer;
+  background-color: #fdf2f2;
+  margin: 0;
+  list-style: none;
+}
+
+.modal-analytics-reset-summary:hover {
+  background-color: #fce8e8;
+}
+
+.modal-analytics-reset-summary::-webkit-details-marker {
+  display: none;
+}
+
+.modal-analytics-reset-summary::before {
+  content: '▶ ';
+  font-size: 0.8em;
+  transition: transform 0.2s;
+}
+
+.modal-analytics-reset-details[open] .modal-analytics-reset-summary::before {
+  transform: rotate(90deg);
+}
+
+.modal-analytics-reset-section {
+  padding: 0 1rem 1rem 1rem;
+  margin: 0;
+  border: none;
+  background: none;
+}
+
+.modal-analytics-reset-section .description {
+  color: #666;
+  font-weight: normal;
+  font-size: 0.9em;
+  margin-bottom: 0.8rem;
+}
+
+.button--danger {
+  background-color: #e74c3c;
+  color: white;
+  border: 1px solid #c0392b;
+  font-size: 0.85em;
+  padding: 6px 12px;
+}
+
+.button--danger:hover {
+  background-color: #c0392b;
+}
+
+/* Campaign search form styling */
+.modal-search-form {
+  background: #f8f9fa;
+  padding: 1.25rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.modal-search-form-wrapper {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.modal-search-inputs {
+  display: contents; /* Flatten this container so children participate in parent flex */
+}
+
+.modal-search-buttons {
+  display: contents; /* Flatten this container so children participate in parent flex */
+}
+
+/* Field wrapper styling to override Drupal defaults */
+.modal-search-field-wrapper,
+.modal-status-field-wrapper {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.modal-search-field-wrapper {
+  flex: 2;
+  min-width: 280px;
+  max-width: 400px;
+}
+
+.modal-status-field-wrapper {
+  flex: 0 0 140px;
+}
+
+/* Input field styling - match button height */
+.modal-search-input,
+.modal-status-filter {
+  height: 42px !important;
+  padding: 10px 12px !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 4px !important;
+  font-size: 15px !important;
+  margin: 0 !important;
+}
+
+.modal-search-input {
+  width: 100% !important;
+}
+
+.modal-status-filter {
+  width: 100% !important;
+  background: white !important;
+}
+
+/* Button styling - larger to match input fields */
+.modal-search-submit,
+.modal-search-clear {
+  height: 46px !important;
+  padding: 10px 20px !important;
+  font-size: 15px !important;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: 4px !important;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+  min-width: 80px;
+}
+
+.modal-search-clear {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pagination styling */
+.pager {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.pager__items {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pager__item {
+  display: inline-block;
+}
+
+.pager__link {
+  padding: 0.5rem 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #495057;
+}
+
+.pager__link:hover,
+.pager__link--is-active {
+  background: #007bff;
+  color: white;
+  text-decoration: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modal-search-form {
+    padding: 1rem;
+  }
+  
+  .modal-search-form-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .modal-search-inputs {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .modal-search-field-wrapper,
+  .modal-status-field-wrapper {
+    flex: 1 1 auto;
+    min-width: auto;
+    max-width: none;
+  }
+  
+  .modal-search-buttons {
+    align-self: flex-start;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .modal-search-field-wrapper {
+    flex: 1.5;
+    min-width: 220px;
+  }
+  
+  .modal-status-field-wrapper {
+    flex: 0 0 120px;
+  }
+}
+
+/* Modal Preview Styles */
+.modal-preview-container {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.modal-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.modal-preview-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-preview-close {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-preview-close:hover {
+  background: #c82333;
+}
+
+.modal-preview-content {
+  position: relative;
+  min-height: 400px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Overlay Gradient - Enable Checkbox Full Width */
+.js-form-item-content-image-effects-overlay-gradient-enabled {
+  width: 90% !important;
+  max-width: 90% !important;
+}
+
+/* Overlay Gradient Settings - Column Layout */
+.overlay-gradient-settings .form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.overlay-gradient-settings .form-row > .form-item {
+  flex: 1;
+  margin-bottom: 0;
 }

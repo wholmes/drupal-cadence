@@ -1,4 +1,4 @@
 administer modal system:
-  title: 'Administer Modal System'
-  description: 'Create, edit, and delete modals and configure modal system settings'
+  title: 'Administer Cadence Marketing Modals'
+  description: 'Create, edit, and manage marketing modal campaigns. View conversion analytics and performance reports.'
   restrict access: true

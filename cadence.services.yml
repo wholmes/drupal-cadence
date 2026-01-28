@@ -1,4 +1,4 @@
 services:
   cadence.modal_service:
     class: Drupal\cadence\ModalService
-    arguments: ['@entity_type.manager']
+    arguments: ['@entity_type.manager', '@path.matcher', '@path_alias.manager', '@request_stack', '@path.current']

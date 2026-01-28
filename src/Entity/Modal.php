@@ -8,6 +8,10 @@ use Drupal\cadence\ModalInterface;
 /**
  * Defines the Modal entity.
  *
+ * @author Whittfield Holmes
+ * @see https://linkedin.com/in/wecreateyou
+ * @see https://codemybrand.com
+ *
  * @ConfigEntityType(
  *   id = "modal",
  *   label = @Translation("Modal"),
@@ -23,7 +27,8 @@ use Drupal\cadence\ModalInterface;
  *     "form" = {
  *       "add" = "Drupal\cadence\Form\ModalForm",
  *       "edit" = "Drupal\cadence\Form\ModalForm",
- *       "delete" = "Drupal\cadence\Form\ModalDeleteForm"
+ *       "delete" = "Drupal\cadence\Form\ModalDeleteForm",
+ *       "archive" = "Drupal\cadence\Form\ModalArchiveForm"
  *     },
  *     "route_provider" = {
  *       "html" = "Drupal\Core\Entity\Routing\AdminHtmlRouteProvider",
@@ -38,22 +43,26 @@ use Drupal\cadence\ModalInterface;
  *     "status" = "status",
  *     "uuid" = "uuid"
  *   },
- *   links = {
- *     "add-form" = "/admin/config/content/modal-system/add",
- *     "edit-form" = "/admin/config/content/modal-system/{modal}/edit",
- *     "delete-form" = "/admin/config/content/modal-system/{modal}/delete",
- *     "collection" = "/admin/config/content/modal-system"
- *   },
- *   config_export = {
- *     "id",
- *     "label",
- *     "status",
- *     "content",
- *     "rules",
- *     "styling",
- *     "dismissal",
- *     "analytics"
- *   }
+  *   links = {
+  *     "add-form" = "/admin/config/content/modal-system/add",
+  *     "edit-form" = "/admin/config/content/modal-system/{modal}/edit",
+  *     "delete-form" = "/admin/config/content/modal-system/{modal}/delete",
+  *     "archive-form" = "/admin/config/content/modal-system/{modal}/archive",
+  *     "collection" = "/admin/config/content/modal-system"
+  *   },
+  *   config_export = {
+  *     "id",
+  *     "label",
+  *     "status",
+  *     "archived",
+  *     "priority",
+  *     "content",
+  *     "rules",
+  *     "styling",
+  *     "dismissal",
+  *     "analytics",
+  *     "visibility"
+  *   }
  * )
  */
 class Modal extends ConfigEntityBase implements ModalInterface {
@@ -78,6 +87,20 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    * @var bool
    */
   protected $status = TRUE;
+
+  /**
+   * Whether the modal is archived.
+   *
+   * @var bool
+   */
+  protected $archived = FALSE;
+
+  /**
+   * Modal priority (higher = shows first).
+   *
+   * @var int
+   */
+  protected $priority = 0;
 
   /**
    * The modal content configuration.
@@ -115,6 +138,13 @@ class Modal extends ConfigEntityBase implements ModalInterface {
   protected $analytics = [];
 
   /**
+   * The visibility configuration.
+   *
+   * @var array
+   */
+  protected $visibility = [];
+
+  /**
    * {@inheritdoc}
    */
   public function getContent(): array {
@@ -127,6 +157,7 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    */
   public function setContent(array $content) {
     $this->content = $content;
+    $this->set('content', $content);
     return $this;
   }
 
@@ -143,6 +174,7 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    */
   public function setRules(array $rules) {
     $this->rules = $rules;
+    $this->set('rules', $rules);
     return $this;
   }
 
@@ -159,6 +191,7 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    */
   public function setStyling(array $styling) {
     $this->styling = $styling;
+    $this->set('styling', $styling);
     return $this;
   }
 
@@ -175,6 +208,7 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    */
   public function setDismissal(array $dismissal) {
     $this->dismissal = $dismissal;
+    $this->set('dismissal', $dismissal);
     return $this;
   }
 
@@ -191,6 +225,7 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    */
   public function setAnalytics(array $analytics) {
     $this->analytics = $analytics;
+    $this->set('analytics', $analytics);
     return $this;
   }
 
@@ -198,7 +233,60 @@ class Modal extends ConfigEntityBase implements ModalInterface {
    * {@inheritdoc}
    */
   public function isEnabled(): bool {
-    return (bool) $this->status;
+    return (bool) $this->status && !$this->isArchived();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isArchived(): bool {
+    $archived = $this->get('archived');
+    return is_bool($archived) ? $archived : FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setArchived(bool $archived) {
+    $this->set('archived', $archived);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPriority(): int {
+    $priority = $this->get('priority');
+    return is_numeric($priority) ? (int) $priority : 0;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setPriority(int $priority) {
+    $this->set('priority', $priority);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getVisibility(): array {
+    $visibility = $this->get('visibility');
+    // Ensure we always return an array, even if property is NULL or not set.
+    if (!is_array($visibility)) {
+      return [];
+    }
+    return $visibility;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setVisibility(array $visibility) {
+    $this->visibility = $visibility;
+    $this->set('visibility', $visibility);
+    return $this;
   }
 
 }

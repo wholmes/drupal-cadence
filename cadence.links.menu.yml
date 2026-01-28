@@ -1,7 +1,6 @@
-# Menu link: Modal System under Configuration > Content.
-entity.modal.collection:
+cadence.modal_system:
   title: 'Modal System'
-  description: 'Manage rule-based modals'
-  route_name: entity.modal.collection
+  description: 'Manage marketing modals and their analytics'
   parent: system.admin_config_content
+  route_name: entity.modal.collection
   weight: 10

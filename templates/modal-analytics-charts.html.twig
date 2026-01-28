@@ -1,0 +1,24 @@
+{#
+/**
+ * @file
+ * Template for modal analytics charts page.
+ */
+#}
+<div class="modal-analytics-charts-page">
+  <h2>{{ 'Visualization'|t }}</h2>
+  
+  <div class="modal-analytics-charts">
+    <div class="chart-container">
+      <h3>{{ 'Impressions by Modal'|t }}</h3>
+      <canvas id="impressions-chart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>{{ 'Conversion Rate by Modal'|t }}</h3>
+      <canvas id="conversion-chart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>{{ 'CTA Performance Comparison'|t }}</h3>
+      <canvas id="cta-comparison-chart"></canvas>
+    </div>
+  </div>
+</div>

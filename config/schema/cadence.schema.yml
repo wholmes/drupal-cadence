@@ -11,12 +11,6 @@ cadence.modal.*:
     status:
       type: boolean
       label: 'Status'
-    archived:
-      type: boolean
-      label: 'Archived'
-    priority:
-      type: integer
-      label: 'Priority'
     content:
       type: mapping
       label: 'Content'
@@ -28,8 +22,142 @@ cadence.modal.*:
           type: string
           label: 'Subheadline'
         body:
-          type: text
+          type: mapping
           label: 'Body content'
+          mapping:
+            value:
+              type: text
+              label: 'Body text'
+            format:
+              type: string
+              label: 'Text format'
+        form:
+          type: mapping
+          label: 'Form'
+          mapping:
+            type:
+              type: string
+              label: 'Form Type'
+              nullable: true
+            form_id:
+              type: string
+              label: 'Form ID'
+              nullable: true
+        image:
+          type: mapping
+          label: 'Image'
+          mapping:
+            fid:
+              type: integer
+              label: 'File ID'
+              nullable: true
+            fids:
+              type: sequence
+              label: 'File IDs'
+              sequence:
+                type: integer
+                label: 'File ID'
+            placement:
+              type: string
+              label: 'Placement'
+            mobile_force_top:
+              type: boolean
+              label: 'Force image to top on mobile'
+            mobile_breakpoint:
+              type: string
+              label: 'Mobile Breakpoint'
+              nullable: true
+            mobile_height:
+              type: string
+              label: 'Mobile Height'
+              nullable: true
+            mobile_fid:
+              type: integer
+              label: 'Mobile Image File ID'
+              nullable: true
+            carousel_enabled:
+              type: boolean
+              label: 'Carousel enabled'
+            carousel_duration:
+              type: integer
+              label: 'Carousel duration (seconds)'
+            height:
+              type: string
+              label: 'Image Height'
+              nullable: true
+            max_height_top_bottom:
+              type: string
+              label: 'Max Height (Top/Bottom)'
+              nullable: true
+            effects:
+              type: mapping
+              label: 'Image Effects'
+              mapping:
+                background_color:
+                  type: string
+                  label: 'Background Color'
+                blend_mode:
+                  type: string
+                  label: 'Blend Mode'
+                grayscale:
+                  type: integer
+                  label: 'Grayscale'
+                opacity:
+                  type: integer
+                  label: 'Opacity'
+                brightness:
+                  type: integer
+                  label: 'Brightness'
+                saturation:
+                  type: integer
+                  label: 'Saturation'
+                overlay_gradient:
+                  type: mapping
+                  label: 'Overlay Gradient'
+                  mapping:
+                    enabled:
+                      type: boolean
+                      label: 'Enabled'
+                    color_start:
+                      type: string
+                      label: 'Start Color'
+                    color_end:
+                      type: string
+                      label: 'End Color'
+                    direction:
+                      type: string
+                      label: 'Direction'
+                    opacity:
+                      type: integer
+                      label: 'Opacity'
+            slideshow:
+              type: mapping
+              label: 'Slideshow settings'
+              mapping:
+                transition:
+                  type: string
+                  label: 'Transition type'
+                duration:
+                  type: integer
+                  label: 'Slide duration (seconds)'
+                speed:
+                  type: integer
+                  label: 'Transition speed (milliseconds)'
+                autoplay:
+                  type: boolean
+                  label: 'Auto-play'
+                loop:
+                  type: boolean
+                  label: 'Loop'
+                pause_on_hover:
+                  type: boolean
+                  label: 'Pause on hover'
+                show_dots:
+                  type: boolean
+                  label: 'Show navigation dots'
+                show_arrows:
+                  type: boolean
+                  label: 'Show navigation arrows'
         cta1:
           type: mapping
           label: 'CTA 1'
@@ -46,6 +174,15 @@ cadence.modal.*:
             color:
               type: string
               label: 'Button color'
+            rounded_corners:
+              type: boolean
+              label: 'Rounded corners'
+            reverse_style:
+              type: boolean
+              label: 'Reverse/outline style'
+            hover_animation:
+              type: string
+              label: 'Hover animation'
         cta2:
           type: mapping
           label: 'CTA 2'
@@ -62,6 +199,15 @@ cadence.modal.*:
             color:
               type: string
               label: 'Button color'
+            rounded_corners:
+              type: boolean
+              label: 'Rounded corners'
+            reverse_style:
+              type: boolean
+              label: 'Reverse/outline style'
+            hover_animation:
+              type: string
+              label: 'Hover animation'
     rules:
       type: mapping
       label: 'Rules'
@@ -100,19 +246,92 @@ cadence.modal.*:
         layout:
           type: string
           label: 'Layout'
+        max_width:
+          type: string
+          label: 'Maximum width'
+        max_width_mobile:
+          type: string
+          label: 'Mobile maximum width'
         background_color:
           type: string
           label: 'Background color'
         text_color:
           type: string
           label: 'Text color'
-        decorative_effect:
-          type: string
-          label: 'Decorative Effect'
-          nullable: true
-        overlay_opacity:
-          type: integer
-          label: 'Overlay Opacity'
+        headline:
+          type: mapping
+          label: 'Headline typography'
+          mapping:
+            size:
+              type: string
+              label: 'Font size'
+            color:
+              type: string
+              label: 'Color'
+            font_family:
+              type: string
+              label: 'Font family'
+            google_font:
+              type: string
+              label: 'Google Font'
+              nullable: true
+            letter_spacing:
+              type: string
+              label: 'Letter spacing'
+            line_height:
+              type: string
+              label: 'Line height'
+            text_align:
+              type: string
+              label: 'Text alignment'
+              nullable: true
+        spacing:
+          type: mapping
+          label: 'Spacing'
+          mapping:
+            top_spacer_height:
+              type: string
+              label: 'Top spacer height'
+              nullable: true
+            cta_margin_bottom:
+              type: string
+              label: 'CTA margin bottom'
+              nullable: true
+        subheadline:
+          type: mapping
+          label: 'Subheadline typography'
+          mapping:
+            size:
+              type: string
+              label: 'Font size'
+            color:
+              type: string
+              label: 'Color'
+            font_family:
+              type: string
+              label: 'Font family'
+            google_font:
+              type: string
+              label: 'Google Font'
+              nullable: true
+            letter_spacing:
+              type: string
+              label: 'Letter spacing'
+            line_height:
+              type: string
+              label: 'Line height'
+            text_align:
+              type: string
+              label: 'Text alignment'
+              nullable: true
+        body:
+          type: mapping
+          label: 'Body typography'
+          mapping:
+            text_align:
+              type: string
+              label: 'Text alignment'
+              nullable: true
     dismissal:
       type: mapping
       label: 'Dismissal settings'
@@ -143,15 +362,13 @@ cadence.modal.*:
         negate:
           type: boolean
           label: 'Negate condition'
-        start_date:
-          type: string
-          label: 'Start Date'
-          nullable: true
-        end_date:
-          type: string
-          label: 'End Date'
-          nullable: true
-        force_open_param:
-          type: string
-          label: 'Force Open URL Parameter'
-          nullable: true
+cadence.settings:
+  type: config_object
+  label: 'Modal System Settings'
+  mapping:
+    ip_exclusion_enabled:
+      type: boolean
+      label: 'IP exclusion enabled'
+    ip_exclusion_list:
+      type: text
+      label: 'IP exclusion list'
