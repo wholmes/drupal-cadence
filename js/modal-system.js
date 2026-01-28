@@ -278,6 +278,14 @@
       closeBtn.addEventListener('click', () => this.closeModal());
     }
 
+    // Capture form submission for analytics only (no preventDefault; form still submits).
+    modalElement.addEventListener('submit', (e) => {
+      if (e.target && e.target.tagName && e.target.tagName.toLowerCase() === 'form') {
+        const formId = (e.target.id || e.target.getAttribute('name') || 'form');
+        Drupal.modalSystem.AnalyticsTracker.trackEvent(this.modal.id, 'form_submitted', formId);
+      }
+    }, false);
+
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         this.closeModal();

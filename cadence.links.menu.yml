@@ -1,0 +1,7 @@
+# Menu link: Modal System under Configuration > Content.
+entity.modal.collection:
+  title: 'Modal System'
+  description: 'Manage rule-based modals'
+  route_name: entity.modal.collection
+  parent: system.admin_config_content
+  weight: 10

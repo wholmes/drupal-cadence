@@ -133,6 +133,16 @@ The Drupal Modal System is a powerful marketing tool that allows you to create a
    - Navigate to **Configuration** > **Content** > **Modal System**
    - Or visit `/admin/config/content/modal-system`
 
+### Syncing the plugin to a local Drupal site (install-dir)
+
+This repo is the **source of truth** for the Cadence plugin. If you develop with a Drupal site in `install-dir/`, run this after completing a task to copy the plugin into the site so it uses the latest code:
+
+```bash
+./sync-plugin-to-site.sh
+```
+
+This syncs everything from the repo root (excluding `install-dir` and `.git`) into `install-dir/web/modules/custom/cadence/`.
+
 ## Quick Start Guide
 
 ### Creating Your First Modal
