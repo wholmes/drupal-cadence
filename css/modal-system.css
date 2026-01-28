@@ -18,10 +18,11 @@
   animation: fadeIn 0.3s ease;
 }
 
-/* Max-width wrapper - constrains overall modal width */
+/* Max-width wrapper - uses CSS var from overlay so mobile media query can override */
 .modal-system--max-width-wrapper {
-  width: auto;
-  max-width: 100%; /* Fallback - will be overridden by inline style */
+  max-width: var(--modal-max-width, 100%);
+  width: var(--modal-max-width, 100%);
+  margin: 0 auto;
   box-sizing: border-box;
 }
 
@@ -70,6 +71,14 @@
   overflow-y: auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease;
+}
+/* Box shadow off (Modal Background → Show box shadow unchecked) */
+.modal-system--overlay.modal-system--no-box-shadow .modal-system--modal,
+.modal-system--overlay.modal-system--no-box-shadow .modal-system--content-wrapper {
+  box-shadow: none;
+}
+
+.modal-system--modal {
   width: 100%;
   /* Remove focus outline */
   outline: none !important;
@@ -382,251 +391,30 @@
   max-width: 60%;
 }
 
-/* Responsive breakpoints are controlled by data-mobile-breakpoint attribute */
-
-/* Custom breakpoints for individual modals - controlled by data-mobile-breakpoint attribute */
-@media (max-width: 1600px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="1600px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1600px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1600px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1600px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
+/* Force image to top: active when viewport is at or below the chosen breakpoint (JS sets .modal-system--force-top-active from data-mobile-breakpoint) */
+.modal-system--mobile-force-top.modal-system--force-top-active {
+  order: -1 !important;
 }
-@media (max-width: 1500px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="1500px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1500px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1500px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1500px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
+.modal-system--content-wrapper:has(.modal-system--mobile-force-top.modal-system--force-top-active) {
+  flex-direction: column !important;
+  max-width: 90%;
 }
-@media (max-width: 1400px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="1400px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1400px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1400px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1400px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
+.modal-system--content-left .modal-system--image-container.modal-system--force-top-active,
+.modal-system--content-right .modal-system--image-container.modal-system--force-top-active {
+  flex: 1 1 auto;
+  max-width: 100%;
+  width: 100%;
 }
-@media (max-width: 1300px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="1300px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1300px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1300px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1300px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
+/* When inside max-width-wrapper, ensure modal respects wrapper constraint */
+.modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
+.modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box;
 }
-@media (max-width: 1200px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="1200px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1200px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1200px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1200px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
-}
-@media (max-width: 1100px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="1100px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1100px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1100px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1100px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
-}
-@media (max-width: 1000px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="1000px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="1000px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="1000px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="1000px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
-}
-@media (max-width: 900px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="900px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="900px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="900px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="900px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
-}
-@media (max-width: 800px) {
-  .modal-system--mobile-force-top[data-mobile-breakpoint="800px"] {
-    order: -1 !important;
-  }
-  .modal-system--content-wrapper:has(.modal-system--mobile-force-top[data-mobile-breakpoint="800px"]) {
-    flex-direction: column !important;
-    max-width: 90%;
-  }
-  .modal-system--content-left .modal-system--image-container[data-mobile-breakpoint="800px"],
-  .modal-system--content-right .modal-system--image-container[data-mobile-breakpoint="800px"] {
-    flex: 1 1 auto;
-    max-width: 100%;
-    width: 100%;
-  }
-  /* When inside max-width-wrapper, ensure modal respects wrapper constraint */
-  .modal-system--max-width-wrapper .modal-system--content-left .modal-system--modal,
-  .modal-system--max-width-wrapper .modal-system--content-right .modal-system--modal {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  /* Original rule for modals NOT inside max-width-wrapper */
-  .modal-system--content-left .modal-system--modal,
-  .modal-system--content-right .modal-system--modal {
-    max-width: 100%;
-  }
+.modal-system--content-left .modal-system--modal,
+.modal-system--content-right .modal-system--modal {
+  max-width: 100%;
 }
 
 /* Regular image height using CSS custom property (avoids inline style specificity issues) */
@@ -637,87 +425,13 @@
 /* Mobile height override - applies when image is forced to top at any breakpoint */
 /* Height is set via CSS custom properties in media queries below */
 
-/* Mobile image switching - use mobile image at breakpoint if available */
-@media (max-width: 1600px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1600px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1600px"] {
-    min-height: var(--mobile-height) !important;
-  }
+/* Mobile image switching - use mobile image when at or below chosen breakpoint (same JS class as force-top) */
+.modal-system--image-container[data-has-mobile-image].modal-system--force-top-active {
+  background-image: var(--mobile-image) !important;
+  min-height: var(--mobile-height) !important;
 }
-@media (max-width: 1500px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1500px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1500px"] {
-    min-height: var(--mobile-height) !important;
-  }
-}
-@media (max-width: 1400px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1400px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1400px"] {
-    min-height: var(--mobile-height) !important;
-  }
-}
-@media (max-width: 1300px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1300px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1300px"] {
-    min-height: var(--mobile-height) !important;
-  }
-}
-@media (max-width: 1200px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1200px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1200px"] {
-    min-height: var(--mobile-height) !important;
-  }
-}
-@media (max-width: 1100px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1100px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1100px"] {
-    min-height: var(--mobile-height) !important;
-  }
-}
-@media (max-width: 1000px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="1000px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="1000px"] {
-    min-height: var(--mobile-height) !important;
-  }
-}
-@media (max-width: 900px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="900px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="900px"] {
-    min-height: var(--mobile-height) !important;
-  }
-}
-@media (max-width: 800px) {
-  .modal-system--image-container[data-has-mobile-image][data-mobile-breakpoint="800px"] {
-    background-image: var(--mobile-image) !important;
-    min-height: var(--mobile-height) !important;
-  }
-  .modal-system--image-container[data-mobile-height][data-mobile-breakpoint="800px"] {
-    min-height: var(--mobile-height) !important;
-  }
+.modal-system--image-container[data-mobile-height].modal-system--force-top-active {
+  min-height: var(--mobile-height) !important;
 }
 
 
@@ -863,40 +577,39 @@
   display: inline-block !important;
 }
 
-/* Responsive - mobile modal max-width uses CSS var from overlay (set in JS from styling.max_width_mobile or max_width) */
-@media (max-width: 768px) {
-  .modal-system--overlay > .modal-system--max-width-wrapper,
-  .modal-system--overlay > .modal-system--content-wrapper,
-  .modal-system--overlay > .modal-system--stacked-wrapper,
-  .modal-system--overlay > .modal-system--modal {
-    max-width: var(--modal-mobile-max-width, 95%);
-  }
+/* REMOVED: @media (max-width: 768px) for .modal-system--overlay — do not re-add. Mobile layout (narrow width, mobile max-width, smaller text, stacked CTA) is applied only when viewport is at or below the breakpoint set in Styling → Mobile breakpoint. JS sets .modal-system--mobile-layout from data-mobile-layout-breakpoint. */
+.modal-system--overlay.modal-system--mobile-layout > .modal-system--max-width-wrapper,
+.modal-system--overlay.modal-system--mobile-layout > .modal-system--content-wrapper,
+.modal-system--overlay.modal-system--mobile-layout > .modal-system--stacked-wrapper,
+.modal-system--overlay.modal-system--mobile-layout > .modal-system--modal {
+  max-width: var(--modal-mobile-max-width, 95%);
+  width: 100%; /* Allow wrapper to shrink; max-width caps it */
+}
 
-  .modal-system--content-wrapper .modal-system--modal,
-  .modal-system--stacked-wrapper .modal-system--modal {
-    max-width: 100%; /* Fill parent; parent uses --modal-mobile-max-width */
-  }
+.modal-system--overlay.modal-system--mobile-layout .modal-system--content-wrapper .modal-system--modal,
+.modal-system--overlay.modal-system--mobile-layout .modal-system--stacked-wrapper .modal-system--modal {
+  max-width: 100%; /* Fill parent; parent uses --modal-mobile-max-width */
+}
 
-  .modal-system--modal {
-    padding: 1.5rem;
-  }
+.modal-system--overlay.modal-system--mobile-layout .modal-system--modal {
+  padding: 1.5rem;
+}
 
-  .modal-system--headline {
-    font-size: 1.25rem;
-  }
+.modal-system--overlay.modal-system--mobile-layout .modal-system--headline {
+  font-size: 1.25rem;
+}
 
-  .modal-system--subheadline {
-    font-size: 1rem;
-  }
+.modal-system--overlay.modal-system--mobile-layout .modal-system--subheadline {
+  font-size: 1rem;
+}
 
-  .modal-system--cta {
-    display: block;
-    width: 100%;
-    margin: 0.5rem 0;
-    text-align: center;
-  }
+.modal-system--overlay.modal-system--mobile-layout .modal-system--cta {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0;
+  text-align: center;
+}
 
-  .modal-system--bottom-sheet {
-    max-height: 90vh;
-  }
+.modal-system--overlay.modal-system--mobile-layout .modal-system--bottom-sheet {
+  max-height: 90vh;
 }

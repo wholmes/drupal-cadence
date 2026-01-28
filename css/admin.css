@@ -266,9 +266,11 @@ tr.modal-archived {
     margin-right: 0;
   }
   
-  /* Layout & Colors fieldset - 2 columns max for clearer layout */
+  /* Layout & Colors fieldset / Modal Background details - 2 columns max for clearer layout */
   .modal-layout-colors-fieldset .fieldset__wrapper,
-  .modal-layout-colors-fieldset .fieldset-wrapper {
+  .modal-layout-colors-fieldset .fieldset-wrapper,
+  .modal-layout-colors-fieldset .claro-details__wrapper,
+  .modal-layout-colors-fieldset .details__wrapper {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem 1rem;
@@ -277,7 +279,9 @@ tr.modal-archived {
   }
   
   .modal-layout-colors-fieldset .fieldset__wrapper > *,
-  .modal-layout-colors-fieldset .fieldset-wrapper > * {
+  .modal-layout-colors-fieldset .fieldset-wrapper > *,
+  .modal-layout-colors-fieldset .claro-details__wrapper > *,
+  .modal-layout-colors-fieldset .details__wrapper > * {
     min-width: 0;
   }
   
@@ -359,9 +363,11 @@ tr.modal-archived {
 
 /* Medium screens - some improvements */
 @media (min-width: 768px) and (max-width: 1023px) {
-  /* Layout & Colors fieldset - 2 columns on medium screens */
+  /* Layout & Colors fieldset / Modal Background details - 2 columns on medium screens */
   .modal-layout-colors-fieldset .fieldset__wrapper,
-  .modal-layout-colors-fieldset .fieldset-wrapper {
+  .modal-layout-colors-fieldset .fieldset-wrapper,
+  .modal-layout-colors-fieldset .claro-details__wrapper,
+  .modal-layout-colors-fieldset .details__wrapper {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.6rem 0.75rem;
@@ -370,7 +376,9 @@ tr.modal-archived {
   }
   
   .modal-layout-colors-fieldset .fieldset__wrapper > *,
-  .modal-layout-colors-fieldset .fieldset-wrapper > * {
+  .modal-layout-colors-fieldset .fieldset-wrapper > *,
+  .modal-layout-colors-fieldset .claro-details__wrapper > *,
+  .modal-layout-colors-fieldset .details__wrapper > * {
     min-width: 0;
   }
   
@@ -535,28 +543,38 @@ tr.modal-archived {
   padding: 1rem;
 }
 
-/* Analytics page tabs */
-.modal-analytics-page .tabs {
+/* Analytics page tabs wrapper - ensure tabs are visible */
+.modal-analytics-tabs-wrapper {
+  display: block !important;
   margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Analytics page tabs */
+.modal-analytics-page .tabs,
+.modal-analytics-tabs-wrapper .tabs {
+  margin: 0 0 1.5rem 0;
   border-bottom: 1px solid #ccc;
   list-style: none;
   padding: 0;
   display: flex !important;
   flex-direction: row !important;
-  justify-content: flex-end !important;
+  justify-content: flex-start !important;
   box-shadow: none !important;
   border: none !important;
   border-bottom: 1px solid #ccc !important;
   border-radius: 0 !important;
 }
 
-.modal-analytics-page .tabs li {
+.modal-analytics-page .tabs li,
+.modal-analytics-tabs-wrapper .tabs li {
   margin: 0;
   padding: 0;
   display: inline-block;
 }
 
-.modal-analytics-page .tabs li .tabs__link {
+.modal-analytics-page .tabs li .tabs__link,
+.modal-analytics-tabs-wrapper .tabs li .tabs__link {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   margin-right: 0.5rem;
@@ -566,12 +584,14 @@ tr.modal-archived {
   transition: all 0.2s;
 }
 
-.modal-analytics-page .tabs li .tabs__link:hover {
+.modal-analytics-page .tabs li .tabs__link:hover,
+.modal-analytics-tabs-wrapper .tabs li .tabs__link:hover {
   color: #0073aa;
   border-bottom-color: #0073aa;
 }
 
-.modal-analytics-page .tabs li .tabs__link.is-active {
+.modal-analytics-page .tabs li .tabs__link.is-active,
+.modal-analytics-tabs-wrapper .tabs li .tabs__link.is-active {
   color: #0073aa;
   font-weight: 600;
   border-bottom-color: #0073aa;

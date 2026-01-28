@@ -91,6 +91,92 @@
   Drupal.modalSystem = Drupal.modalSystem || {};
 
   /**
+   * Parses a breakpoint string to pixel width (e.g. "1400px", "768", "50em").
+   * @param {string} value - Breakpoint value from data-mobile-breakpoint.
+   * @return {number|null} Pixel width or null if invalid.
+   */
+  Drupal.modalSystem.parseBreakpointToPixels = function (value) {
+    if (!value || typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim().toLowerCase();
+    const num = parseFloat(trimmed);
+    if (isNaN(num) || num <= 0) {
+      return null;
+    }
+    if (trimmed.endsWith('px') || /^\d+(\.\d+)?$/.test(trimmed)) {
+      return num;
+    }
+    if (trimmed.endsWith('em') || trimmed.endsWith('rem')) {
+      const rootFontSize = typeof getComputedStyle !== 'undefined' && document.documentElement
+        ? parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+        : 16;
+      return num * rootFontSize;
+    }
+    return num;
+  };
+
+  /**
+   * Fallback breakpoint only when backend did not send styling.mobile_layout_breakpoint (e.g. cached page).
+   * Do not use for normal behavior: mobile layout, mobile width, and force-top all use the value from
+   * Styling → Mobile breakpoint (sent as styling.mobile_layout_breakpoint). No other hardcoded breakpoints.
+   */
+  Drupal.modalSystem.MOBILE_LAYOUT_BREAKPOINT_DEFAULT = '768px';
+
+  /**
+   * Updates "force top" active state for all modal image containers based on
+   * viewport width vs their data-mobile-breakpoint. Toggles class
+   * modal-system--force-top-active so the chosen breakpoint is respected.
+   * Also updates overlay mobile-layout class from data-mobile-layout-breakpoint.
+   */
+  Drupal.modalSystem.updateMobileBreakpoints = function () {
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    const containers = document.querySelectorAll('.modal-system--mobile-force-top');
+    containers.forEach(function (el) {
+      const bp = el.getAttribute('data-mobile-breakpoint');
+      const px = Drupal.modalSystem.parseBreakpointToPixels(bp || '1400px');
+      if (px !== null && width <= px) {
+        el.classList.add('modal-system--force-top-active');
+      } else {
+        el.classList.remove('modal-system--force-top-active');
+      }
+    });
+    const overlays = document.querySelectorAll('.modal-system--overlay[data-mobile-layout-breakpoint]');
+    overlays.forEach(function (el) {
+      const bp = el.getAttribute('data-mobile-layout-breakpoint') || Drupal.modalSystem.MOBILE_LAYOUT_BREAKPOINT_DEFAULT;
+      const px = Drupal.modalSystem.parseBreakpointToPixels(bp);
+      if (px !== null && width <= px) {
+        el.classList.add('modal-system--mobile-layout');
+      } else {
+        el.classList.remove('modal-system--mobile-layout');
+      }
+    });
+  };
+
+  /**
+   * Ensures a single debounced resize listener updates force-top breakpoints.
+   */
+  Drupal.modalSystem.attachMobileBreakpointResize = function () {
+    if (Drupal.modalSystem._mobileBreakpointResizeAttached) {
+      return;
+    }
+    Drupal.modalSystem._mobileBreakpointResizeAttached = true;
+    let timeout = null;
+    function onResize() {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      timeout = setTimeout(function () {
+        Drupal.modalSystem.updateMobileBreakpoints();
+        timeout = null;
+      }, 100);
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', onResize);
+    }
+  };
+
+  /**
    * Load Google Fonts from CDN.
    * Collects all Google Fonts used in modals and loads them.
    */
@@ -885,11 +971,18 @@
       : 0.5;
     overlay.style.backgroundColor = `rgba(0, 0, 0, ${overlayOpacity})`;
     
-    // Mobile max-width: used in CSS @media (max-width: 768px). Fallback: max_width, then 95%.
+    // Desktop max-width: set as CSS var so mobile media query can override it (no inline style on wrapper).
+    const maxWidth = this.modal.styling.max_width ? String(this.modal.styling.max_width).trim() : '';
+    if (maxWidth) {
+      overlay.style.setProperty('--modal-max-width', maxWidth);
+    }
+    // Mobile max-width: applied when overlay has class modal-system--mobile-layout (JS sets from data-mobile-layout-breakpoint). Fallback: max_width, then 95%.
     const mobileMaxWidth = (this.modal.styling.max_width_mobile && String(this.modal.styling.max_width_mobile).trim())
       || (this.modal.styling.max_width && String(this.modal.styling.max_width).trim())
       || '95%';
     overlay.style.setProperty('--modal-mobile-max-width', mobileMaxWidth);
+    // Value from Styling → Mobile breakpoint; backend sends non-empty default (768px) when empty.
+    overlay.setAttribute('data-mobile-layout-breakpoint', this.modal.styling.mobile_layout_breakpoint || Drupal.modalSystem.MOBILE_LAYOUT_BREAKPOINT_DEFAULT);
     
     // Add decorative effect class if specified (except confetti, which uses JS).
     if (this.modal.styling && this.modal.styling.decorative_effect) {
@@ -945,6 +1038,9 @@
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-labelledby', 'modal-headline-' + this.modal.id);
     overlay.setAttribute('aria-modal', 'true');
+    if (this.modal.styling && this.modal.styling.box_shadow === false) {
+      overlay.classList.add('modal-system--no-box-shadow');
+    }
 
     const modalElement = document.createElement('div');
     modalElement.className = 'modal-system--modal modal-system--' + this.modal.styling.layout;
@@ -982,7 +1078,8 @@
     if (imageData) {
       placement = imageData.placement || 'top';
       const mobileForceTop = imageData.mobile_force_top || false;
-      const mobileBreakpoint = imageData.mobile_breakpoint || '1400px';
+      // Use same breakpoint as overlay mobile layout (Styling → Mobile breakpoint); default 768px.
+      const mobileBreakpoint = (this.modal.styling && this.modal.styling.mobile_layout_breakpoint && String(this.modal.styling.mobile_layout_breakpoint).trim()) || Drupal.modalSystem.MOBILE_LAYOUT_BREAKPOINT_DEFAULT;
       
       // Get image URL(s) - support both url (single) and urls (array) formats.
       let imageUrls = [];
@@ -1305,22 +1402,12 @@
     let maxWidthWrapper = null;
     let layoutWrapper = null; // Reference to the layout wrapper (content-wrapper or stacked-wrapper)
     
-    // Create max-width wrapper if max-width is set, otherwise use overlay directly.
-    const maxWidth = this.modal.styling.max_width ? String(this.modal.styling.max_width).trim() : '';
-    if (typeof console !== 'undefined' && console.log) {
-      console.log('Modal System: max-width value:', maxWidth, 'from styling:', this.modal.styling.max_width);
-    }
-    if (maxWidth) {
+    // Create max-width wrapper if max-width is set. Use CSS var (--modal-max-width on overlay) so mobile media query can override with --modal-mobile-max-width.
+    const maxWidthVal = this.modal.styling.max_width ? String(this.modal.styling.max_width).trim() : '';
+    if (maxWidthVal) {
       maxWidthWrapper = document.createElement('div');
       maxWidthWrapper.className = 'modal-system--max-width-wrapper';
-      maxWidthWrapper.style.maxWidth = maxWidth;
-      // Set width to max-width value to give it a definite width that children can respect
-      // This prevents children with width: 100% from stretching beyond the constraint
-      maxWidthWrapper.style.width = maxWidth;
-      maxWidthWrapper.style.margin = '0 auto'; // Center it within the overlay
-      if (typeof console !== 'undefined' && console.log) {
-        console.log('Modal System: Created max-width-wrapper with max-width and width:', maxWidth);
-      }
+      // No inline max-width/width - CSS uses var(--modal-max-width); mobile media query overrides with --modal-mobile-max-width
     }
     
     if (imageContainer && (placement === 'left' || placement === 'right')) {
@@ -1376,6 +1463,10 @@
     }
     
     document.body.appendChild(overlay);
+
+    // Apply force-top breakpoint at chosen width (and attach resize once).
+    Drupal.modalSystem.updateMobileBreakpoints();
+    Drupal.modalSystem.attachMobileBreakpointResize();
 
     // Apply custom styling.
     if (this.modal.styling.background_color) {

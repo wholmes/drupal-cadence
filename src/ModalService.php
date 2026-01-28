@@ -339,6 +339,13 @@ class ModalService {
           }
         }
         
+        // Normalize styling so front end always receives a mobile layout breakpoint (no hardcoded 768 in JS).
+        $styling = $modal->getStyling();
+        $bp = isset($styling['mobile_layout_breakpoint']) ? trim((string) $styling['mobile_layout_breakpoint']) : '';
+        if ($bp === '') {
+          $styling['mobile_layout_breakpoint'] = '768px';
+        }
+
         // Always add the modal, even if image processing failed.
         $modals[] = [
           'id' => $modal->id(),
@@ -346,7 +353,7 @@ class ModalService {
           'priority' => $modal->getPriority(),
           'content' => $content,
           'rules' => $modal->getRules(),
-          'styling' => $modal->getStyling(),
+          'styling' => $styling,
           'dismissal' => $modal->getDismissal(),
           'analytics' => $modal->getAnalytics(),
           'visibility' => $visibility, // Include visibility for date range checking on frontend.
@@ -361,13 +368,18 @@ class ModalService {
         ]);
         // Still try to add the modal even if processing failed.
         try {
+          $styling = $modal->getStyling();
+          $bp = isset($styling['mobile_layout_breakpoint']) ? trim((string) $styling['mobile_layout_breakpoint']) : '';
+          if ($bp === '') {
+            $styling['mobile_layout_breakpoint'] = '768px';
+          }
           $modals[] = [
             'id' => $modal->id(),
             'label' => $modal->label(),
             'priority' => $modal->getPriority(),
             'content' => $modal->getContent(),
             'rules' => $modal->getRules(),
-            'styling' => $modal->getStyling(),
+            'styling' => $styling,
             'dismissal' => $modal->getDismissal(),
             'analytics' => $modal->getAnalytics(),
           ];

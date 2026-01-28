@@ -252,12 +252,19 @@ cadence.modal.*:
         max_width_mobile:
           type: string
           label: 'Mobile maximum width'
+        mobile_layout_breakpoint:
+          type: string
+          label: 'Mobile layout breakpoint (viewport width)'
+          nullable: true
         background_color:
           type: string
           label: 'Background color'
         text_color:
           type: string
           label: 'Text color'
+        box_shadow:
+          type: boolean
+          label: 'Show box shadow'
         headline:
           type: mapping
           label: 'Headline typography'

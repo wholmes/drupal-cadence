@@ -164,11 +164,19 @@ class ModalAnalyticsController extends ControllerBase {
       '#type' => 'container',
       '#attributes' => ['class' => ['modal-analytics-page']],
       'tabs' => [
-        '#theme' => 'item_list',
-        '#items' => $tab_items,
-        '#attributes' => ['class' => ['tabs', 'primary']],
+        '#type' => 'container',
+        '#attributes' => ['class' => ['modal-analytics-tabs-wrapper']],
+        '#weight' => -10,
+        'list' => [
+          '#theme' => 'item_list',
+          '#items' => $tab_items,
+          '#attributes' => ['class' => ['tabs', 'primary']],
+          '#list_type' => 'ul',
+        ],
       ],
-      'content' => [],
+      'content' => [
+        '#weight' => 0,
+      ],
     ];
 
     // Render active tab content.

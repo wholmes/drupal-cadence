@@ -80,6 +80,24 @@ class ModalForm extends EntityForm {
       '#size' => 5,
     ];
 
+    // Modal Width panel (collapsible) - above Marketing Content.
+    $styling = $modal->getStyling();
+    $form['modal_width'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Modal Width'),
+      '#open' => FALSE,
+      '#weight' => 5,
+      '#tree' => TRUE,
+      '#description' => $this->t('Set a maximum width for the modal.'),
+    ];
+    $form['modal_width']['max_width'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Maximum Width'),
+      '#description' => $this->t('e.g. 800px, 50rem, 90%. Leave empty for default (90% of viewport).'),
+      '#default_value' => $styling['max_width'] ?? '',
+      '#size' => 20,
+    ];
+
     // Marketing Content panel (collapsible, open by default).
     $form['content'] = [
       '#type' => 'details',
@@ -256,90 +274,6 @@ class ModalForm extends EntityForm {
       '#states' => [
         'visible' => [
           ':input[name="content[image][layout][placement]"]' => ['value' => ['top', 'bottom']],
-        ],
-      ],
-    ];
-    
-    // Mobile Display (collapsible fieldset).
-    // Visibility controlled by JavaScript - see modal-form-persistence.js
-    $form['content']['image']['mobile'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Mobile Display'),
-      '#open' => FALSE,
-      '#tree' => TRUE,
-      '#attributes' => ['style' => 'display: none;'], // Hidden by default, shown by JS when files are uploaded
-    ];
-
-    $form['content']['image']['mobile']['force_top'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Force image to top on mobile'),
-      '#description' => $this->t('When enabled, the image will always appear at the top on mobile devices, even if placement is set to bottom or side.'),
-      '#default_value' => $image_data['mobile_force_top'] ?? FALSE,
-    ];
-
-    $form['content']['image']['mobile']['breakpoint'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Mobile Breakpoint'),
-      '#description' => $this->t('Screen width at which the image moves to the top (e.g., 1200px, 1400px). Leave empty for default (1400px).'),
-      '#default_value' => $image_data['mobile_breakpoint'] ?? '',
-      '#size' => 20,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][mobile][force_top]"]' => ['checked' => TRUE],
-        ],
-      ],
-    ];
-
-    $form['content']['image']['mobile']['height'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Mobile Height (when forced to top)'),
-      '#description' => $this->t('Set a specific height for the image when it moves to the top on mobile (e.g., 200px, 30vh, 15rem). Leave empty to use the regular height setting.'),
-      '#default_value' => $image_data['mobile_height'] ?? '',
-      '#size' => 20,
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][mobile][force_top]"]' => ['checked' => TRUE],
-        ],
-      ],
-    ];
-
-    // Mobile image upload field (optional - only shows when mobile_force_top is enabled).
-    $mobile_fid = NULL;
-    if (!empty($image_data['mobile_fid']) && is_numeric($image_data['mobile_fid'])) {
-      $fid = (int) $image_data['mobile_fid'];
-      if ($fid > 0) {
-        $file = File::load($fid);
-        if ($file) {
-          $mobile_fid = $fid;
-          if ($file->isTemporary()) {
-            $file->setPermanent();
-            $file->save();
-          }
-        }
-      }
-    }
-
-    $form['content']['image']['mobile']['fid'] = [
-      '#type' => 'managed_file',
-      '#title' => $this->t('Mobile Image (Optional)'),
-      '#description' => $this->t('Upload a different image to display on mobile devices. If not provided, the regular image will be used. Allowed formats: jpg, jpeg, png, gif, webp. Maximum file size: 10 MB.'),
-      '#default_value' => $mobile_fid ? [$mobile_fid] : [],
-      '#upload_location' => 'public://modal-images',
-      '#upload_validators' => [
-        'FileExtension' => [
-          'extensions' => 'jpg jpeg png gif webp',
-        ],
-        'FileImageDimensions' => [
-          'maxDimensions' => '4096x4096',
-        ],
-        'FileSizeLimit' => [
-          'fileLimit' => 10485760, // 10 MB in bytes
-        ],
-      ],
-      '#progress_indicator' => 'throbber',
-      '#states' => [
-        'visible' => [
-          ':input[name="content[image][mobile][force_top]"]' => ['checked' => TRUE],
         ],
       ],
     ];
@@ -723,6 +657,75 @@ class ModalForm extends EntityForm {
       ];
     }
 
+    // Mobile panel: its own panel under Content, just after Modal Image(s).
+    $styling_for_mobile = $this->entity->getStyling();
+    $form['content']['mobile'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Mobile'),
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-mobile-fieldset']],
+    ];
+    $form['content']['mobile']['breakpoint'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mobile breakpoint'),
+      '#description' => $this->t('Viewport width at which the modal uses mobile layout (narrow width, smaller text, stacked CTA, and force image to top when enabled). e.g. 768px, 992px. Leave empty for 768px.'),
+      '#default_value' => $styling_for_mobile['mobile_layout_breakpoint'] ?? ($image_data['mobile_breakpoint'] ?? ''),
+      '#size' => 20,
+    ];
+    $form['content']['mobile']['max_width'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mobile max-width'),
+      '#description' => $this->t('Max width when viewport is at or below the mobile breakpoint (e.g., 360px, 95%). Leave empty to use the same as Maximum Width or 95%.'),
+      '#default_value' => $styling_for_mobile['max_width_mobile'] ?? '',
+      '#size' => 20,
+    ];
+    $form['content']['mobile']['force_top'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Force image to top on mobile'),
+      '#description' => $this->t('When enabled, the image will always appear at the top on mobile devices, even if placement is set to bottom or side.'),
+      '#default_value' => $image_data['mobile_force_top'] ?? FALSE,
+    ];
+    $form['content']['mobile']['height'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mobile Height (when forced to top)'),
+      '#description' => $this->t('Set a specific height for the image when it moves to the top on mobile (e.g., 200px, 30vh, 15rem). Leave empty to use the regular height setting.'),
+      '#default_value' => $image_data['mobile_height'] ?? '',
+      '#size' => 20,
+    ];
+    $mobile_fid = NULL;
+    if (!empty($image_data['mobile_fid']) && is_numeric($image_data['mobile_fid'])) {
+      $fid = (int) $image_data['mobile_fid'];
+      if ($fid > 0) {
+        $file = File::load($fid);
+        if ($file) {
+          $mobile_fid = $fid;
+          if ($file->isTemporary()) {
+            $file->setPermanent();
+            $file->save();
+          }
+        }
+      }
+    }
+    $form['content']['mobile']['fid'] = [
+      '#type' => 'managed_file',
+      '#title' => $this->t('Mobile Image (Optional)'),
+      '#description' => $this->t('Upload a different image to display on mobile devices. If not provided, the regular image will be used. Allowed formats: jpg, jpeg, png, gif, webp. Maximum file size: 10 MB.'),
+      '#default_value' => $mobile_fid ? [$mobile_fid] : [],
+      '#upload_location' => 'public://modal-images',
+      '#upload_validators' => [
+        'FileExtension' => [
+          'extensions' => 'jpg jpeg png gif webp',
+        ],
+        'FileImageDimensions' => [
+          'maxDimensions' => '4096x4096',
+        ],
+        'FileSizeLimit' => [
+          'fileLimit' => 10485760,
+        ],
+      ],
+      '#progress_indicator' => 'throbber',
+    ];
+
     // CTA 1.
     $form['content']['cta1'] = [
       '#type' => 'fieldset',
@@ -1019,6 +1022,97 @@ class ModalForm extends EntityForm {
       }
     }
 
+    // Modal Background panel - after Embed Form, before Rules.
+    $styling = $modal->getStyling();
+    $form['modal_background'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Modal Background'),
+      '#weight' => 15,
+      '#open' => FALSE,
+      '#tree' => TRUE,
+      '#attributes' => ['class' => ['modal-background-fieldset', 'modal-layout-colors-fieldset']],
+    ];
+    $form['modal_background']['background_color'] = [
+      '#type' => 'color',
+      '#title' => $this->t('Background Color'),
+      '#default_value' => $styling['background_color'] ?? '#ffffff',
+    ];
+    $form['modal_background']['text_color'] = [
+      '#type' => 'color',
+      '#title' => $this->t('Text Color'),
+      '#default_value' => $styling['text_color'] ?? '#000000',
+    ];
+    $form['modal_background']['box_shadow'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Show box shadow'),
+      '#description' => $this->t('When enabled, the modal has a drop shadow. Uncheck for a flat look.'),
+      '#default_value' => isset($styling['box_shadow']) ? (bool) $styling['box_shadow'] : TRUE,
+    ];
+    $form['modal_background']['decorative_effect'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Decorative Effect'),
+      '#description' => $this->t('Add decorative elements around the modal overlay (e.g., stars, sparkles, streamers).'),
+      '#options' => [
+        '' => $this->t('None'),
+        'confetti' => $this->t('Confetti'),
+        'streamers' => $this->t('Streamers'),
+      ],
+      '#default_value' => $styling['decorative_effect'] ?? '',
+    ];
+    $form['modal_background']['confetti_size_group'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-slider-with-display']],
+      '#states' => [
+        'visible' => [
+          ':input[name="modal_background[decorative_effect]"]' => ['value' => 'confetti'],
+        ],
+      ],
+    ];
+    $confetti_display = '<span id="confetti-size-display" class="modal-slider-value">' . number_format(($styling['confetti_size'] ?? 100) / 100, 1) . 'x</span>';
+    $form['modal_background']['confetti_size_group']['confetti_size'] = [
+      '#type' => 'range',
+      '#title' => $this->t('Confetti Size'),
+      '#description' => $this->t('Control the size of confetti particles. The default size is 1.0x.'),
+      '#default_value' => $styling['confetti_size'] ?? 100,
+      '#min' => 50,
+      '#max' => 200,
+      '#step' => 5,
+      '#prefix' => '<div class="modal-slider-row">',
+      '#suffix' => '</div>',
+      '#field_suffix' => $confetti_display,
+      '#attributes' => [
+        'class' => ['confetti-size-slider'],
+        'data-display-target' => 'confetti-size-display',
+      ],
+    ];
+    $form['modal_background']['overlay_opacity_group'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['modal-slider-with-display']],
+    ];
+    $overlay_display = '<span id="overlay-opacity-display" class="modal-slider-value">' . ($styling['overlay_opacity'] ?? 50) . '%</span>';
+    $form['modal_background']['overlay_opacity_group']['overlay_opacity'] = [
+      '#type' => 'range',
+      '#title' => $this->t('Overlay Opacity'),
+      '#description' => $this->t('Control the transparency of the page overlay. Lower values make the overlay more transparent, allowing you to see decorative effects (like confetti) better.'),
+      '#default_value' => $styling['overlay_opacity'] ?? 50,
+      '#min' => 0,
+      '#max' => 100,
+      '#step' => 1,
+      '#prefix' => '<div class="modal-slider-row">',
+      '#suffix' => '</div>',
+      '#field_suffix' => $overlay_display,
+      '#attributes' => [
+        'class' => ['overlay-opacity-slider'],
+        'data-display-target' => 'overlay-opacity-display',
+      ],
+    ];
+
+    // Add JavaScript to update the display value when slider changes.
+    $form['#attached']['library'][] = 'core/drupal';
+    $form['#attached']['drupalSettings']['overlayOpacity'] = [
+      'initialValue' => $styling['overlay_opacity'] ?? 50,
+    ];
+
     // Rules panel (collapsible, closed by default).
     $form['rules'] = [
       '#type' => 'details',
@@ -1209,123 +1303,6 @@ class ModalForm extends EntityForm {
     ];
 
     $styling = $modal->getStyling();
-    
-    // Layout and colors fieldset - groups layout, max width, background, and text color.
-    $form['styling']['layout_colors'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Layout & Colors'),
-      '#tree' => TRUE,
-      '#attributes' => ['class' => ['modal-layout-colors-fieldset']],
-    ];
-
-    $form['styling']['layout_colors']['layout'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Layout'),
-      '#options' => [
-        'centered' => $this->t('Centered'),
-        'bottom_sheet' => $this->t('Bottom Sheet (Mobile-friendly)'),
-      ],
-      '#default_value' => $styling['layout'] ?? 'centered',
-      '#required' => TRUE,
-    ];
-
-    $form['styling']['layout_colors']['max_width'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Maximum Width'),
-      '#description' => $this->t('Set a maximum width for the modal (e.g., 800px, 50rem, 90%). Leave empty for default (90% of viewport).'),
-      '#default_value' => $styling['max_width'] ?? '',
-      '#size' => 20,
-    ];
-
-    $form['styling']['layout_colors']['max_width_mobile'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Mobile Max Width'),
-      '#description' => $this->t('Max width on narrow viewports (e.g., 360px, 95%). Leave empty to use the same as Maximum Width or 95% on mobile.'),
-      '#default_value' => $styling['max_width_mobile'] ?? '',
-      '#size' => 20,
-    ];
-
-    $form['styling']['layout_colors']['background_color'] = [
-      '#type' => 'color',
-      '#title' => $this->t('Background Color'),
-      '#default_value' => $styling['background_color'] ?? '#ffffff',
-    ];
-
-    $form['styling']['layout_colors']['text_color'] = [
-      '#type' => 'color',
-      '#title' => $this->t('Text Color'),
-      '#default_value' => $styling['text_color'] ?? '#000000',
-    ];
-
-    $form['styling']['layout_colors']['decorative_effect'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Decorative Effect'),
-      '#description' => $this->t('Add decorative elements around the modal overlay (e.g., stars, sparkles, streamers).'),
-      '#options' => [
-        '' => $this->t('None'),
-        'confetti' => $this->t('Confetti'),
-        'streamers' => $this->t('Streamers'),
-      ],
-      '#default_value' => $styling['decorative_effect'] ?? '',
-    ];
-
-    // Confetti size: slider and value display in one group so they stay in one grid cell.
-    $form['styling']['layout_colors']['confetti_size_group'] = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['modal-slider-with-display']],
-      '#states' => [
-        'visible' => [
-          ':input[name="styling[layout_colors][decorative_effect]"]' => ['value' => 'confetti'],
-        ],
-      ],
-    ];
-    $confetti_display = '<span id="confetti-size-display" class="modal-slider-value">' . number_format(($styling['confetti_size'] ?? 100) / 100, 1) . 'x</span>';
-    $form['styling']['layout_colors']['confetti_size_group']['confetti_size'] = [
-      '#type' => 'range',
-      '#title' => $this->t('Confetti Size'),
-      '#description' => $this->t('Control the size of confetti particles. The default size is 1.0x.'),
-      '#default_value' => $styling['confetti_size'] ?? 100,
-      '#min' => 50,
-      '#max' => 200,
-      '#step' => 5,
-      '#prefix' => '<div class="modal-slider-row">',
-      '#suffix' => '</div>',
-      '#field_suffix' => $confetti_display,
-      '#attributes' => [
-        'class' => ['confetti-size-slider'],
-        'data-display-target' => 'confetti-size-display',
-      ],
-    ];
-
-    // Overlay opacity: slider and value display in one group so they stay in one grid cell.
-    $form['styling']['layout_colors']['overlay_opacity_group'] = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['modal-slider-with-display']],
-    ];
-    $overlay_display = '<span id="overlay-opacity-display" class="modal-slider-value">' . ($styling['overlay_opacity'] ?? 50) . '%</span>';
-    $form['styling']['layout_colors']['overlay_opacity_group']['overlay_opacity'] = [
-      '#type' => 'range',
-      '#title' => $this->t('Overlay Opacity'),
-      '#description' => $this->t('Control the transparency of the page overlay. Lower values make the overlay more transparent, allowing you to see decorative effects (like confetti) better.'),
-      '#default_value' => $styling['overlay_opacity'] ?? 50,
-      '#min' => 0,
-      '#max' => 100,
-      '#step' => 1,
-      '#prefix' => '<div class="modal-slider-row">',
-      '#suffix' => '</div>',
-      '#field_suffix' => $overlay_display,
-      '#attributes' => [
-        'class' => ['overlay-opacity-slider'],
-        'data-display-target' => 'overlay-opacity-display',
-      ],
-    ];
-
-    // Add JavaScript to update the display value when slider changes.
-    $form['#attached']['library'][] = 'core/drupal';
-    $form['#attached']['drupalSettings']['overlayOpacity'] = [
-      'initialValue' => $styling['overlay_opacity'] ?? 50,
-    ];
-    
 
     // Typography container - wraps headline and subheadline side by side.
     $form['styling']['typography_container'] = [
@@ -2049,7 +2026,7 @@ class ModalForm extends EntityForm {
     
     // Remove custom fieldsets from values before parent processes them.
     $values = $form_state->getValues();
-    $exclude_keys = ['content', 'rules', 'styling', 'dismissal', 'analytics', 'visibility'];
+    $exclude_keys = ['content', 'rules', 'styling', 'modal_background', 'modal_width', 'dismissal', 'analytics', 'visibility'];
     foreach ($exclude_keys as $key) {
       unset($values[$key]);
     }
@@ -2160,9 +2137,9 @@ class ModalForm extends EntityForm {
           ? (int) $old_image_data['mobile_fid'] 
           : NULL;
         
-        // Handle mobile_fid from new nested structure: content[image][mobile][fid]
+        // Handle mobile_fid from content[mobile][fid] (Mobile panel).
         $mobile_image_fid = NULL;
-        $mobile_fid_values = $image_values['mobile']['fid'] ?? [];
+        $mobile_fid_values = ($content_values['mobile'] ?? [])['fid'] ?? [];
         if (!empty($mobile_fid_values) && is_array($mobile_fid_values)) {
           // Check for fids array format.
           if (isset($mobile_fid_values['fids']) && is_array($mobile_fid_values['fids'])) {
@@ -2207,9 +2184,9 @@ class ModalForm extends EntityForm {
         }
 
         // Build image array - include fids array and single fid for backward compatibility.
-        // Handle new nested structure: layout, mobile, carousel, effects.
+        // Layout, carousel, effects from image; mobile from content[mobile] panel.
         $layout_values = $image_values['layout'] ?? [];
-        $mobile_values = $image_values['mobile'] ?? [];
+        $mobile_values = $content_values['mobile'] ?? [];
         $carousel_values = $image_values['carousel'] ?? [];
         $effects_values = $image_values['effects'] ?? [];
         
@@ -2429,25 +2406,26 @@ class ModalForm extends EntityForm {
     ];
     $modal->setRules($rules);
 
-    // Collect styling.
+    // Collect styling. Layout/background from Modal Background panel; typography/spacing from Styling panel.
+    $modal_background_values = $form_state->getValue('modal_background', []);
     $styling_values = $form_state->getValue('styling', []);
-    // Read from the new layout_colors fieldset.
-    $layout_colors = $styling_values['layout_colors'] ?? [];
-    // Read from the typography_container.
     $typography_container = $styling_values['typography_container'] ?? [];
     $headline_styling = $typography_container['headline'] ?? [];
     $subheadline_styling = $typography_container['subheadline'] ?? [];
     $body_styling = $typography_container['body'] ?? [];
     $spacing_values = $styling_values['spacing'] ?? [];
+    $modal_width_values = $form_state->getValue('modal_width', []);
     $styling = [
-      'layout' => $layout_colors['layout'] ?? 'centered',
-      'max_width' => trim($layout_colors['max_width'] ?? ''),
-      'max_width_mobile' => trim($layout_colors['max_width_mobile'] ?? ''),
-      'background_color' => $layout_colors['background_color'] ?? '#ffffff',
-      'text_color' => $layout_colors['text_color'] ?? '#000000',
-      'decorative_effect' => !empty($layout_colors['decorative_effect']) ? trim($layout_colors['decorative_effect']) : NULL,
-      'confetti_size' => isset($layout_colors['confetti_size_group']['confetti_size']) ? (int) $layout_colors['confetti_size_group']['confetti_size'] : 100,
-      'overlay_opacity' => isset($layout_colors['overlay_opacity_group']['overlay_opacity']) ? (int) $layout_colors['overlay_opacity_group']['overlay_opacity'] : 50,
+      'layout' => 'centered',
+      'max_width' => trim($modal_width_values['max_width'] ?? ''),
+      'max_width_mobile' => trim(($content_values['mobile'] ?? [])['max_width'] ?? ''),
+      'mobile_layout_breakpoint' => $this->normalizeMobileBreakpoint(($content_values['mobile'] ?? [])['breakpoint'] ?? ''),
+      'background_color' => $modal_background_values['background_color'] ?? '#ffffff',
+      'text_color' => $modal_background_values['text_color'] ?? '#000000',
+      'box_shadow' => !empty($modal_background_values['box_shadow']),
+      'decorative_effect' => !empty($modal_background_values['decorative_effect']) ? trim($modal_background_values['decorative_effect']) : NULL,
+      'confetti_size' => isset($modal_background_values['confetti_size_group']['confetti_size']) ? (int) $modal_background_values['confetti_size_group']['confetti_size'] : 100,
+      'overlay_opacity' => isset($modal_background_values['overlay_opacity_group']['overlay_opacity']) ? (int) $modal_background_values['overlay_opacity_group']['overlay_opacity'] : 50,
       'headline' => [
         'size' => trim($headline_styling['size'] ?? ''),
         'color' => trim($headline_styling['color'] ?? ''),
@@ -2680,6 +2658,30 @@ class ModalForm extends EntityForm {
   }
 
   /**
+   * Normalizes a mobile breakpoint value for storage (e.g. "1400" -> "1400px").
+   *
+   * @param string $value
+   *   Raw breakpoint (e.g. "1400", "1400px", "50em").
+   *
+   * @return string
+   *   Trimmed value; unitless numbers get "px" appended.
+   */
+  protected function normalizeMobileBreakpoint($value) {
+    $value = trim((string) ($value ?? ''));
+    if ($value === '') {
+      return '';
+    }
+    $lower = strtolower($value);
+    if (str_ends_with($lower, 'px') || str_ends_with($lower, 'em') || str_ends_with($lower, 'rem')) {
+      return $value;
+    }
+    if (is_numeric($value) && (float) $value > 0) {
+      return $value . 'px';
+    }
+    return $value;
+  }
+
+  /**
    * Gets available form IDs for a given form type.
    *
    * @param string $form_type
@@ -2848,8 +2850,8 @@ class ModalForm extends EntityForm {
     $styling = $form_values['styling'] ?? [];
     $rules = $form_values['rules'] ?? [];
     
-    // Process image(s).
-    $image_data = $this->buildImagePreviewData($content['image'] ?? []);
+    // Process image(s). Mobile data comes from content[mobile] panel.
+    $image_data = $this->buildImagePreviewData($content['image'] ?? [], $content['mobile'] ?? []);
     
     // Process body content (handle text_format structure).
     $body_content = $content['text_content']['body'] ?? [];
@@ -2877,14 +2879,16 @@ class ModalForm extends EntityForm {
         'form' => $this->buildFormPreviewData($content['form'] ?? []),
       ],
       'styling' => [
-        'layout' => $styling['layout_colors']['layout'] ?? 'centered',
-        'max_width' => trim($styling['layout_colors']['max_width'] ?? ''),
-        'max_width_mobile' => trim($styling['layout_colors']['max_width_mobile'] ?? ''),
-        'background_color' => $styling['layout_colors']['background_color'] ?? '#ffffff',
-        'text_color' => $styling['layout_colors']['text_color'] ?? '#000000',
-        'decorative_effect' => !empty($styling['layout_colors']['decorative_effect']) ? trim($styling['layout_colors']['decorative_effect']) : NULL,
-        'confetti_size' => isset($styling['layout_colors']['confetti_size_group']['confetti_size']) ? (int) $styling['layout_colors']['confetti_size_group']['confetti_size'] : 100,
-        'overlay_opacity' => isset($styling['layout_colors']['overlay_opacity_group']['overlay_opacity']) ? (int) $styling['layout_colors']['overlay_opacity_group']['overlay_opacity'] : 50,
+        'layout' => 'centered',
+        'max_width' => trim(($form_values['modal_width'] ?? [])['max_width'] ?? ''),
+        'max_width_mobile' => trim(($content['mobile'] ?? [])['max_width'] ?? ''),
+        'mobile_layout_breakpoint' => $this->normalizeMobileBreakpoint(($content['mobile'] ?? [])['breakpoint'] ?? ''),
+        'background_color' => ($form_values['modal_background'] ?? [])['background_color'] ?? '#ffffff',
+        'text_color' => ($form_values['modal_background'] ?? [])['text_color'] ?? '#000000',
+        'box_shadow' => !empty(($form_values['modal_background'] ?? [])['box_shadow']),
+        'decorative_effect' => !empty(($form_values['modal_background'] ?? [])['decorative_effect']) ? trim(($form_values['modal_background'] ?? [])['decorative_effect']) : NULL,
+        'confetti_size' => (int) (($form_values['modal_background'] ?? [])['confetti_size_group']['confetti_size'] ?? 100),
+        'overlay_opacity' => (int) (($form_values['modal_background'] ?? [])['overlay_opacity_group']['overlay_opacity'] ?? 50),
         'headline' => [
           'size' => $styling['typography_container']['headline']['size'] ?? '',
           'color' => $styling['typography_container']['headline']['color'] ?? '',
@@ -2918,8 +2922,13 @@ class ModalForm extends EntityForm {
 
   /**
    * Builds image preview data from form values.
+   *
+   * @param array $image_form_data
+   *   Content image form data (fid, layout, carousel, effects).
+   * @param array $mobile_form_data
+   *   Content mobile panel form data (breakpoint, max_width, force_top, height, fid).
    */
-  protected function buildImagePreviewData(array $image_form_data) {
+  protected function buildImagePreviewData(array $image_form_data, array $mobile_form_data = []) {
     $image_data = [];
     $file_url_generator = \Drupal::service('file_url_generator');
     
@@ -2977,19 +2986,19 @@ class ModalForm extends EntityForm {
     }
     
     // Add image properties if we have URLs.
-    // Handle new nested structure: layout, mobile, carousel, effects.
+    // Mobile data from content[mobile] panel (or legacy content[image][mobile]).
     if (!empty($image_data['url'])) {
       $layout_data = $image_form_data['layout'] ?? [];
-      $mobile_data = $image_form_data['mobile'] ?? [];
+      $mobile_data = !empty($mobile_form_data) ? $mobile_form_data : ($image_form_data['mobile'] ?? []);
       
       $image_data['placement'] = $layout_data['placement'] ?? $image_form_data['placement'] ?? 'top';
       $image_data['mobile_force_top'] = !empty($mobile_data['force_top']) || !empty($image_form_data['mobile_force_top']);
-      $image_data['mobile_breakpoint'] = trim($mobile_data['breakpoint'] ?? $image_form_data['mobile_breakpoint'] ?? '');
+      $image_data['mobile_breakpoint'] = $this->normalizeMobileBreakpoint($mobile_data['breakpoint'] ?? $image_form_data['mobile_breakpoint'] ?? '');
       $image_data['mobile_height'] = trim($mobile_data['height'] ?? $image_form_data['mobile_height'] ?? '');
       $image_data['height'] = trim($layout_data['height'] ?? $image_form_data['height'] ?? '');
       $image_data['max_height_top_bottom'] = trim($layout_data['max_height_top_bottom'] ?? $image_form_data['max_height_top_bottom'] ?? '');
       
-      // Process mobile image if configured (from new nested structure).
+      // Process mobile image if configured (from content[mobile][fid] or legacy).
       $mobile_fid_data = $mobile_data['fid'] ?? $image_form_data['mobile_fid'] ?? NULL;
       if (!empty($mobile_fid_data)) {
         $mobile_fid = $this->getFileIdFromFormValue($mobile_fid_data);

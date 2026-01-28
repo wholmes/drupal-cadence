@@ -273,13 +273,11 @@
       const summary = details.querySelector('summary');
       const summaryText = summary ? (summary.textContent || summary.innerText || '').trim() : '';
       
-      if (selector.includes('content[image][layout]') || 
-          selector.includes('content[image][mobile]') ||
+      if (selector.includes('content[image][layout]') ||
           selector.includes('content[image][carousel]') ||
           selector.includes('content[image][effects]') ||
           selector.includes('content[image][preview]') ||
           summaryText.includes('Layout & Sizing') ||
-          summaryText.includes('Mobile Display') ||
           summaryText.includes('Carousel') ||
           summaryText.includes('Visual Effects') ||
           summaryText.includes('Preview')) {
