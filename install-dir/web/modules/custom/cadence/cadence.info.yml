@@ -1,5 +1,0 @@
-name: Cadence Marketing Modals
-type: module
-description: 'Professional marketing modals with advanced targeting, conversion tracking, and comprehensive analytics. Convert visitors into customers with intelligent popup campaigns.'
-core_version_requirement: ^10 || ^11
-package: Marketing

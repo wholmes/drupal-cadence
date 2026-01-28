@@ -1,6 +1,0 @@
-cadence.modal_system:
-  title: 'Modal System'
-  description: 'Manage marketing modals and their analytics'
-  parent: system.admin_config_content
-  route_name: entity.modal.collection
-  weight: 10

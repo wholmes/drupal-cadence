@@ -1,9 +1,5 @@
-# Drupal
-install-dir/web/sites/default/files/
-install-dir/web/sites/default/settings.php
-install-dir/web/sites/default/settings.local.php
-install-dir/vendor/
-install-dir/composer.lock
+# Drupal site (local install – repo is plugin only)
+install-dir/
 
 # IDE
 .idea/
