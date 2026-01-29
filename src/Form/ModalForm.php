@@ -2493,6 +2493,7 @@ class ModalForm extends EntityForm {
       ],
       'spacing' => [
         'top_spacer_height' => trim($spacing_values['top_spacer_height'] ?? ''),
+        'top_spacer_height_mobile' => trim($spacing_values['top_spacer_height_mobile'] ?? ''),
         'body_spacer_before' => trim($spacing_values['body_spacer_before'] ?? ''),
         'body_spacer_after' => trim($spacing_values['body_spacer_after'] ?? ''),
         'cta_margin_bottom' => trim($spacing_values['cta_margin_bottom'] ?? ''),
