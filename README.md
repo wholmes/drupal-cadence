@@ -1,6 +1,6 @@
-# Modal System Module
+# Cadence – Modal System Module
 
-A flexible, rule-based modal system for Drupal that displays modals based on configurable triggers (scroll, visit count, time on page, referrer, exit intent).
+**Cadence** is a flexible, rule-based modal system for Drupal that displays modals based on configurable triggers (scroll, visit count, time on page, referrer, exit intent).
 
 ## Author
 
