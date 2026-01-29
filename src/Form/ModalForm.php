@@ -1037,16 +1037,27 @@ class ModalForm extends EntityForm {
       '#title' => $this->t('Background Color'),
       '#default_value' => $styling['background_color'] ?? '#ffffff',
     ];
-    $form['modal_background']['text_color'] = [
-      '#type' => 'color',
-      '#title' => $this->t('Text Color'),
-      '#default_value' => $styling['text_color'] ?? '#000000',
-    ];
     $form['modal_background']['box_shadow'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Show box shadow'),
       '#description' => $this->t('When enabled, the modal has a drop shadow. Uncheck for a flat look.'),
       '#default_value' => isset($styling['box_shadow']) ? (bool) $styling['box_shadow'] : TRUE,
+    ];
+    $form['modal_background']['border_color'] = [
+      '#type' => 'color',
+      '#title' => $this->t('Border Color'),
+      '#description' => $this->t('Color of the border around the entire modal (image and content).'),
+      '#default_value' => $styling['border_color'] ?? '',
+    ];
+    $form['modal_background']['border_size'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Border Size'),
+      '#description' => $this->t('Width of the border in pixels. Leave empty or set to 0 for no border.'),
+      '#default_value' => isset($styling['border_size']) ? (int) $styling['border_size'] : 0,
+      '#min' => 0,
+      '#max' => 50,
+      '#field_suffix' => 'px',
+      '#size' => 5,
     ];
     $form['modal_background']['decorative_effect'] = [
       '#type' => 'select',
@@ -1502,6 +1513,12 @@ class ModalForm extends EntityForm {
     ];
 
     $body_styling = $styling['body'] ?? [];
+    $form['styling']['typography_container']['body']['color'] = [
+      '#type' => 'color',
+      '#title' => $this->t('Color'),
+      '#description' => $this->t('Color for the body text content.'),
+      '#default_value' => $body_styling['color'] ?? ($styling['text_color'] ?? '#000000'),
+    ];
     $form['styling']['typography_container']['body']['text_align'] = [
       '#type' => 'select',
       '#title' => $this->t('Text Alignment'),
@@ -1533,7 +1550,31 @@ class ModalForm extends EntityForm {
       '#default_value' => $spacing['top_spacer_height'] ?? ($headline_styling['top_spacer_height'] ?? ($headline_styling['margin_top'] ?? '')),
       '#size' => 20,
     ];
+
+    $form['styling']['spacing']['top_spacer_height_mobile'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Top Spacer Height (Mobile)'),
+      '#description' => $this->t('At or below the mobile breakpoint (Content → Mobile), use this height instead of the one above. Leave empty to use the same as desktop.'),
+      '#default_value' => $spacing['top_spacer_height_mobile'] ?? '',
+      '#size' => 20,
+    ];
     
+    $form['styling']['spacing']['body_spacer_before'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Spacer Before Body'),
+      '#description' => $this->t('Height of spacer above the body text (e.g. 0px, 1rem, 2em). Leave empty for none.'),
+      '#default_value' => $spacing['body_spacer_before'] ?? '',
+      '#size' => 20,
+    ];
+
+    $form['styling']['spacing']['body_spacer_after'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Spacer After Body'),
+      '#description' => $this->t('Height of spacer below the body text (e.g. 0px, 1rem, 2em). Leave empty for none.'),
+      '#default_value' => $spacing['body_spacer_after'] ?? '',
+      '#size' => 20,
+    ];
+
     $form['styling']['spacing']['cta_margin_bottom'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Margin Bottom (space after buttons)'),
@@ -2415,14 +2456,16 @@ class ModalForm extends EntityForm {
     $body_styling = $typography_container['body'] ?? [];
     $spacing_values = $styling_values['spacing'] ?? [];
     $modal_width_values = $form_state->getValue('modal_width', []);
+    $content_values = $form_state->getValue('content', []);
     $styling = [
       'layout' => 'centered',
       'max_width' => trim($modal_width_values['max_width'] ?? ''),
       'max_width_mobile' => trim(($content_values['mobile'] ?? [])['max_width'] ?? ''),
       'mobile_layout_breakpoint' => $this->normalizeMobileBreakpoint(($content_values['mobile'] ?? [])['breakpoint'] ?? ''),
       'background_color' => $modal_background_values['background_color'] ?? '#ffffff',
-      'text_color' => $modal_background_values['text_color'] ?? '#000000',
       'box_shadow' => !empty($modal_background_values['box_shadow']),
+      'border_color' => trim($modal_background_values['border_color'] ?? ''),
+      'border_size' => isset($modal_background_values['border_size']) ? max(0, (int) $modal_background_values['border_size']) : 0,
       'decorative_effect' => !empty($modal_background_values['decorative_effect']) ? trim($modal_background_values['decorative_effect']) : NULL,
       'confetti_size' => isset($modal_background_values['confetti_size_group']['confetti_size']) ? (int) $modal_background_values['confetti_size_group']['confetti_size'] : 100,
       'overlay_opacity' => isset($modal_background_values['overlay_opacity_group']['overlay_opacity']) ? (int) $modal_background_values['overlay_opacity_group']['overlay_opacity'] : 50,
@@ -2445,10 +2488,13 @@ class ModalForm extends EntityForm {
         'text_align' => trim($subheadline_styling['text_align'] ?? ''),
       ],
       'body' => [
+        'color' => trim($body_styling['color'] ?? ''),
         'text_align' => trim($body_styling['text_align'] ?? ''),
       ],
       'spacing' => [
         'top_spacer_height' => trim($spacing_values['top_spacer_height'] ?? ''),
+        'body_spacer_before' => trim($spacing_values['body_spacer_before'] ?? ''),
+        'body_spacer_after' => trim($spacing_values['body_spacer_after'] ?? ''),
         'cta_margin_bottom' => trim($spacing_values['cta_margin_bottom'] ?? ''),
       ],
     ];
@@ -2788,6 +2834,41 @@ class ModalForm extends EntityForm {
       $merged_values['content']['image']['fid'] = array_replace_recursive($merged_values['content']['image']['fid'] ?? [], ['fids' => $form_fids]);
     }
     
+    // Pull gradient color values directly from form elements (color pickers may not be in getUserInput until form submit).
+    if (isset($form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_start'])) {
+      $color_start_el = &$form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_start'];
+      $color_start_value = $color_start_el['#value'] ?? $color_start_el['#default_value'] ?? NULL;
+      if ($color_start_value) {
+        $merged_values['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_start'] = $color_start_value;
+      }
+    }
+    if (isset($form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_end'])) {
+      $color_end_el = &$form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_end'];
+      $color_end_value = $color_end_el['#value'] ?? $color_end_el['#default_value'] ?? NULL;
+      if ($color_end_value) {
+        $merged_values['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row1']['color_end'] = $color_end_value;
+      }
+    }
+    if (isset($form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['direction'])) {
+      $direction_el = &$form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['direction'];
+      $direction_value = $direction_el['#value'] ?? $direction_el['#default_value'] ?? NULL;
+      if ($direction_value) {
+        $merged_values['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['direction'] = $direction_value;
+      }
+    }
+    if (isset($form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['opacity'])) {
+      $opacity_el = &$form['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['opacity'];
+      $opacity_value = $opacity_el['#value'] ?? $opacity_el['#default_value'] ?? NULL;
+      if ($opacity_value !== NULL) {
+        $merged_values['content']['image']['effects']['effects_panels']['overlay_gradient']['settings']['row2']['opacity'] = $opacity_value;
+      }
+    }
+    if (isset($form['content']['image']['effects']['effects_panels']['overlay_gradient']['enabled'])) {
+      $enabled_el = &$form['content']['image']['effects']['effects_panels']['overlay_gradient']['enabled'];
+      $enabled_value = $enabled_el['#value'] ?? $enabled_el['#default_value'] ?? FALSE;
+      $merged_values['content']['image']['effects']['effects_panels']['overlay_gradient']['enabled'] = !empty($enabled_value);
+    }
+    
     // Build temporary modal data structure from form values.
     $preview_data = $this->buildPreviewData($merged_values);
     
@@ -2884,8 +2965,9 @@ class ModalForm extends EntityForm {
         'max_width_mobile' => trim(($content['mobile'] ?? [])['max_width'] ?? ''),
         'mobile_layout_breakpoint' => $this->normalizeMobileBreakpoint(($content['mobile'] ?? [])['breakpoint'] ?? ''),
         'background_color' => ($form_values['modal_background'] ?? [])['background_color'] ?? '#ffffff',
-        'text_color' => ($form_values['modal_background'] ?? [])['text_color'] ?? '#000000',
         'box_shadow' => !empty(($form_values['modal_background'] ?? [])['box_shadow']),
+        'border_color' => trim(($form_values['modal_background'] ?? [])['border_color'] ?? ''),
+        'border_size' => isset(($form_values['modal_background'] ?? [])['border_size']) ? max(0, (int) ($form_values['modal_background'] ?? [])['border_size']) : 0,
         'decorative_effect' => !empty(($form_values['modal_background'] ?? [])['decorative_effect']) ? trim(($form_values['modal_background'] ?? [])['decorative_effect']) : NULL,
         'confetti_size' => (int) (($form_values['modal_background'] ?? [])['confetti_size_group']['confetti_size'] ?? 100),
         'overlay_opacity' => (int) (($form_values['modal_background'] ?? [])['overlay_opacity_group']['overlay_opacity'] ?? 50),
@@ -2904,10 +2986,14 @@ class ModalForm extends EntityForm {
           'text_align' => $styling['typography_container']['subheadline']['text_align'] ?? 'default',
         ],
         'body' => [
+          'color' => trim($styling['typography_container']['body']['color'] ?? ''),
           'text_align' => $styling['typography_container']['body']['text_align'] ?? 'default',
         ],
         'spacing' => [
           'top_spacer_height' => $styling['spacing']['top_spacer_height'] ?? '',
+          'top_spacer_height_mobile' => $styling['spacing']['top_spacer_height_mobile'] ?? '',
+          'body_spacer_before' => $styling['spacing']['body_spacer_before'] ?? '',
+          'body_spacer_after' => $styling['spacing']['body_spacer_after'] ?? '',
           'cta_margin_bottom' => $styling['spacing']['cta_margin_bottom'] ?? '',
         ],
       ],
@@ -3011,71 +3097,39 @@ class ModalForm extends EntityForm {
         }
       }
       
-      // Process image effects (including overlay gradient).
+      // Process image effects (including overlay gradient). Always include full effects
+      // structure so the full modal (preview and frontend) can apply filters/gradient.
       $effects_data = $image_form_data['effects'] ?? [];
-      if (!empty($effects_data)) {
-        $effects = [];
-        
-        // Background color.
-        if (!empty($effects_data['background_color'])) {
-          $effects['background_color'] = $effects_data['background_color'];
-        }
-        
-        // Blend mode.
-        if (!empty($effects_data['blend_mode']) && $effects_data['blend_mode'] !== 'normal') {
-          $effects['blend_mode'] = $effects_data['blend_mode'];
-        }
-        
-        // Grayscale.
-        if (isset($effects_data['grayscale']) && $effects_data['grayscale'] > 0) {
-          $effects['grayscale'] = (int) $effects_data['grayscale'];
-        }
-        
-        // Opacity.
-        if (isset($effects_data['opacity']) && $effects_data['opacity'] < 100) {
-          $effects['opacity'] = (int) $effects_data['opacity'];
-        }
-        
-        // Brightness.
-        if (isset($effects_data['brightness']) && $effects_data['brightness'] != 100) {
-          $effects['brightness'] = (int) $effects_data['brightness'];
-        }
-        
-        // Saturation.
-        if (isset($effects_data['saturation']) && $effects_data['saturation'] != 100) {
-          $effects['saturation'] = (int) $effects_data['saturation'];
-        }
-        
-        // Overlay gradient - from effects_panels in form; handle nested settings/row1/ and settings/row2/
-        $overlay_gradient = $effects_data['effects_panels']['overlay_gradient'] ?? $effects_data['overlay_gradient'] ?? [];
-        if (!empty($overlay_gradient['enabled'])) {
-          $settings = $overlay_gradient['settings'] ?? [];
-          $row1 = $settings['row1'] ?? [];
-          $row2 = $settings['row2'] ?? [];
-          
-          // Fallback to direct access for backward compatibility.
-          $color_start = !empty($row1['color_start']) ? $row1['color_start'] : (!empty($overlay_gradient['color_start']) ? $overlay_gradient['color_start'] : '#000000');
-          $color_end = !empty($row1['color_end']) ? $row1['color_end'] : (!empty($overlay_gradient['color_end']) ? $overlay_gradient['color_end'] : '#000000');
-          $direction = !empty($row2['direction']) ? $row2['direction'] : (!empty($overlay_gradient['direction']) ? $overlay_gradient['direction'] : 'to bottom');
-          $opacity = isset($row2['opacity']) ? $row2['opacity'] : (isset($overlay_gradient['opacity']) ? $overlay_gradient['opacity'] : 50);
-          
-          $effects['overlay_gradient'] = [
-            'enabled' => TRUE,
-            'color_start' => trim($color_start),
-            'color_end' => trim($color_end),
-            'direction' => trim($direction),
-            'opacity' => (int) $opacity,
-          ];
-        }
-        else {
-          $effects['overlay_gradient'] = ['enabled' => FALSE];
-        }
-        
-        // Only include effects if we have at least one effect configured.
-        if (!empty($effects)) {
-          $image_data['effects'] = $effects;
-        }
+      $effects = [
+        'background_color' => trim($effects_data['background_color'] ?? ''),
+        'blend_mode' => $effects_data['blend_mode'] ?? 'normal',
+        'grayscale' => (int) ($effects_data['grayscale'] ?? 0),
+        'opacity' => (int) ($effects_data['opacity'] ?? 100),
+        'brightness' => (int) ($effects_data['brightness'] ?? 100),
+        'saturation' => (int) ($effects_data['saturation'] ?? 100),
+      ];
+      // Overlay gradient - from effects_panels in form; handle nested settings/row1/ and settings/row2/
+      $overlay_gradient = $effects_data['effects_panels']['overlay_gradient'] ?? $effects_data['overlay_gradient'] ?? [];
+      if (!empty($overlay_gradient['enabled'])) {
+        $settings = $overlay_gradient['settings'] ?? [];
+        $row1 = $settings['row1'] ?? [];
+        $row2 = $settings['row2'] ?? [];
+        $color_start = !empty($row1['color_start']) ? $row1['color_start'] : (!empty($overlay_gradient['color_start']) ? $overlay_gradient['color_start'] : '#000000');
+        $color_end = !empty($row1['color_end']) ? $row1['color_end'] : (!empty($overlay_gradient['color_end']) ? $overlay_gradient['color_end'] : '#000000');
+        $direction = !empty($row2['direction']) ? $row2['direction'] : (!empty($overlay_gradient['direction']) ? $overlay_gradient['direction'] : 'to bottom');
+        $opacity = isset($row2['opacity']) ? $row2['opacity'] : (isset($overlay_gradient['opacity']) ? $overlay_gradient['opacity'] : 50);
+        $effects['overlay_gradient'] = [
+          'enabled' => TRUE,
+          'color_start' => trim($color_start),
+          'color_end' => trim($color_end),
+          'direction' => trim($direction),
+          'opacity' => (int) $opacity,
+        ];
       }
+      else {
+        $effects['overlay_gradient'] = ['enabled' => FALSE];
+      }
+      $image_data['effects'] = $effects;
     }
     
     return $image_data;

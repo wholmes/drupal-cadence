@@ -151,6 +151,17 @@
         el.classList.remove('modal-system--mobile-layout');
       }
     });
+    // Top spacer: at or below mobile breakpoint use mobile height when set.
+    const topSpacers = document.querySelectorAll('.modal-system--top-spacer[data-mobile-height]');
+    topSpacers.forEach(function (el) {
+      const bp = el.getAttribute('data-mobile-breakpoint') || Drupal.modalSystem.MOBILE_LAYOUT_BREAKPOINT_DEFAULT;
+      const px = Drupal.modalSystem.parseBreakpointToPixels(bp);
+      const desktopHeight = el.getAttribute('data-desktop-height');
+      const mobileHeight = el.getAttribute('data-mobile-height');
+      if (px !== null && desktopHeight != null && mobileHeight != null) {
+        el.style.height = width <= px ? mobileHeight : desktopHeight;
+      }
+    });
   };
 
   /**
@@ -1116,31 +1127,37 @@
           imageContainer = this.buildSlideshow(imageUrls, slideshowConfig, placement, mobileForceTop, imageHeight, mobileBreakpoint);
         } else {
           // Single image - always use simple image container.
-          imageContainer = document.createElement('div');
-          imageContainer.className = 'modal-system--image-container modal-system--image-' + escapeAttr(placement);
+          // Create wrapper to contain image and gradient overlay separately (so filters don't affect gradient).
+          const imageWrapper = document.createElement('div');
+          imageWrapper.className = 'modal-system--image-wrapper modal-system--image-container modal-system--image-' + escapeAttr(placement);
+          imageWrapper.style.cssText = 'position: relative; width: 100%; height: 100%;';
+          
+          const imageElement = document.createElement('div');
+          imageElement.className = 'modal-system--image-element';
+          imageElement.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;';
           if (mobileForceTop) {
-            imageContainer.classList.add('modal-system--mobile-force-top');
-            imageContainer.setAttribute('data-mobile-breakpoint', mobileBreakpoint);
+            imageWrapper.classList.add('modal-system--mobile-force-top');
+            imageWrapper.setAttribute('data-mobile-breakpoint', mobileBreakpoint);
           }
-          // Set default background image (desktop).
-          imageContainer.style.backgroundImage = 'url(' + escapeAttr(imageUrls[0]) + ')';
-          imageContainer.style.setProperty('--desktop-image', 'url(' + escapeAttr(imageUrls[0]) + ')');
+          // Set default background image (desktop) on the image element.
+          imageElement.style.backgroundImage = 'url(' + escapeAttr(imageUrls[0]) + ')';
+          imageWrapper.style.setProperty('--desktop-image', 'url(' + escapeAttr(imageUrls[0]) + ')');
           
           // Set mobile image if configured.
           if (imageData.mobile_url) {
-            imageContainer.style.setProperty('--mobile-image', 'url(' + escapeAttr(imageData.mobile_url) + ')');
-            imageContainer.setAttribute('data-has-mobile-image', 'true');
+            imageWrapper.style.setProperty('--mobile-image', 'url(' + escapeAttr(imageData.mobile_url) + ')');
+            imageWrapper.setAttribute('data-has-mobile-image', 'true');
           }
           
-          imageContainer.setAttribute('role', 'img');
-          imageContainer.setAttribute('aria-label', this.modal.content.headline || 'Modal image');
+          imageWrapper.setAttribute('role', 'img');
+          imageWrapper.setAttribute('aria-label', this.modal.content.headline || 'Modal image');
           
           // Apply image height using CSS custom properties (avoids inline style specificity issues).
           if (imageData.height) {
             const heightValue = String(imageData.height).trim();
             if (heightValue !== '') {
-              imageContainer.style.setProperty('--image-height', heightValue);
-              imageContainer.setAttribute('data-has-height', 'true');
+              imageWrapper.style.setProperty('--image-height', heightValue);
+              imageWrapper.setAttribute('data-has-height', 'true');
             }
           }
 
@@ -1148,8 +1165,8 @@
           if (mobileForceTop && imageData.mobile_height) {
             const mobileHeightValue = String(imageData.mobile_height).trim();
             if (mobileHeightValue !== '') {
-              imageContainer.setAttribute('data-mobile-height', mobileHeightValue);
-              imageContainer.style.setProperty('--mobile-height', mobileHeightValue);
+              imageWrapper.setAttribute('data-mobile-height', mobileHeightValue);
+              imageWrapper.style.setProperty('--mobile-height', mobileHeightValue);
             }
           }
 
@@ -1157,18 +1174,18 @@
           if ((placement === 'top' || placement === 'bottom') && imageData.max_height_top_bottom) {
             const maxHeightValue = String(imageData.max_height_top_bottom).trim();
             if (maxHeightValue !== '') {
-              imageContainer.setAttribute('data-max-height-top-bottom', maxHeightValue);
-              imageContainer.style.setProperty('--max-height-top-bottom', maxHeightValue);
+              imageWrapper.setAttribute('data-max-height-top-bottom', maxHeightValue);
+              imageWrapper.style.setProperty('--max-height-top-bottom', maxHeightValue);
             }
           }
           
           // Apply image effects if configured.
           const effects = imageData.effects || {};
           if (effects.background_color) {
-            imageContainer.style.backgroundColor = effects.background_color;
+            imageElement.style.backgroundColor = effects.background_color;
           }
           
-          // Build filter string.
+          // Build filter string - apply to imageElement only (not gradient overlay).
           const filters = [];
           if (effects.grayscale && effects.grayscale > 0) {
             filters.push('grayscale(' + effects.grayscale + '%)');
@@ -1183,41 +1200,65 @@
             filters.push('saturate(' + (effects.saturation / 100) + ')');
           }
           if (filters.length > 0) {
-            imageContainer.style.filter = filters.join(' ');
+            imageElement.style.filter = filters.join(' ');
           }
           
           // Apply blend mode.
           if (effects.blend_mode && effects.blend_mode !== 'normal') {
-            imageContainer.style.mixBlendMode = effects.blend_mode;
+            imageElement.style.mixBlendMode = effects.blend_mode;
           }
           
-          // Add overlay gradient if enabled.
+          // Add image element to wrapper (this is the element that gets filtered).
+          imageWrapper.appendChild(imageElement);
+          
+          // Add overlay gradient if enabled - as sibling of imageContainer (not child) so filters don't affect it.
           if (effects.overlay_gradient && effects.overlay_gradient.enabled) {
             const gradient = effects.overlay_gradient;
             const opacity = (gradient.opacity || 50) / 100;
-            const colorStart = gradient.color_start || '#000000';
-            const colorEnd = gradient.color_end || '#000000';
-            const direction = gradient.direction || 'to bottom';
+            // Ensure colors are valid hex strings (trim whitespace, default to black if empty/invalid).
+            let colorStart = (gradient.color_start && String(gradient.color_start).trim()) || '#000000';
+            let colorEnd = (gradient.color_end && String(gradient.color_end).trim()) || '#000000';
+            // Debug: log gradient values to console (remove after debugging).
+            if (typeof console !== 'undefined' && console.log) {
+              console.log('Modal gradient:', { colorStart, colorEnd, direction: gradient.direction, opacity: gradient.opacity, raw: gradient });
+            }
+            // Ensure hex format (add # if missing).
+            if (colorStart && !colorStart.startsWith('#')) {
+              colorStart = '#' + colorStart;
+            }
+            if (colorEnd && !colorEnd.startsWith('#')) {
+              colorEnd = '#' + colorEnd;
+            }
+            const direction = (gradient.direction && String(gradient.direction).trim()) || 'to bottom';
             
-            // Create gradient overlay element.
-            let gradientOverlay = imageContainer.querySelector('.gradient-overlay');
+            // Create gradient overlay element as sibling of imageContainer (child of wrapper).
+            let gradientOverlay = imageWrapper.querySelector('.gradient-overlay');
             if (!gradientOverlay) {
               gradientOverlay = document.createElement('div');
               gradientOverlay.className = 'gradient-overlay';
               gradientOverlay.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;';
-              imageContainer.style.position = 'relative';
-              imageContainer.appendChild(gradientOverlay);
+              imageWrapper.appendChild(gradientOverlay);
             }
             
             // Convert hex to rgba for opacity support.
             const hexToRgb = function(hex) {
-              hex = hex.replace('#', '');
+              if (!hex || typeof hex !== 'string') {
+                return '0, 0, 0'; // Default to black if invalid.
+              }
+              hex = hex.replace('#', '').trim();
+              if (!hex || (hex.length !== 3 && hex.length !== 6)) {
+                return '0, 0, 0'; // Default to black if invalid length.
+              }
               if (hex.length === 3) {
                 hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
               }
               const r = parseInt(hex.substr(0, 2), 16);
               const g = parseInt(hex.substr(2, 2), 16);
               const b = parseInt(hex.substr(4, 2), 16);
+              // Validate parsed values (NaN check).
+              if (isNaN(r) || isNaN(g) || isNaN(b)) {
+                return '0, 0, 0'; // Default to black if parsing failed.
+              }
               return r + ', ' + g + ', ' + b;
             };
             
@@ -1227,11 +1268,14 @@
           }
           else {
             // Remove gradient overlay if disabled.
-            const gradientOverlay = imageContainer.querySelector('.gradient-overlay');
+            const gradientOverlay = imageWrapper.querySelector('.gradient-overlay');
             if (gradientOverlay) {
               gradientOverlay.remove();
             }
           }
+          
+          // Use wrapper as the imageContainer reference for rest of code (so layout code works correctly).
+          imageContainer = imageWrapper;
         }
       }
     }
@@ -1242,7 +1286,14 @@
     // Add top spacer if configured (from spacing section).
     const spacing = this.modal.styling.spacing || {};
     if (spacing.top_spacer_height) {
-      textContent += '<div class="modal-system--top-spacer" style="height: ' + escapeAttr(spacing.top_spacer_height) + ';"></div>';
+      const desktopHeight = spacing.top_spacer_height;
+      const mobileHeight = spacing.top_spacer_height_mobile && String(spacing.top_spacer_height_mobile).trim();
+      const breakpoint = (this.modal.styling.mobile_layout_breakpoint && String(this.modal.styling.mobile_layout_breakpoint).trim()) || Drupal.modalSystem.MOBILE_LAYOUT_BREAKPOINT_DEFAULT;
+      let attrs = 'class="modal-system--top-spacer" style="height: ' + escapeAttr(desktopHeight) + ';"';
+      if (mobileHeight) {
+        attrs += ' data-desktop-height="' + escapeAttr(desktopHeight) + '" data-mobile-height="' + escapeAttr(mobileHeight) + '" data-mobile-breakpoint="' + escapeAttr(breakpoint) + '"';
+      }
+      textContent += '<div ' + attrs + '></div>';
     }
     
     if (this.modal.content.headline) {
@@ -1255,6 +1306,11 @@
         escapeHtml(this.modal.content.subheadline) + '</h3>';
     }
     
+    // Spacer before body (from Spacing panel).
+    if (spacing.body_spacer_before) {
+      textContent += '<div class="modal-system--body-spacer-before" style="height: ' + escapeAttr(spacing.body_spacer_before) + ';"></div>';
+    }
+    
     if (this.modal.content.body) {
       // Body content can be either a string (legacy) or object with value/format (WYSIWYG).
       const bodyContent = typeof this.modal.content.body === 'object' && this.modal.content.body.value
@@ -1265,6 +1321,11 @@
         textContent += '<div class="modal-system--body">' + 
           bodyContent + '</div>';
       }
+    }
+    
+    // Spacer after body (from Spacing panel).
+    if (spacing.body_spacer_after) {
+      textContent += '<div class="modal-system--body-spacer-after" style="height: ' + escapeAttr(spacing.body_spacer_after) + ';"></div>';
     }
 
     // Add CTAs with data-attributes - check enabled flag and text.
@@ -1472,8 +1533,12 @@
     if (this.modal.styling.background_color) {
       modalElement.style.backgroundColor = this.modal.styling.background_color;
     }
-    if (this.modal.styling.text_color) {
-      modalElement.style.color = this.modal.styling.text_color;
+    
+    // Apply border to the entire modal (image + content). Apply to layout wrapper if it exists (covers image + content),
+    // otherwise to modal element (just content, no image).
+    if (this.modal.styling.border_size && this.modal.styling.border_size > 0 && this.modal.styling.border_color) {
+      const borderTarget = layoutWrapper || modalElement;
+      borderTarget.style.border = this.modal.styling.border_size + 'px solid ' + this.modal.styling.border_color;
     }
 
     // Log max-width application.
@@ -1564,10 +1629,14 @@
       }
     }
 
-    // Apply body text alignment styling.
+    // Apply body typography styling (color and text alignment).
     const bodyElement = modalElement.querySelector('.modal-system--body');
     if (bodyElement && this.modal.styling.body) {
       const bodyStyle = this.modal.styling.body;
+      // Apply body text color.
+      if (bodyStyle.color) {
+        bodyElement.style.color = bodyStyle.color;
+      }
       // Apply text alignment - always use !important to override parent's center.
       const bodyTextAlign = bodyStyle.text_align ? String(bodyStyle.text_align).trim() : '';
       if (bodyTextAlign && bodyTextAlign !== 'default') {
@@ -2041,9 +2110,17 @@
     if (effects.overlay_gradient && effects.overlay_gradient.enabled) {
       const gradient = effects.overlay_gradient;
       const opacity = (gradient.opacity || 50) / 100;
-      const colorStart = gradient.color_start || '#000000';
-      const colorEnd = gradient.color_end || '#000000';
-      const direction = gradient.direction || 'to bottom';
+      // Ensure colors are valid hex strings (trim whitespace, default to black if empty/invalid).
+      let colorStart = (gradient.color_start && String(gradient.color_start).trim()) || '#000000';
+      let colorEnd = (gradient.color_end && String(gradient.color_end).trim()) || '#000000';
+      // Ensure hex format (add # if missing).
+      if (colorStart && !colorStart.startsWith('#')) {
+        colorStart = '#' + colorStart;
+      }
+      if (colorEnd && !colorEnd.startsWith('#')) {
+        colorEnd = '#' + colorEnd;
+      }
+      const direction = (gradient.direction && String(gradient.direction).trim()) || 'to bottom';
       
       // Create gradient overlay element.
       let gradientOverlay = container.querySelector('.gradient-overlay');
@@ -2057,13 +2134,23 @@
       
       // Convert hex to rgba for opacity support.
       const hexToRgb = function(hex) {
-        hex = hex.replace('#', '');
+        if (!hex || typeof hex !== 'string') {
+          return '0, 0, 0'; // Default to black if invalid.
+        }
+        hex = hex.replace('#', '').trim();
+        if (!hex || (hex.length !== 3 && hex.length !== 6)) {
+          return '0, 0, 0'; // Default to black if invalid length.
+        }
         if (hex.length === 3) {
           hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
         }
         const r = parseInt(hex.substr(0, 2), 16);
         const g = parseInt(hex.substr(2, 2), 16);
         const b = parseInt(hex.substr(4, 2), 16);
+        // Validate parsed values (NaN check).
+        if (isNaN(r) || isNaN(g) || isNaN(b)) {
+          return '0, 0, 0'; // Default to black if parsing failed.
+        }
         return r + ', ' + g + ', ' + b;
       };
       
@@ -2155,9 +2242,17 @@
       if (effects.overlay_gradient && effects.overlay_gradient.enabled) {
         const gradient = effects.overlay_gradient;
         const opacity = (gradient.opacity || 50) / 100;
-        const colorStart = gradient.color_start || '#000000';
-        const colorEnd = gradient.color_end || '#000000';
-        const direction = gradient.direction || 'to bottom';
+        // Ensure colors are valid hex strings (trim whitespace, default to black if empty/invalid).
+        let colorStart = (gradient.color_start && String(gradient.color_start).trim()) || '#000000';
+        let colorEnd = (gradient.color_end && String(gradient.color_end).trim()) || '#000000';
+        // Ensure hex format (add # if missing).
+        if (colorStart && !colorStart.startsWith('#')) {
+          colorStart = '#' + colorStart;
+        }
+        if (colorEnd && !colorEnd.startsWith('#')) {
+          colorEnd = '#' + colorEnd;
+        }
+        const direction = (gradient.direction && String(gradient.direction).trim()) || 'to bottom';
         
         // Create gradient overlay element on container (not individual layers).
         let gradientOverlay = container.querySelector('.gradient-overlay');
@@ -2171,13 +2266,23 @@
         
         // Convert hex to rgba for opacity support.
         const hexToRgb = function(hex) {
-          hex = hex.replace('#', '');
+          if (!hex || typeof hex !== 'string') {
+            return '0, 0, 0'; // Default to black if invalid.
+          }
+          hex = hex.replace('#', '').trim();
+          if (!hex || (hex.length !== 3 && hex.length !== 6)) {
+            return '0, 0, 0'; // Default to black if invalid length.
+          }
           if (hex.length === 3) {
             hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
           }
           const r = parseInt(hex.substr(0, 2), 16);
           const g = parseInt(hex.substr(2, 2), 16);
           const b = parseInt(hex.substr(4, 2), 16);
+          // Validate parsed values (NaN check).
+          if (isNaN(r) || isNaN(g) || isNaN(b)) {
+            return '0, 0, 0'; // Default to black if parsing failed.
+          }
           return r + ', ' + g + ', ' + b;
         };
         

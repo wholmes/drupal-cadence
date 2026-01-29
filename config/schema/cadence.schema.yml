@@ -265,6 +265,12 @@ cadence.modal.*:
         box_shadow:
           type: boolean
           label: 'Show box shadow'
+        border_color:
+          type: string
+          label: 'Border color'
+        border_size:
+          type: integer
+          label: 'Border size (pixels)'
         headline:
           type: mapping
           label: 'Headline typography'
@@ -299,6 +305,18 @@ cadence.modal.*:
             top_spacer_height:
               type: string
               label: 'Top spacer height'
+              nullable: true
+            top_spacer_height_mobile:
+              type: string
+              label: 'Top spacer height (mobile)'
+              nullable: true
+            body_spacer_before:
+              type: string
+              label: 'Spacer before body'
+              nullable: true
+            body_spacer_after:
+              type: string
+              label: 'Spacer after body'
               nullable: true
             cta_margin_bottom:
               type: string
@@ -335,6 +353,9 @@ cadence.modal.*:
           type: mapping
           label: 'Body typography'
           mapping:
+            color:
+              type: string
+              label: 'Color'
             text_align:
               type: string
               label: 'Text alignment'

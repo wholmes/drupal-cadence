@@ -320,10 +320,8 @@ class ModalService {
                 $content['image']['max_height_top_bottom'] = $image_data['max_height_top_bottom'];
               }
               
-              // Include effects if configured.
-              if (!empty($image_data['effects'])) {
-                $content['image']['effects'] = $image_data['effects'];
-              }
+              // Include effects so frontend can apply filters/gradient (pass through entity data or empty array).
+              $content['image']['effects'] = $image_data['effects'] ?? [];
             } else {
               // No valid URLs found, remove image data but keep modal.
               unset($content['image']);

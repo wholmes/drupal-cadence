@@ -134,7 +134,7 @@
         return null;
       }
 
-      // Add keyboard shortcut for save (Command+S / Ctrl+S).
+      // Add keyboard shortcuts for save (Command+S / Ctrl+S) and preview (Command+P / Ctrl+P).
       // Only attach if not already attached to avoid duplicates.
       if (!modalForm.dataset.keyboardShortcutAttached) {
         modalForm.dataset.keyboardShortcutAttached = 'true';
@@ -145,10 +145,10 @@
             return;
           }
           
-          // Check for Command+S (Mac) or Ctrl+S (Windows/Linux).
-          const isModifierPressed = (e.metaKey || e.ctrlKey) && e.key === 's';
+          // Check for Command+S (Mac) or Ctrl+S (Windows/Linux) - Save.
+          const isSaveShortcut = (e.metaKey || e.ctrlKey) && e.key === 's';
           
-          if (isModifierPressed) {
+          if (isSaveShortcut) {
             // Prevent default browser save dialog.
             e.preventDefault();
             e.stopPropagation();
@@ -168,6 +168,32 @@
                 form.submit();
               }
             }
+            return;
+          }
+          
+          // Check for Command+P (Mac) or Ctrl+P (Windows/Linux) - Preview.
+          const isPreviewShortcut = (e.metaKey || e.ctrlKey) && e.key === 'p';
+          
+          if (isPreviewShortcut) {
+            // Prevent default browser print dialog.
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Find the form element.
+            const form = modalForm.closest('form') || modalForm;
+            
+            // Find and click the Preview button - check multiple selectors to handle translations and different button types.
+            const previewButton = form.querySelector('button[value*="Preview"], input[type="button"][value*="Preview"], button[id*="preview"], input[type="button"][id*="preview"], button[id*="edit-preview"], input[type="button"][id*="edit-preview"]') ||
+                                 Array.from(form.querySelectorAll('button, input[type="button"]')).find(function(btn) {
+                                   const value = (btn.value || '').toLowerCase();
+                                   const id = (btn.id || '').toLowerCase();
+                                   return value.includes('preview') || id.includes('preview');
+                                 });
+            
+            if (previewButton) {
+              previewButton.click();
+            }
+            return;
           }
         }, true); // Use capture phase to catch the event early.
       }
